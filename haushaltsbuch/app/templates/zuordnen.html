@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Zuordnen – Haushaltsbuch{% endblock %}
+{% block content %}
+
+<h2>Offene Buchungen ({{ offene | length }})</h2>
+<p class="topf-meta">Buchungen, die keinem Topf automatisch zugeordnet werden konnten. Ein Tap genügt.</p>
+
+<div class="card" style="padding:0;">
+  {% for b in offene %}
+    <div class="zeile">
+      <div class="zeile-kopf">
+        <span>{{ b.datum | datum_de }}</span>
+        <span class="betrag {{ 'positiv' if b.betrag >= 0 else 'negativ' }}">{{ b.betrag | eur }}</span>
+      </div>
+      <div class="zeile-sub">{{ b.verwendungszweck or b.beschreibung or b.typ }}{% if b.empfaenger_name %} · {{ b.empfaenger_name }}{% endif %}</div>
+      <form method="post" action="{{ base }}/zuordnen/{{ b.id }}" class="topf-buttons">
+        {% for t in toepfe %}
+          <button class="btn small secondary" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
+        {% endfor %}
+      </form>
+      <div></div>
+    </div>
+  {% else %}
+    <div class="zeile">Alles zugeordnet – keine offenen Buchungen.</div>
+  {% endfor %}
+</div>
+
+{% endblock %}

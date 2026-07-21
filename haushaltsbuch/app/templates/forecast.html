@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Forecast – Haushaltsbuch{% endblock %}
+{% block content %}
+
+<h2>Forecast</h2>
+
+<div class="tabs">
+  {% for t in toepfe %}
+    <a href="{{ base }}/forecast?topf={{ t.id }}" class="{{ 'active' if gewaehlter_topf_id == t.id else '' }}">{{ t.name }}</a>
+  {% endfor %}
+</div>
+
+{% if daten %}
+{% set topf = daten.topf %}
+{% set prognose = daten.prognose %}
+
+<div class="card">
+  <h3 style="margin-top:0;">{{ topf.name }}</h3>
+  <p class="topf-saldo">{{ prognose.aktueller_saldo | eur }}</p>
+
+  {% if daten.ziel %}
+    <div class="topf-meta">Jahresziel: {{ daten.ziel.jahresziel | eur }} ({{ (daten.ziel.anteil * 100) | round(1) }} %)</div>
+    <div class="progress-bar"><div style="width: {{ (daten.ziel.anteil * 100) | round(1) }}%"></div></div>
+    {% if daten.ziel.sondertilgung_datum %}
+      <div class="topf-meta">Sondertilgung: {{ daten.ziel.sondertilgung_datum | datum_de }}</div>
+    {% endif %}
+
+    <details style="margin-top:.6rem;">
+      <summary class="topf-meta">Ziel &amp; Sondertilgung bearbeiten</summary>
+      <form method="post" action="{{ base }}/topf/{{ topf.id }}/einstellungen" class="form-grid" style="margin-top:.6rem;">
+        <label>Jahresziel (€)
+          <input type="text" inputmode="decimal" name="jahresziel" value="{{ topf.jahresziel or '' }}">
+        </label>
+        <label>Sondertilgung (Datum)
+          <input type="date" name="sondertilgung_datum" value="{{ topf.sondertilgung_datum.isoformat() if topf.sondertilgung_datum else '' }}">
+        </label>
+        <button class="btn secondary" type="submit">Speichern</button>
+      </form>
+    </details>
+  {% else %}
+    <div class="topf-meta">12-Monats-Tiefpunkt: {{ prognose.tiefpunkt | eur }}
+      {% if prognose.tiefpunkt_monat %}({{ prognose.tiefpunkt_monat | monat_de }}){% endif %}</div>
+    {% if prognose.minus_warnung %}
+      <span class="badge warn">Achtung: rutscht laut Prognose ins Minus</span>
+    {% else %}
+      <span class="badge ok">bleibt laut Prognose im Plus</span>
+    {% endif %}
+  {% endif %}
+
+  {{ daten.chart_svg | safe }}
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Zeitachse</h3>
+
+  {% for e in daten.zeitachse.zukunft %}
+    <div class="zeile gestrichelt">
+      <div class="zeile-kopf">
+        <span>{{ e.datum | datum_de }}</span>
+        <span class="betrag {{ 'positiv' if e.betrag >= 0 else 'negativ' }}">{{ e.betrag | eur }}</span>
+      </div>
+      <div class="zeile-sub">{{ e.bezeichnung }} <span class="badge">geplant</span></div>
+      <div class="zeile-sub">
+        <form method="post" action="{{ base }}/forecast/vorkommen/{{ e.objekt.id }}/verschieben" class="inline">
+          <button class="btn small secondary" type="submit">+1 Monat</button>
+        </form>
+        {% if e.betrag < 0 and topf.id != daten.sonderausgaben_topf_id %}
+        <form method="post" action="{{ base }}/forecast/vorkommen/{{ e.objekt.id }}/sonderausgaben" class="inline">
+          <button class="btn small secondary" type="submit">auf Sonderausgaben buchen</button>
+        </form>
+        {% endif %}
+      </div>
+      <div></div>
+    </div>
+  {% endfor %}
+
+  <div class="zeile" style="font-weight:600; justify-content:center; text-align:center;">
+    &#9679; aktueller Monat: {{ daten.zeitachse.anker_monat | monat_de }}
+  </div>
+
+  {% for e in daten.zeitachse.vergangenheit %}
+    <div class="zeile">
+      <div class="zeile-kopf">
+        <span>{{ e.datum | datum_de }}</span>
+        <span class="betrag {{ 'positiv' if e.betrag >= 0 else 'negativ' }}">{{ e.betrag | eur }}</span>
+      </div>
+      <div class="zeile-sub">{{ e.bezeichnung }}</div>
+      <div class="zeile-sub">{{ 'Topf-Umbuchung' if e.art == 'topf_umbuchung' else '' }}</div>
+      <div></div>
+    </div>
+  {% else %}
+    {% if not daten.zeitachse.zukunft %}<div class="zeile">Noch keine Buchungen in diesem Topf.</div>{% endif %}
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Forecast-Regeln</h3>
+  {% for r in daten.regeln %}
+    <div class="zeile-sub" style="padding:.3rem 0;">{{ r.bezeichnung }} · {{ r.betrag | eur }} · {{ r.rhythmus }} · Tag {{ r.anker_tag }}{% if r.end_datum %} bis {{ r.end_datum | datum_de }}{% endif %}</div>
+  {% else %}
+    <div class="zeile-sub">Keine Regeln für diesen Topf.</div>
+  {% endfor %}
+
+  <details style="margin-top:.8rem;">
+    <summary class="topf-meta">Neue Regel anlegen</summary>
+    <form method="post" action="{{ base }}/forecast/regel/neu" class="form-grid" style="margin-top:.6rem;">
+      <input type="hidden" name="topf_id" value="{{ topf.id }}">
+      <label>Bezeichnung <input type="text" name="bezeichnung" required></label>
+      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="betrag" required></label>
+      <label>Rhythmus
+        <select name="rhythmus">
+          <option value="monatlich">monatlich</option>
+          <option value="jaehrlich">jährlich</option>
+          <option value="befristet">befristet (monatlich, mit Enddatum)</option>
+        </select>
+      </label>
+      <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" required></label>
+      <label>Start <input type="date" name="start_datum" required></label>
+      <label>Ende (optional) <input type="date" name="end_datum"></label>
+      <button class="btn secondary" type="submit">Regel anlegen</button>
+    </form>
+  </details>
+
+  <details style="margin-top:.6rem;">
+    <summary class="topf-meta">Einmalige geplante Buchung anlegen</summary>
+    <form method="post" action="{{ base }}/forecast/vorkommen/neu" class="form-grid" style="margin-top:.6rem;">
+      <input type="hidden" name="topf_id" value="{{ topf.id }}">
+      <label>Bezeichnung <input type="text" name="bezeichnung" required placeholder="z.B. Öltank-Füllung"></label>
+      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="erwarteter_betrag" required></label>
+      <label>Erwartetes Datum <input type="date" name="erwartetes_datum" required></label>
+      <button class="btn secondary" type="submit">Anlegen</button>
+    </form>
+  </details>
+</div>
+{% endif %}
+
+{% endblock %}

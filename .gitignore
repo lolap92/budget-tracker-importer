@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Private runtime data - never commit
+seed-data.json
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+/data/
+haushaltsbuch/app/data/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# HA add-on local build artifacts
+*.tar

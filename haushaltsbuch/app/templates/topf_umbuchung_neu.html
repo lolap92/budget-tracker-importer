@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Topf-Umbuchung – Haushaltsbuch{% endblock %}
+{% block content %}
+
+<p><a href="{{ base }}/">&larr; zurück zur Übersicht</a></p>
+<h2>Topf-Umbuchung anlegen</h2>
+<p class="topf-meta">Sofort wirksame, virtuelle Verschiebung eines Betrags zwischen zwei Töpfen – ohne reale Bankbuchung. Erscheint sofort in der Zeitachse beider Töpfe.</p>
+
+{% if fehler %}<div class="fehler">{{ fehler }}</div>{% endif %}
+
+<form method="post" action="{{ base }}/topf-umbuchung/neu" class="form-grid card">
+  <label>
+    Von Topf
+    <select name="von_topf_id" required>
+      {% for t in toepfe %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Nach Topf
+    <select name="nach_topf_id" required>
+      {% for t in toepfe %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Betrag (€)
+    <input type="text" inputmode="decimal" name="betrag" placeholder="z.B. 150,00" required>
+  </label>
+  <label>
+    Datum
+    <input type="date" name="datum" value="{{ heute }}" required>
+  </label>
+  <label>
+    Kommentar (optional)
+    <input type="text" name="kommentar" placeholder="z.B. Ausgleich Elternzeit">
+  </label>
+  <button class="btn" type="submit">Umbuchung anlegen</button>
+</form>
+
+{% endblock %}

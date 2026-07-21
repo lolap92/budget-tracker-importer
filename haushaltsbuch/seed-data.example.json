@@ -1,0 +1,39 @@
+{
+  "konfiguration": {
+    "start_datum": "2025-10-01",
+    "import_verzeichnis": "/homeassistant/budget_tracker/imports"
+  },
+  "toepfe": [
+    { "name": "Haus Kredit", "startsaldo": 0, "jahresziel": 50000, "sondertilgung_datum": "2025-12-25", "reihenfolge": 0 },
+    { "name": "Haus Renovierung", "startsaldo": 0, "reihenfolge": 1 },
+    { "name": "Urlaub", "startsaldo": 0, "reihenfolge": 2 },
+    { "name": "Sonderausgaben", "startsaldo": 0, "reihenfolge": 3 }
+  ],
+  "regeln": [
+    {
+      "topf": "Urlaub",
+      "bezeichnung": "Hessengeld",
+      "betrag": 500,
+      "rhythmus": "monatlich",
+      "anker_tag": 28,
+      "start_datum": "2025-10-01"
+    },
+    {
+      "topf": "Haus Kredit",
+      "bezeichnung": "Sondertilgung Haus Kredit",
+      "betrag": -5000,
+      "rhythmus": "jaehrlich",
+      "anker_tag": 25,
+      "start_datum": "2025-12-25"
+    },
+    {
+      "topf": "Sonderausgaben",
+      "bezeichnung": "Mäusebande/Uni",
+      "betrag": -150,
+      "rhythmus": "befristet",
+      "anker_tag": 1,
+      "start_datum": "2026-02-01",
+      "end_datum": "2026-07-01"
+    }
+  ]
+}

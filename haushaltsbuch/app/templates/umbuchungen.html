@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Umbuchungen – Haushaltsbuch{% endblock %}
+{% block content %}
+
+<h2>Offene Umbuchungen ({{ offene | length }})</h2>
+<p class="topf-meta">Reale Kontobewegungen, die als Umbuchung markiert wurden und auf eine Gegenbuchung warten. Der Abgleich ist nur innerhalb desselben Topfs möglich.</p>
+
+<div class="card" style="padding:0;">
+  {% for b in offene %}
+    <div class="zeile">
+      <div class="zeile-kopf">
+        <span>{{ b.datum | datum_de }} · {{ b.umbuchung_richtung }}</span>
+        <span class="betrag {{ 'positiv' if b.betrag >= 0 else 'negativ' }}">{{ b.betrag | eur }}</span>
+      </div>
+      <div class="zeile-sub">{{ b.verwendungszweck or b.beschreibung or b.typ }}</div>
+      <div class="zeile-sub"><a href="{{ base }}/buchungen/{{ b.id }}">Details &amp; Abgleich &rarr;</a></div>
+      <div>
+        {% if vorschlaege.get(b.id) %}
+          <span class="badge ok">{{ vorschlaege[b.id] | length }} Vorschlag/Vorschläge</span>
+        {% else %}
+          <span class="badge">kein Vorschlag</span>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="zeile">Keine offenen Umbuchungen.</div>
+  {% endfor %}
+</div>
+
+{% endblock %}

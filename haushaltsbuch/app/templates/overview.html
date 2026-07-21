@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Übersicht – Haushaltsbuch{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="topf-meta">Kontostand (Trade Republic Cashkonto)</div>
+  <p class="kontostand">{{ kontostand | eur }}</p>
+</div>
+
+<div class="toolbar">
+  <a class="btn" href="{{ base }}/topf-umbuchung/neu">+ Topf-Umbuchung anlegen</a>
+</div>
+
+<div class="grid-toepfe">
+  {% for k in karten %}
+  <div class="topf-karte {{ 'warnung' if k.minus_warnung else '' }}">
+    <h3>{{ k.topf.name }}</h3>
+    <p class="topf-saldo">{{ k.saldo | eur }}</p>
+
+    {% if k.ziel %}
+      <div class="topf-meta">Ziel: {{ k.ziel.jahresziel | eur }}</div>
+      <div class="progress-bar"><div style="width: {{ (k.ziel.anteil * 100) | round(1) }}%"></div></div>
+      {% if k.ziel.sondertilgung_datum %}
+        <div class="topf-meta">Sondertilgung: {{ k.ziel.sondertilgung_datum | datum_de }}</div>
+      {% endif %}
+    {% else %}
+      <div class="topf-meta">12-Monats-Tiefpunkt: {{ k.tiefpunkt | eur }}
+        {% if k.tiefpunkt_monat %}({{ k.tiefpunkt_monat | monat_de }}){% endif %}</div>
+      {% if k.minus_warnung %}
+        <span class="badge warn">rutscht ins Minus</span>
+      {% else %}
+        <span class="badge ok">im Plan</span>
+      {% endif %}
+    {% endif %}
+
+    <p style="margin-top:.6rem;"><a href="{{ base }}/forecast?topf={{ k.topf.id }}">Forecast &amp; Zeitachse &rarr;</a></p>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}
+{% block footer %}
+  {% if watcher_status.verzeichnis %}
+    Import-Verzeichnis: {{ watcher_status.verzeichnis }}
+    {% if watcher_status.zeitpunkt %} · letzter Scan: {{ watcher_status.zeitpunkt }} UTC{% endif %}
+  {% endif %}
+{% endblock %}
