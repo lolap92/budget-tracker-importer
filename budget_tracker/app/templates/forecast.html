@@ -93,7 +93,8 @@
     <div class="b-foot">
       <span class="chip {{ topf.name | topfklasse }}">{{ topf.name }}</span>
       <span class="b-ref">
-        {%- if e.objekt.zuordnung_quelle == 'zins' %}automatisch · Zins
+        {%- if e.objekt | ist_manuell %}manuell erfasst
+        {%- elif e.objekt.zuordnung_quelle == 'zins' %}automatisch · Zins
         {%- elif e.objekt.zuordnung_quelle == 'regel' %}Forecast verknüpft
         {%- elif e.objekt.zuordnung_quelle == 'verwendungszweck' %}Verwendungszweck-Treffer
         {%- elif e.objekt.zuordnung_quelle == 'manuell' %}manuell zugeordnet

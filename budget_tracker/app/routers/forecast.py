@@ -1,5 +1,5 @@
 import datetime as dt
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from app.config import SONDERAUSGABEN_TOPF
 from app.database import get_db
 from app.forecast_engine import (
     ensure_forecast_vorkommen,
+    erstelle_manuelles_vorkommen,
     vorkommen_auf_sonderausgaben_buchen,
     vorkommen_verschieben,
 )
@@ -62,39 +63,61 @@ def uebersicht(request: Request, topf: int | None = None, db: Session = Depends(
     )
 
 
+@router.get("/regeln/neu")
+def regel_formular(request: Request, db: Session = Depends(get_db)):
+    toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
+    return templates.TemplateResponse(
+        "regel_neu.html", ctx(request, toepfe=toepfe, heute=dt.date.today().isoformat())
+    )
+
+
 @router.post("/forecast/regel/neu")
 async def regel_anlegen(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-    topf_id = int(form["topf_id"])
-    regel = ForecastRegel(
-        topf_id=topf_id,
-        bezeichnung=form["bezeichnung"],
-        betrag=Decimal((form.get("betrag") or "0").replace(",", ".")),
-        rhythmus=form["rhythmus"],
-        anker_tag=int(form["anker_tag"]),
-        start_datum=dt.date.fromisoformat(form["start_datum"]),
-        end_datum=dt.date.fromisoformat(form["end_datum"]) if form.get("end_datum") else None,
-    )
-    db.add(regel)
-    db.flush()
-    ensure_forecast_vorkommen(db)
-    db.commit()
-    return redirect(request, f"/forecast?topf={topf_id}")
+    toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
+    fehler = None
+    topf_id = None
+    try:
+        topf_id = int(form["topf_id"])
+        regel = ForecastRegel(
+            topf_id=topf_id,
+            bezeichnung=form["bezeichnung"],
+            betrag=Decimal((form.get("betrag") or "0").replace(",", ".")),
+            rhythmus=form["rhythmus"],
+            anker_tag=int(form["anker_tag"]),
+            start_datum=dt.date.fromisoformat(form["start_datum"]),
+            end_datum=dt.date.fromisoformat(form["end_datum"]) if form.get("end_datum") else None,
+        )
+        db.add(regel)
+        db.flush()
+        ensure_forecast_vorkommen(db)
+        db.commit()
+    except (ValueError, KeyError, InvalidOperation) as exc:
+        db.rollback()
+        fehler = str(exc)
+
+    if fehler:
+        return templates.TemplateResponse(
+            "regel_neu.html",
+            ctx(request, toepfe=toepfe, heute=dt.date.today().isoformat(), fehler=fehler),
+            status_code=400,
+        )
+
+    zurueck = form.get("zurueck") or f"/forecast?topf={topf_id}"
+    return redirect(request, zurueck)
 
 
 @router.post("/forecast/vorkommen/neu")
 async def vorkommen_anlegen(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     topf_id = int(form["topf_id"])
-    vorkommen = ForecastVorkommen(
-        regel_id=None,
-        topf_id=topf_id,
-        bezeichnung=form["bezeichnung"],
-        erwarteter_betrag=Decimal((form.get("erwarteter_betrag") or "0").replace(",", ".")),
-        erwartetes_datum=dt.date.fromisoformat(form["erwartetes_datum"]),
+    erstelle_manuelles_vorkommen(
+        db,
+        topf_id,
+        form["bezeichnung"],
+        Decimal((form.get("erwarteter_betrag") or "0").replace(",", ".")),
+        dt.date.fromisoformat(form["erwartetes_datum"]),
     )
-    db.add(vorkommen)
-    db.commit()
     return redirect(request, f"/forecast?topf={topf_id}")
 
 

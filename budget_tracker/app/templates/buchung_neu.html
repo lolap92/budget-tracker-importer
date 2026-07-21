@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Buchung anlegen – Budget-Tracker{% endblock %}
+{% block header_title %}Buchung anlegen{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<a class="back-link" href="{{ base }}/buchungen">{{ icons.back() }}Buchungen</a>
+
+{% if fehler %}<div class="fehler">{{ fehler }}</div>{% endif %}
+
+<form method="post" action="{{ base }}/buchungen/neu" class="form-grid card">
+  <label>
+    Zeitpunkt
+    <select name="art" required>
+      <option value="vergangenheit">Vergangenheit – sofort buchen</option>
+      <option value="zukunft">Zukunft – geplant, wird später mit CSV verknüpft</option>
+    </select>
+  </label>
+  <p class="b-ref" style="font-style:normal;margin-top:-4px;">
+    „Vergangenheit" legt die Buchung sofort real an und zählt direkt in den Topf-Saldo.
+    „Zukunft" legt ein offenes Forecast-Vorkommen an, das automatisch mit der passenden
+    realen CSV-Buchung verknüpft wird, sobald sie importiert wird.
+  </p>
+  <label>
+    Topf
+    <select name="topf_id" required>
+      {% for t in toepfe %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Bezeichnung
+    <input type="text" name="bezeichnung" required placeholder="z.B. Bargeldabhebung">
+  </label>
+  <label>
+    Betrag (€, negativ = Ausgang)
+    <input type="text" inputmode="decimal" name="betrag" required placeholder="z.B. -50,00">
+  </label>
+  <label>
+    Datum
+    <input type="date" name="datum" value="{{ heute }}" required>
+  </label>
+  <button class="btn" type="submit">Anlegen</button>
+</form>
+
+{% endblock %}

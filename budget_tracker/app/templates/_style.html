@@ -171,7 +171,7 @@
   button{font:inherit;}
 
   .form-grid{display:grid;gap:12px;}
-  .form-grid label{display:flex;flex-direction:column;gap:5px;font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;}
+  .form-grid label{display:flex;flex-direction:column;gap:5px;font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;min-width:0;}
   input,select,textarea{
     font-family:var(--font-body);
     font-size:14.5px;
@@ -180,6 +180,8 @@
     border:1px solid var(--line-strong);
     background:var(--surface);
     color:var(--ink);
+    min-width:0;
+    max-width:100%;
   }
   input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px;}
 

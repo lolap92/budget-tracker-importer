@@ -18,6 +18,8 @@ alles andere wird berechnet.
 - 12-Monats-Prognose je Topf mit Tiefpunkt-Berechnung und Minus-Warnung.
 - Haus Kredit als Sonderfall: Ziel-Fortschrittsanzeige statt Tiefpunkt-Logik.
 - Optionaler First-Start-Bootstrap über `seed-data.json`, sonst manuelle Ersteinrichtung in der App.
+- Manuelle Erfassung über „Buchung anlegen“ auf der Buchungen-Seite: vergangene Buchungen sofort real verbuchen (bevor der nächste CSV-Export sie liefert) oder zukünftige planen (legt ein offenes Forecast-Vorkommen an, das automatisch mit der späteren CSV-Buchung verknüpft wird). Manuell erfasste vergangene Buchungen lassen sich bei Bedarf wieder löschen (z. B. bei einer späteren Dopplung durch den echten CSV-Import) – importierte Buchungen nie.
+- „Regel anlegen“ auf der Buchungen-Seite als Kurzweg zur Forecast-Regel-Erstellung, topfübergreifend.
 
 ## Installation
 

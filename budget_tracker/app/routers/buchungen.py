@@ -1,9 +1,14 @@
+import datetime as dt
+from decimal import Decimal, InvalidOperation
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.calculations import offene_umbuchungen, review_liste
 from app.database import get_db
+from app.forecast_engine import erstelle_manuelles_vorkommen
+from app.manual_entry import erstelle_manuelle_buchung, loesche_manuelle_buchung
 from app.models import Buchung, Topf, TopfUmbuchung
 from app.umbuchung import (
     entmarkiere_umbuchung,
@@ -44,6 +49,55 @@ def liste(request: Request, topf: int | None = None, db: Session = Depends(get_d
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
         ),
     )
+
+
+@router.get("/buchungen/neu")
+def neue_buchung_formular(request: Request, db: Session = Depends(get_db)):
+    toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
+    return templates.TemplateResponse(
+        "buchung_neu.html", ctx(request, toepfe=toepfe, heute=dt.date.today().isoformat())
+    )
+
+
+@router.post("/buchungen/neu")
+async def neue_buchung_anlegen(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
+    fehler = None
+    try:
+        art = form.get("art")
+        topf_id = int(form["topf_id"])
+        bezeichnung = form["bezeichnung"]
+        betrag = Decimal((form.get("betrag") or "0").replace(",", "."))
+        datum = dt.date.fromisoformat(form["datum"])
+        if art == "vergangenheit":
+            erstelle_manuelle_buchung(db, topf_id, bezeichnung, betrag, datum)
+        elif art == "zukunft":
+            erstelle_manuelles_vorkommen(db, topf_id, bezeichnung, betrag, datum)
+        else:
+            raise ValueError("Bitte Vergangenheit oder Zukunft auswaehlen.")
+    except (ValueError, KeyError, InvalidOperation) as exc:
+        fehler = str(exc)
+
+    if fehler:
+        return templates.TemplateResponse(
+            "buchung_neu.html",
+            ctx(request, toepfe=toepfe, heute=dt.date.today().isoformat(), fehler=fehler),
+            status_code=400,
+        )
+    return redirect(request, "/buchungen")
+
+
+@router.post("/buchungen/{buchung_id}/loeschen")
+def buchung_loeschen(buchung_id: int, request: Request, db: Session = Depends(get_db)):
+    b = db.get(Buchung, buchung_id)
+    if b is None:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+    try:
+        loesche_manuelle_buchung(db, b)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return redirect(request, "/buchungen")
 
 
 @router.get("/buchungen/{buchung_id}")

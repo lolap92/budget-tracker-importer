@@ -17,6 +17,11 @@
   {% endfor %}
 </div>
 
+<div style="display:flex;gap:10px;flex-wrap:wrap;">
+  <a href="{{ base }}/buchungen/neu" class="cta-btn" style="flex:1;min-width:160px;">{{ icons.plus() }}Buchung anlegen</a>
+  <a href="{{ base }}/regeln/neu" class="cta-btn" style="flex:1;min-width:160px;">{{ icons.plus() }}Regel anlegen</a>
+</div>
+
 <div class="mobile-only">
   {% for e in eintraege %}
     {% set b = e.objekt %}
@@ -37,7 +42,8 @@
         {% else %}
           <span class="chip {{ b.topf.name | topfklasse }}">{{ b.topf.name }}</span>
           <span class="b-ref">
-            {%- if b.zuordnung_quelle == 'zins' %}automatisch · Zins
+            {%- if b | ist_manuell %}manuell erfasst
+            {%- elif b.zuordnung_quelle == 'zins' %}automatisch · Zins
             {%- elif b.zuordnung_quelle == 'verwendungszweck' %}Verwendungszweck-Treffer
             {%- elif b.zuordnung_quelle == 'regel' %}Forecast-Regel
             {%- elif b.zuordnung_quelle == 'manuell' %}manuell zugeordnet

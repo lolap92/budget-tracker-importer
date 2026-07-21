@@ -76,6 +76,21 @@ def vorkommen_verschieben(vorkommen: ForecastVorkommen) -> None:
     vorkommen.erwartetes_datum = add_months(vorkommen.erwartetes_datum, 1)
 
 
+def erstelle_manuelles_vorkommen(db: Session, topf_id: int, bezeichnung: str, betrag, datum: dt.date) -> ForecastVorkommen:
+    """Freie, einmalige geplante Buchung ohne Regel - wird spaeter automatisch
+    mit einer realen CSV-Buchung abgeglichen (Konzept Abschnitt 6)."""
+    vorkommen = ForecastVorkommen(
+        regel_id=None,
+        topf_id=topf_id,
+        bezeichnung=bezeichnung,
+        erwarteter_betrag=betrag,
+        erwartetes_datum=datum,
+    )
+    db.add(vorkommen)
+    db.commit()
+    return vorkommen
+
+
 def vorkommen_auf_sonderausgaben_buchen(db: Session, vorkommen: ForecastVorkommen) -> TopfUmbuchung:
     """Dritte Aufloesungsoption fuer ausgehende Vorkommen: statt auf eine reale
     Buchung zu warten, wird der Betrag per TOPF_UMBUCHUNG nach Sonderausgaben verschoben."""

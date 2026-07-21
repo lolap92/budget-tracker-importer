@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Regel anlegen – Budget-Tracker{% endblock %}
+{% block header_title %}Regel anlegen{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<a class="back-link" href="{{ base }}/buchungen">{{ icons.back() }}Buchungen</a>
+
+{% if fehler %}<div class="fehler">{{ fehler }}</div>{% endif %}
+
+<form method="post" action="{{ base }}/forecast/regel/neu" class="form-grid card">
+  <input type="hidden" name="zurueck" value="/buchungen">
+  <label>
+    Topf
+    <select name="topf_id" required>
+      {% for t in toepfe %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Bezeichnung <input type="text" name="bezeichnung" required placeholder="z.B. Hessengeld"></label>
+  <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="betrag" required></label>
+  <label>Rhythmus
+    <select name="rhythmus">
+      <option value="monatlich">monatlich</option>
+      <option value="jaehrlich">jährlich</option>
+      <option value="befristet">befristet (monatlich, mit Enddatum)</option>
+    </select>
+  </label>
+  <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" required></label>
+  <label>Start <input type="date" name="start_datum" value="{{ heute }}" required></label>
+  <label>Ende (optional) <input type="date" name="end_datum"></label>
+  <button class="btn" type="submit">Regel anlegen</button>
+</form>
+
+{% endblock %}
