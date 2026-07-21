@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Buchung – Budget-Tracker{% endblock %}
+{% block header_title %}Buchung{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<a class="back-link" href="{{ base }}/buchungen">{{ icons.back() }}Buchungen</a>
+
+<div class="card">
+  <div class="card-label">{{ b.datum | datum_de }}</div>
+  <div class="stand-card" style="padding-top:0;">
+    <div class="sc-amt {{ 'sc-status ok' if b.betrag >= 0 else '' }}" style="font-size:26px;">{{ b.betrag | eur }}</div>
+  </div>
+  <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:10px;">{{ b.verwendungszweck or b.beschreibung or b.typ }}</div>
+
+  <div class="meta-row"><span class="k">Typ</span><span class="v">{{ b.typ }}</span></div>
+  <div class="meta-row"><span class="k">Empfänger</span><span class="v">{{ b.empfaenger_name or '–' }}</span></div>
+  <div class="meta-row"><span class="k">IBAN</span><span class="v">{{ b.empfaenger_iban or '–' }}</span></div>
+  <div class="meta-row"><span class="k">Beschreibung</span><span class="v">{{ b.beschreibung or '–' }}</span></div>
+  <div class="meta-row"><span class="k">Transaction-ID</span><span class="v" style="font-family:var(--font-mono);font-size:11.5px;">{{ b.transaction_id }}</span></div>
+  <div class="meta-row"><span class="k">Importiert</span><span class="v">{{ b.importiert_am.strftime('%d.%m.%Y %H:%M') }} UTC</span></div>
+  <div class="meta-row">
+    <span class="k">Topf</span>
+    <span class="v">{% if b.topf %}<span class="chip {{ b.topf.name | topfklasse }}">{{ b.topf.name }}</span>{% else %}(keiner){% endif %}</span>
+  </div>
+</div>
+
+{% if not b.ist_umbuchung %}
+<div class="card">
+  <div class="card-label">Topf zuweisen</div>
+  <form method="post" action="{{ base }}/buchungen/{{ b.id }}/topf" class="assign-row">
+    {% for t in toepfe %}
+      <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
+    {% endfor %}
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-label">Als Umbuchung markieren</div>
+  <p class="b-ref" style="font-style:normal;margin-bottom:10px;">Für reale, noch unklare Kontobewegungen (z.B. Überweisung zwischen eigenen Konten), die auf eine Gegenbuchung warten.</p>
+  <form method="post" action="{{ base }}/buchungen/{{ b.id }}/als-umbuchung">
+    <button class="btn-outline" type="submit" style="flex:none;">Als Umbuchung markieren</button>
+  </form>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-label">Umbuchung <span class="dir-tag {{ 'in' if b.umbuchung_richtung == 'eingehend' else 'out' }}">{{ b.umbuchung_richtung }}</span></div>
+
+  {% if b.gegenbuchung_id %}
+    <p style="font-size:13.5px;">Abgeglichen mit <a class="link-btn" style="display:inline-flex;" href="{{ base }}/buchungen/{{ b.gegenbuchung_id }}">Gegenbuchung #{{ b.gegenbuchung_id }}</a>, zugeordnet zu <strong>{{ b.topf.name if b.topf else '–' }}</strong>.</p>
+  {% elif b.umbuchung_final %}
+    <p style="font-size:13.5px;">Ohne Gegenbuchung endgültig verbucht auf <strong>{{ b.topf.name if b.topf else '–' }}</strong>.</p>
+  {% else %}
+    <p style="font-size:13.5px;color:var(--ink-soft);">Schwebend – noch keinem Topf zugeordnet, fließt nicht in den Saldo ein.</p>
+
+    {% if vorschlaege %}
+      <div class="sec-t" style="margin-top:14px;">Vorgeschlagene Gegenbuchungen</div>
+      {% for v in vorschlaege %}
+        <div class="pair">
+          <div class="p-side"><span class="lbl">{{ v.datum | datum_de }}</span><span class="val">{{ v.betrag | eur }}</span></div>
+          <div class="b-ref" style="margin-bottom:6px;">{{ v.verwendungszweck or v.beschreibung }}</div>
+          <form method="post" action="{{ base }}/umbuchungen/abgleichen" class="assign-row">
+            <input type="hidden" name="buchung_a" value="{{ b.id }}">
+            <input type="hidden" name="buchung_b" value="{{ v.id }}">
+            {% for t in toepfe %}
+              <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
+            {% endfor %}
+          </form>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="sec-t" style="margin-top:14px;">Ohne Gegenbuchung endgültig verbuchen</div>
+    <form method="post" action="{{ base }}/umbuchungen/{{ b.id }}/final" class="assign-row" style="margin-top:10px;">
+      {% for t in toepfe %}
+        <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
+      {% endfor %}
+    </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-label">Markierung zurücksetzen</div>
+  <form method="post" action="{{ base }}/buchungen/{{ b.id }}/umbuchung-entfernen">
+    <button class="btn-outline" type="submit" style="flex:none;">Ist doch keine Umbuchung – automatisch neu zuordnen</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

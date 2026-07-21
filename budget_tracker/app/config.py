@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
-DB_PATH = DATA_DIR / "haushaltsbuch.db"
+DB_PATH = DATA_DIR / "budget_tracker.db"
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
 HA_CONFIG_DIR = Path(os.environ.get("HA_CONFIG_DIR", "/homeassistant"))

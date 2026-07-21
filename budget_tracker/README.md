@@ -1,6 +1,6 @@
-# Haushaltsbuch (Home Assistant Add-on)
+# Budget-Tracker (Home Assistant Add-on)
 
-Privates Haushaltsbuch zur Verwaltung von vier virtuellen Spartöpfen
+Privater Budget-Tracker zur Verwaltung von vier virtuellen Spartöpfen
 (**Haus Kredit, Haus Renovierung, Urlaub, Sonderausgaben**) auf einem
 einzigen realen Konto. Importiert automatisch Trade-Republic-CSV-Exporte,
 ordnet Buchungen den Töpfen zu und berechnet Salden, eine 12-Monats-Prognose
@@ -23,7 +23,7 @@ alles andere wird berechnet.
 
 1. Dieses Repository als Add-on-Repository in Home Assistant eintragen
    (**Einstellungen → Add-ons → Add-on-Store → ⋮ → Repositories**).
-2. Add-on **Haushaltsbuch** installieren und starten.
+2. Add-on **Budget-Tracker** installieren und starten.
 3. „In Seitenleiste anzeigen“ aktivieren – die App öffnet sich per Ingress.
 
 ## Einmalige Einrichtung auf dem Host
@@ -65,7 +65,7 @@ sich danach direkt in der App unter „Forecast“ anlegen.
 ## Architektur
 
 - **Backend:** FastAPI (Python), Server-seitig gerenderte, responsive Oberfläche (mobil-first, PC-tauglich).
-- **Datenbank:** SQLite unter `/data/haushaltsbuch.db`, verwaltet über SQLAlchemy + Alembic.
+- **Datenbank:** SQLite unter `/data/budget_tracker.db`, verwaltet über SQLAlchemy + Alembic.
 - **Einbindung:** Home-Assistant-Ingress.
 - **Zusätzlicher Mount:** `homeassistant_config:ro` für den Lesezugriff auf `/homeassistant/budget_tracker/imports`.
 

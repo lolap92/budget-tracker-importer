@@ -1,8 +1,16 @@
+import datetime as dt
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app import watcher
-from app.calculations import kontostand_gesamt, prognose_topf, ziel_fortschritt_haus_kredit
+from app.calculations import (
+    kontostand_gesamt,
+    offene_umbuchungen,
+    prognose_topf,
+    review_liste,
+    ziel_fortschritt_haus_kredit,
+)
 from app.database import get_db
 from app.models import Topf
 from app.webutils import ctx, templates
@@ -33,5 +41,20 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             kontostand=kontostand_gesamt(db),
             karten=karten,
             watcher_status=watcher.status(),
+            offene_anzahl=len(review_liste(db)),
+            umbuchungen_anzahl=len(offene_umbuchungen(db)),
+            heute=dt.date.today(),
+        ),
+    )
+
+
+@router.get("/mehr")
+def mehr(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        "mehr.html",
+        ctx(
+            request,
+            offene_anzahl=len(review_liste(db)),
+            umbuchungen_anzahl=len(offene_umbuchungen(db)),
         ),
     )

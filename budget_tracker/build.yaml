@@ -2,6 +2,6 @@ build_from:
   aarch64: "ghcr.io/home-assistant/aarch64-base:3.19"
   amd64: "ghcr.io/home-assistant/amd64-base:3.19"
 labels:
-  org.opencontainers.image.title: "Haushaltsbuch"
-  org.opencontainers.image.description: "Privates Haushaltsbuch Add-on mit automatischem CSV-Import und Topf-Prognose"
+  org.opencontainers.image.title: "Budget-Tracker"
+  org.opencontainers.image.description: "Privater Budget-Tracker Add-on mit automatischem CSV-Import und Topf-Prognose"
   org.opencontainers.image.source: "https://github.com/lolap92/budget-tracker-importer"

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Forecast – Budget-Tracker{% endblock %}
+{% block header_title %}Forecast{% endblock %}
+{% block header_action %}<a class="icon-btn accent" href="{{ base }}/forecast?topf={{ gewaehlter_topf_id }}#neu-anlegen" aria-label="Neu anlegen">{{ icons.plus() }}</a>{% endblock %}
+{% block content %}
+
+<div class="topf-filter">
+  {% for t in toepfe %}
+    <a class="tf-btn {{ t.name | topfklasse }} {{ 'on' if gewaehlter_topf_id == t.id else '' }}" href="{{ base }}/forecast?topf={{ t.id }}">{{ t.name }}</a>
+  {% endfor %}
+</div>
+
+{% if daten %}
+{% set topf = daten.topf %}
+{% set prognose = daten.prognose %}
+
+<div class="card">
+  <div class="card-label">{{ topf.name }} · 12 Monate</div>
+  <div class="stand-card" style="padding:0;">
+    <div class="sc-top">
+      <div class="sc-amt">{{ prognose.aktueller_saldo | eur }}</div>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);">heute</div>
+    </div>
+
+    {% if not daten.ziel %}
+      {{ daten.chart_svg | safe }}
+      {% if prognose.minus_warnung %}
+        <div class="sc-status bad">{{ icons.warn_triangle() }}Tiefpunkt {{ prognose.tiefpunkt | eur }}{% if prognose.tiefpunkt_monat %} · voraussichtlich {{ prognose.tiefpunkt_monat | monat_de }}{% endif %} · rutscht ins Minus</div>
+      {% else %}
+        <div class="sc-status ok">{{ icons.check() }}Tiefpunkt {{ prognose.tiefpunkt | eur }}{% if prognose.tiefpunkt_monat %} · {{ prognose.tiefpunkt_monat | monat_de }}{% endif %} · bleibt im Plus</div>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  {% if daten.ziel %}
+    <div class="goal" style="font-size:12px;margin-top:10px;">Ziel {{ daten.ziel.jahresziel | eur }} ({{ (daten.ziel.anteil * 100) | round(1) }} %){% if daten.ziel.sondertilgung_datum %} · Reset {{ daten.ziel.sondertilgung_datum | datum_kurz }}{% endif %}</div>
+    <div class="progress-bar"><div style="width: {{ (daten.ziel.anteil * 100) | round(1) }}%"></div></div>
+
+    <details style="margin-top:10px;">
+      <summary>Ziel &amp; Reset bearbeiten</summary>
+      <form method="post" action="{{ base }}/topf/{{ topf.id }}/einstellungen" class="form-grid">
+        <label>Jahresziel (€)
+          <input type="text" inputmode="decimal" name="jahresziel" value="{{ topf.jahresziel or '' }}">
+        </label>
+        <label>Sondertilgung (Datum)
+          <input type="date" name="sondertilgung_datum" value="{{ topf.sondertilgung_datum.isoformat() if topf.sondertilgung_datum else '' }}">
+        </label>
+        <button class="btn secondary" type="submit">Speichern</button>
+      </form>
+    </details>
+  {% endif %}
+</div>
+
+<div class="sec-t">Buchungen · {{ topf.name }}</div>
+
+{% for e in daten.zeitachse.zukunft %}
+  <div class="forecast-item future">
+    <div class="f-top">
+      <div>
+        <div class="f-name">{{ e.bezeichnung }}</div>
+        <div class="f-date">erwartet {{ e.datum | monat_de }}</div>
+      </div>
+      <div class="f-amt">{{ e.betrag | eur }}</div>
+    </div>
+    <div class="f-foot">
+      <span class="chip {{ topf.name | topfklasse }}">noch nicht gebucht</span>
+      <div class="f-actions" style="margin-top:0;">
+        <form method="post" action="{{ base }}/forecast/vorkommen/{{ e.objekt.id }}/verschieben" class="inline">
+          <button class="push-btn" type="submit">{{ icons.forward() }}verschieben</button>
+        </form>
+        {% if e.betrag < 0 and topf.id != daten.sonderausgaben_topf_id %}
+        <form method="post" action="{{ base }}/forecast/vorkommen/{{ e.objekt.id }}/sonderausgaben" class="inline">
+          <button class="credit-btn" type="submit">{{ icons.swap() }}auf Sonderausgaben buchen</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+<div class="month-divider now">
+  <span class="md-line"></span><span class="md-label">Aktueller Monat · {{ daten.zeitachse.anker_monat | monat_de }}</span><span class="md-line"></span>
+</div>
+
+{% for e in daten.zeitachse.vergangenheit %}
+  {% if e.art == 'buchung' %}
+  <div class="buchung past">
+    <div class="b-top">
+      <div><div class="b-desc">{{ e.bezeichnung }}</div><div class="b-sub">{{ e.datum | datum_de }}</div></div>
+      <div class="b-amt {{ 'pos' if e.betrag >= 0 else 'neg' }}">{{ e.betrag | eur }}</div>
+    </div>
+    <div class="b-foot">
+      <span class="chip {{ topf.name | topfklasse }}">{{ topf.name }}</span>
+      <span class="b-ref">
+        {%- if e.objekt.zuordnung_quelle == 'zins' %}automatisch · Zins
+        {%- elif e.objekt.zuordnung_quelle == 'regel' %}Forecast verknüpft
+        {%- elif e.objekt.zuordnung_quelle == 'verwendungszweck' %}Verwendungszweck-Treffer
+        {%- elif e.objekt.zuordnung_quelle == 'manuell' %}manuell zugeordnet
+        {%- endif %}
+      </span>
+    </div>
+  </div>
+  {% else %}
+  <div class="buchung past">
+    <div class="b-top">
+      <div><div class="b-desc">Topf-Umbuchung</div><div class="b-sub">{{ e.datum | datum_de }}</div></div>
+      <div class="b-amt {{ 'pos' if e.betrag >= 0 else 'neg' }}">{{ e.betrag | eur }}</div>
+    </div>
+    <div class="b-foot"><span class="b-ref">{{ e.bezeichnung }}</span></div>
+  </div>
+  {% endif %}
+{% else %}
+  {% if not daten.zeitachse.zukunft %}<p class="empty-state">Noch keine Buchungen in diesem Topf.</p>{% endif %}
+{% endfor %}
+
+<div id="neu-anlegen" class="card">
+  <div class="card-label">Forecast-Regeln</div>
+  {% for r in daten.regeln %}
+    <div class="b-ref" style="font-style:normal;padding:5px 0;">{{ r.bezeichnung }} · {{ r.betrag | eur }} · {{ r.rhythmus }} · Tag {{ r.anker_tag }}{% if r.end_datum %} bis {{ r.end_datum | datum_de }}{% endif %}</div>
+  {% else %}
+    <p class="empty-state">Keine Regeln für diesen Topf.</p>
+  {% endfor %}
+
+  <details style="margin-top:12px;">
+    <summary>Neue Regel anlegen</summary>
+    <form method="post" action="{{ base }}/forecast/regel/neu" class="form-grid">
+      <input type="hidden" name="topf_id" value="{{ topf.id }}">
+      <label>Bezeichnung <input type="text" name="bezeichnung" required></label>
+      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="betrag" required></label>
+      <label>Rhythmus
+        <select name="rhythmus">
+          <option value="monatlich">monatlich</option>
+          <option value="jaehrlich">jährlich</option>
+          <option value="befristet">befristet (monatlich, mit Enddatum)</option>
+        </select>
+      </label>
+      <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" required></label>
+      <label>Start <input type="date" name="start_datum" required></label>
+      <label>Ende (optional) <input type="date" name="end_datum"></label>
+      <button class="btn secondary" type="submit">Regel anlegen</button>
+    </form>
+  </details>
+
+  <details style="margin-top:10px;">
+    <summary>Einmalige geplante Buchung anlegen</summary>
+    <form method="post" action="{{ base }}/forecast/vorkommen/neu" class="form-grid">
+      <input type="hidden" name="topf_id" value="{{ topf.id }}">
+      <label>Bezeichnung <input type="text" name="bezeichnung" required placeholder="z.B. Öltank-Füllung"></label>
+      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="erwarteter_betrag" required></label>
+      <label>Erwartetes Datum <input type="date" name="erwartetes_datum" required></label>
+      <button class="btn secondary" type="submit">Anlegen</button>
+    </form>
+  </details>
+</div>
+{% endif %}
+
+{% endblock %}

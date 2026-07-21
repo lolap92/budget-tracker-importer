@@ -1,11 +1,9 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.bootstrap import bootstrap_falls_noetig, ist_bootstrapped
 from app.database import SessionLocal
@@ -21,9 +19,7 @@ from app.routers import (
 from app.watcher import scan_schleife
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-5s %(name)s: %(message)s")
-logger = logging.getLogger("haushaltsbuch")
-
-STATIC_DIR = Path(__file__).parent / "static"
+logger = logging.getLogger("budget_tracker")
 
 
 class IngressPathMiddleware:
@@ -62,15 +58,14 @@ async def lifespan(app: FastAPI):
         _watcher_task.cancel()
 
 
-app = FastAPI(title="Haushaltsbuch", lifespan=lifespan)
+app = FastAPI(title="Budget-Tracker", lifespan=lifespan)
 app.add_middleware(IngressPathMiddleware)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.middleware("http")
 async def bootstrap_gate(request: Request, call_next):
     pfad = request.url.path
-    if pfad.startswith("/static") or pfad.startswith("/bootstrap"):
+    if pfad.startswith("/bootstrap"):
         return await call_next(request)
 
     db = SessionLocal()

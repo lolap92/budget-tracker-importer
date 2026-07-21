@@ -18,7 +18,7 @@ from app.config import DEFAULT_IMPORT_DIR, SEED_FILE, TOPF_NAMEN
 from app.forecast_engine import ensure_forecast_vorkommen
 from app.models import ForecastRegel, Konfiguration, Topf
 
-logger = logging.getLogger("haushaltsbuch.bootstrap")
+logger = logging.getLogger("budget_tracker.bootstrap")
 
 
 def ist_bootstrapped(db: Session) -> bool:

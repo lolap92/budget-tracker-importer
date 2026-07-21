@@ -15,7 +15,7 @@ from app.database import SessionLocal
 from app.forecast_engine import ensure_forecast_vorkommen
 from app.models import Konfiguration
 
-logger = logging.getLogger("haushaltsbuch.watcher")
+logger = logging.getLogger("budget_tracker.watcher")
 
 # Datei -> (mtime, groesse) der zuletzt verarbeiteten Version, nur im
 # Speicher gehalten: ein Neustart fuehrt hoechstens zu einem harmlosen

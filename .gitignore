@@ -15,7 +15,7 @@ seed-data.json
 *.sqlite
 *.sqlite3
 /data/
-haushaltsbuch/app/data/
+budget_tracker/app/data/
 
 # Editors / OS
 .vscode/

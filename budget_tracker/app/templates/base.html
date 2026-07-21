@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Budget-Tracker{% endblock %}</title>
+  {% include "_style.html" %}
+</head>
+<body>
+{% import "_icons.html" as icons %}
+<div class="board">
+  <header class="appbar">
+    <div class="ha-ctx">{{ icons.ha_logo() }} Home Assistant</div>
+    <div class="row">
+      <h2>{% block header_title %}Budget-Tracker{% endblock %}</h2>
+      {% block header_action %}
+      <a class="icon-btn" href="{{ base }}/mehr" aria-label="Mehr">{{ icons.menu() }}</a>
+      {% endblock %}
+    </div>
+  </header>
+
+  <main class="body">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<nav class="tabbar">
+  <a class="tab-wrap" href="{{ base }}/">
+    <div class="tab {{ 'on' if request.url.path == '/' else '' }}">{{ icons.house() }}<span class="lbl">Übersicht</span></div>
+  </a>
+  <a class="tab-wrap" href="{{ base }}/buchungen">
+    <div class="tab {{ 'on' if request.url.path.startswith('/buchungen') else '' }}">{{ icons.list() }}<span class="lbl">Buchungen</span></div>
+  </a>
+  <a class="tab-wrap" href="{{ base }}/forecast">
+    <div class="tab {{ 'on' if request.url.path.startswith('/forecast') else '' }}">{{ icons.clock() }}<span class="lbl">Forecast</span></div>
+  </a>
+</nav>
+</body>
+</html>

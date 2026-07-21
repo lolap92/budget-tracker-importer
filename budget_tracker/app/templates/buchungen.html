@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Buchungen – Budget-Tracker{% endblock %}
+{% block header_title %}Buchungen{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<div class="filters">
+  <span class="fchip on">Alle</span>
+  <a class="fchip {{ 'warn-chip' if offene_anzahl else '' }}" href="{{ base }}/zuordnen">Offen{% if offene_anzahl %} ({{ offene_anzahl }}){% endif %}</a>
+  <a class="fchip" href="{{ base }}/umbuchungen">Umbuchungen{% if umbuchungen_anzahl %} ({{ umbuchungen_anzahl }}){% endif %}</a>
+</div>
+<div class="filters">
+  <a class="fchip {{ 'on' if not gewaehlter_topf else '' }}" href="{{ base }}/buchungen">Alle Töpfe</a>
+  {% for t in toepfe %}
+    <a class="fchip {{ 'on' if gewaehlter_topf == t.id else '' }}" href="{{ base }}/buchungen?topf={{ t.id }}">{{ t.name }}</a>
+  {% endfor %}
+</div>
+
+<div class="mobile-only">
+  {% for e in eintraege %}
+    {% set b = e.objekt %}
+    {% if e.art == 'buchung' %}
+    <a href="{{ base }}/buchungen/{{ b.id }}" class="buchung {{ 'unresolved' if (b.topf_id is none) else '' }}" style="display:block;color:inherit;">
+      <div class="b-top">
+        <div>
+          <div class="b-desc">{{ b.verwendungszweck or b.beschreibung or b.typ }}</div>
+          <div class="b-sub">{{ b.datum | datum_de }}</div>
+        </div>
+        <div class="b-amt {{ 'pos' if b.betrag >= 0 else 'neg' }}">{{ b.betrag | eur }}</div>
+      </div>
+      <div class="b-foot">
+        {% if b.ist_umbuchung and b.topf_id is none %}
+          <span class="chip offen">Umbuchung schwebend</span><span class="b-ref">{{ b.umbuchung_richtung }}</span>
+        {% elif b.topf_id is none %}
+          <span class="chip offen">offen</span><span class="b-ref">nicht zugeordnet</span>
+        {% else %}
+          <span class="chip {{ b.topf.name | topfklasse }}">{{ b.topf.name }}</span>
+          <span class="b-ref">
+            {%- if b.zuordnung_quelle == 'zins' %}automatisch · Zins
+            {%- elif b.zuordnung_quelle == 'verwendungszweck' %}Verwendungszweck-Treffer
+            {%- elif b.zuordnung_quelle == 'regel' %}Forecast-Regel
+            {%- elif b.zuordnung_quelle == 'manuell' %}manuell zugeordnet
+            {%- endif %}
+          </span>
+        {% endif %}
+      </div>
+    </a>
+    {% else %}
+    <div class="buchung">
+      <div class="b-top">
+        <div>
+          <div class="b-desc">Topf-Umbuchung</div>
+          <div class="b-sub">{{ b.datum | datum_de }}{% if b.kommentar %} · {{ b.kommentar }}{% endif %}</div>
+        </div>
+        <div class="b-amt">{{ b.betrag | eur }}</div>
+      </div>
+      <div class="b-foot">
+        <span class="chip {{ b.von_topf.name | topfklasse }}">{{ b.von_topf.name }}</span>
+        {{ icons.swap() }}
+        <span class="chip {{ b.nach_topf.name | topfklasse }}">{{ b.nach_topf.name }}</span>
+      </div>
+    </div>
+    {% endif %}
+  {% else %}
+    <p class="empty-state">Keine Buchungen vorhanden.</p>
+  {% endfor %}
+</div>
+
+<div class="desk-only">
+  <div class="card" style="padding:6px 16px;">
+    <table class="data-table">
+      <thead><tr><th>Datum</th><th>Beschreibung</th><th class="num">Betrag</th><th>Topf</th></tr></thead>
+      <tbody>
+        {% for e in eintraege %}
+          {% set b = e.objekt %}
+          {% if e.art == 'buchung' %}
+          <tr onclick="location.href='{{ base }}/buchungen/{{ b.id }}'" style="cursor:pointer;">
+            <td>{{ b.datum | datum_kurz }}</td>
+            <td class="desc">{{ b.verwendungszweck or b.beschreibung or b.typ }}</td>
+            <td class="num {{ 'pos' if b.betrag >= 0 else '' }}">{{ b.betrag | eur }}</td>
+            <td>
+              {% if b.topf_id is none %}<span class="chip offen">offen</span>
+              {% else %}<span class="chip {{ b.topf.name | topfklasse }}">{{ b.topf.name }}</span>{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td>{{ b.datum | datum_kurz }}</td>
+            <td class="desc">Topf-Umbuchung{% if b.kommentar %} · {{ b.kommentar }}{% endif %}</td>
+            <td class="num">{{ b.betrag | eur }}</td>
+            <td><span class="chip {{ b.von_topf.name | topfklasse }}">{{ b.von_topf.name }}</span> &rarr; <span class="chip {{ b.nach_topf.name | topfklasse }}">{{ b.nach_topf.name }}</span></td>
+          </tr>
+          {% endif %}
+        {% else %}
+          <tr><td colspan="4">Keine Buchungen vorhanden.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

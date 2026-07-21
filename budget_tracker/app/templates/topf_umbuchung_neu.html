@@ -1,10 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Topf-Umbuchung – Haushaltsbuch{% endblock %}
+{% import "_icons.html" as icons %}
+{% block title %}Topf-Umbuchung – Budget-Tracker{% endblock %}
+{% block header_title %}Topf-Umbuchung{% endblock %}
+{% block header_action %}{% endblock %}
 {% block content %}
 
-<p><a href="{{ base }}/">&larr; zurück zur Übersicht</a></p>
-<h2>Topf-Umbuchung anlegen</h2>
-<p class="topf-meta">Sofort wirksame, virtuelle Verschiebung eines Betrags zwischen zwei Töpfen – ohne reale Bankbuchung. Erscheint sofort in der Zeitachse beider Töpfe.</p>
+<a class="back-link" href="{{ base }}/">{{ icons.back() }}Übersicht</a>
+
+<p class="b-ref" style="font-style:normal;">Sofort wirksame, virtuelle Verschiebung eines Betrags zwischen zwei Töpfen – ohne reale Bankbuchung. Erscheint sofort in der Zeitachse beider Töpfe.</p>
 
 {% if fehler %}<div class="fehler">{{ fehler }}</div>{% endif %}
 
@@ -33,7 +36,7 @@
     Kommentar (optional)
     <input type="text" name="kommentar" placeholder="z.B. Ausgleich Elternzeit">
   </label>
-  <button class="btn" type="submit">Umbuchung anlegen</button>
+  <button class="btn" type="submit">{{ icons.swap() }}Umbuchung anlegen</button>
 </form>
 
 {% endblock %}

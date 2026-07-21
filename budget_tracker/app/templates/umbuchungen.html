@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Umbuchungen – Budget-Tracker{% endblock %}
+{% block header_title %}Umbuchungen{% endblock %}
+{% block header_action %}<span class="chip offen">{{ offene | length }} schwebend</span>{% endblock %}
+{% block content %}
+
+{% set ausgehend = offene | selectattr('umbuchung_richtung', 'equalto', 'ausgehend') | list %}
+{% set eingehend = offene | selectattr('umbuchung_richtung', 'equalto', 'eingehend') | list %}
+
+{% for gruppe, titel in [(ausgehend, 'Ausgang zuerst · wartet auf Eingang'), (eingehend, 'Eingang zuerst · wartet auf Ausgang')] %}
+  {% if gruppe %}
+  <div class="sec-t">{{ titel }}</div>
+  {% for b in gruppe %}
+    {% set kandidaten = vorschlaege.get(b.id, []) %}
+    <div class="pair">
+      <div class="p-side">
+        <span class="lbl"><span class="dir-tag {{ 'in' if b.umbuchung_richtung == 'eingehend' else 'out' }}">{{ b.umbuchung_richtung }}</span></span>
+        <span class="val">{{ b.betrag | eur }} · {{ b.datum | datum_kurz }}</span>
+      </div>
+      <div class="b-ref" style="margin:2px 0 6px;">{{ b.verwendungszweck or b.beschreibung or b.typ }}</div>
+
+      {% if kandidaten %}
+        {% for k in kandidaten %}
+          <div class="p-mid">{{ icons.check() }}<span>Passende Gegenbuchung: {{ k.betrag | eur }} · {{ k.datum | datum_kurz }}</span></div>
+          <form method="post" action="{{ base }}/umbuchungen/abgleichen" class="assign-row">
+            <input type="hidden" name="buchung_a" value="{{ b.id }}">
+            <input type="hidden" name="buchung_b" value="{{ k.id }}">
+            {% for t in toepfe %}
+              <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">Abgleichen: {{ t.name }}</button>
+            {% endfor %}
+          </form>
+        {% endfor %}
+      {% else %}
+        <div class="p-mid">{{ icons.warn_triangle() }}<span>Noch keine passende Buchung</span></div>
+      {% endif %}
+
+      <details style="margin-top:10px;">
+        <summary>Endgültig verbuchen (ohne Gegenbuchung)</summary>
+        <form method="post" action="{{ base }}/umbuchungen/{{ b.id }}/final" class="assign-row">
+          {% for t in toepfe %}
+            <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
+          {% endfor %}
+        </form>
+      </details>
+    </div>
+  {% endfor %}
+  {% endif %}
+{% endfor %}
+
+{% if not offene %}
+  <p class="empty-state">Keine offenen Umbuchungen.</p>
+{% endif %}
+
+{% endblock %}

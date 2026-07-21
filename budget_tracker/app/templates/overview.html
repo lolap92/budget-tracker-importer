@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Übersicht – Budget-Tracker{% endblock %}
+{% block header_title %}Budget-Tracker{% endblock %}
+{% block content %}
+
+<div class="card hero">
+  <div class="card-label">Kontostand Cashkonto</div>
+  <div class="total">{{ (kontostand | eur).split(',')[0] }}<span class="cur">,{{ (kontostand | eur).split(',')[1] }}</span></div>
+  <div class="sub">Stand {{ heute | datum_de }}{% if watcher_status.verzeichnis %} · letzter CSV-Import{% endif %}</div>
+</div>
+
+<div class="sec-t">Deine vier Töpfe</div>
+<div class="card" style="padding:4px 16px;">
+  {% for k in karten %}
+  <div class="topf-row {{ 'warn' if k.minus_warnung else '' }}">
+    <div class="who">
+      <span class="tdot {{ k.topf.name | topfklasse }}"></span>
+      <div>
+        <div class="nm"><a href="{{ base }}/forecast?topf={{ k.topf.id }}">{{ k.topf.name }}</a></div>
+        {% if k.ziel %}
+          <div class="goal">Ziel {{ k.ziel.jahresziel | eur }}{% if k.ziel.sondertilgung_datum %} · Reset {{ k.ziel.sondertilgung_datum.strftime('%d.%m.') }}{% endif %}</div>
+        {% elif k.minus_warnung %}
+          <div class="goal" style="color:var(--warn);">rutscht lt. Prognose ins Minus</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="amt">{{ k.saldo | eur }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if offene_anzahl or umbuchungen_anzahl %}
+<div class="sec-t">Zu tun</div>
+<div class="card" style="padding:4px 16px;">
+  {% if offene_anzahl %}
+  <a href="{{ base }}/zuordnen" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot warn"></span><div class="nm">{{ offene_anzahl }} Buchung{{ 'en' if offene_anzahl != 1 else '' }} offen</div></div>
+    <div class="todo-amt" style="color:var(--warn);">zuordnen</div>
+  </a>
+  {% endif %}
+  {% if umbuchungen_anzahl %}
+  <a href="{{ base }}/umbuchungen" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot faint"></span><div class="nm">{{ umbuchungen_anzahl }} Umbuchung{{ 'en' if umbuchungen_anzahl != 1 else '' }} schwebend</div></div>
+    <div class="todo-amt" style="color:var(--ink-soft);">abgleichen</div>
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+<a href="{{ base }}/topf-umbuchung/neu" class="cta-btn">{{ icons.swap() }}Topf-Umbuchung anlegen</a>
+
+{% endblock %}

@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.assignment import topf_zuordnen
 from app.models import Buchung
 
-logger = logging.getLogger("haushaltsbuch.csv_import")
+logger = logging.getLogger("budget_tracker.csv_import")
 
 REQUIRED_COLUMNS = {"transaction_id", "date", "type", "amount"}
 

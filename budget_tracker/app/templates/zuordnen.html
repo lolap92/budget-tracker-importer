@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Zuordnen – Budget-Tracker{% endblock %}
+{% block header_title %}Zuordnen{% endblock %}
+{% block header_action %}<span class="chip offen">{{ offene | length }} offen</span>{% endblock %}
+{% block content %}
+
+{% for b in offene %}
+  <div class="buchung unresolved">
+    <div class="b-top">
+      <div>
+        <div class="b-desc">{{ b.verwendungszweck or b.beschreibung or b.typ }}</div>
+        <div class="b-sub">{{ b.datum | datum_de }}{% if b.empfaenger_name %} · {{ b.empfaenger_name }}{% endif %}</div>
+      </div>
+      <div class="b-amt {{ 'pos' if b.betrag >= 0 else 'neg' }}">{{ b.betrag | eur }}</div>
+    </div>
+    <form method="post" action="{{ base }}/zuordnen/{{ b.id }}" class="assign-row">
+      {% for t in toepfe %}
+        <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
+      {% endfor %}
+    </form>
+    <div class="pair-actions">
+      <form method="post" action="{{ base }}/buchungen/{{ b.id }}/als-umbuchung">
+        <input type="hidden" name="zurueck" value="/zuordnen">
+        <button class="btn-outline" type="submit">als Umbuchung markieren</button>
+      </form>
+    </div>
+  </div>
+{% else %}
+  <p class="empty-state">Alles zugeordnet – keine offenen Buchungen.</p>
+{% endfor %}
+
+{% endblock %}

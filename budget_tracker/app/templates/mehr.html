@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Mehr – Budget-Tracker{% endblock %}
+{% block header_title %}Mehr{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<div class="card" style="padding:4px 16px;">
+  <a href="{{ base }}/zuordnen" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot warn"></span><div class="nm">Zuordnen</div></div>
+    <div class="todo-amt" style="color:var(--ink-soft);">{{ offene_anzahl }} offen</div>
+  </a>
+  <a href="{{ base }}/umbuchungen" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot faint"></span><div class="nm">Umbuchungen</div></div>
+    <div class="todo-amt" style="color:var(--ink-soft);">{{ umbuchungen_anzahl }} schwebend</div>
+  </a>
+  <a href="{{ base }}/topf-umbuchung/neu" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot" style="background:var(--accent);"></span><div class="nm">Topf-Umbuchung anlegen</div></div>
+    <div class="todo-amt">&rarr;</div>
+  </a>
+</div>
+
+{% endblock %}

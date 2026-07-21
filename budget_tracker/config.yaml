@@ -1,7 +1,7 @@
-name: "Haushaltsbuch"
+name: "Budget-Tracker"
 version: "1.0.0"
-slug: "haushaltsbuch"
-description: "Privates Haushaltsbuch mit vier virtuellen Spartoepfen, automatischem CSV-Import und 12-Monats-Prognose"
+slug: "budget_tracker"
+description: "Privater Budget-Tracker mit vier virtuellen Spartoepfen, automatischem CSV-Import und 12-Monats-Prognose"
 url: "https://github.com/lolap92/budget-tracker-importer"
 arch:
   - aarch64
@@ -10,7 +10,7 @@ init: false
 ingress: true
 ingress_port: 8000
 panel_icon: mdi:cash-multiple
-panel_title: Haushaltsbuch
+panel_title: Budget-Tracker
 homeassistant_api: false
 hassio_api: false
 map:

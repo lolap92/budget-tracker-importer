@@ -40,9 +40,31 @@ def monat_de(value) -> str:
     return f"{monate[value.month - 1]} {value.year}"
 
 
+def datum_kurz(value) -> str:
+    if value is None:
+        return "-"
+    return value.strftime("%d.%m.")
+
+
+TOPF_KLASSEN = {
+    "Haus Kredit": "kredit",
+    "Haus Renovierung": "renov",
+    "Urlaub": "urlaub",
+    "Sonderausgaben": "sonder",
+}
+
+
+def topfklasse(name) -> str:
+    if name is None:
+        return "sonder"
+    return TOPF_KLASSEN.get(name, "sonder")
+
+
 templates.env.filters["eur"] = eur
 templates.env.filters["datum_de"] = datum_de
+templates.env.filters["datum_kurz"] = datum_kurz
 templates.env.filters["monat_de"] = monat_de
+templates.env.filters["topfklasse"] = topfklasse
 
 
 def base_path(request: Request) -> str:

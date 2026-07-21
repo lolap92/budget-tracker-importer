@@ -1,16 +1,16 @@
 # budget-tracker-importer
 
-Home-Assistant-Add-on-Repository für **Haushaltsbuch** – eine private
+Home-Assistant-Add-on-Repository für **Budget-Tracker** – eine private
 Web-App zur Verwaltung von vier virtuellen Spartöpfen auf einem Konto.
 
-Das eigentliche Add-on liegt in [`haushaltsbuch/`](./haushaltsbuch); alle
+Das eigentliche Add-on liegt in [`budget_tracker/`](./budget_tracker); alle
 Installations-, Einrichtungs- und Betriebshinweise stehen in
-[`haushaltsbuch/README.md`](./haushaltsbuch/README.md).
+[`budget_tracker/README.md`](./budget_tracker/README.md).
 
 ## Repository als Add-on-Store hinzufügen
 
 **Home Assistant → Einstellungen → Add-ons → Add-on-Store → ⋮ → Repositories**
-und die URL dieses Repositories eintragen. Danach erscheint **Haushaltsbuch**
+und die URL dieses Repositories eintragen. Danach erscheint **Budget-Tracker**
 als installierbares Add-on.
 
 ## Stack

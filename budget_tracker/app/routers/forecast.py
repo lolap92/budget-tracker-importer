@@ -14,7 +14,7 @@ from app.forecast_engine import (
     vorkommen_verschieben,
 )
 from app.models import ForecastRegel, ForecastVorkommen, Topf
-from app.webutils import ctx, redirect, templates
+from app.webutils import ctx, redirect, templates, topfklasse
 
 router = APIRouter()
 
@@ -46,7 +46,7 @@ def uebersicht(request: Request, topf: int | None = None, db: Session = Depends(
             "prognose": prognose,
             "zeitachse": zeitachse,
             "regeln": regeln,
-            "chart_svg": render_prognose_chart(prognose.monatswerte),
+            "chart_svg": render_prognose_chart(prognose.monatswerte, topfklasse(gewaehlter_topf.name)),
             "ziel": ziel_fortschritt_haus_kredit(db, gewaehlter_topf),
             "sonderausgaben_topf_id": _sonderausgaben_id(db),
         }

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.calculations import offene_umbuchungen, review_liste
 from app.database import get_db
 from app.models import Buchung, Topf, TopfUmbuchung
 from app.umbuchung import (
@@ -34,7 +35,14 @@ def liste(request: Request, topf: int | None = None, db: Session = Depends(get_d
 
     return templates.TemplateResponse(
         "buchungen.html",
-        ctx(request, eintraege=eintraege, toepfe=toepfe, gewaehlter_topf=topf),
+        ctx(
+            request,
+            eintraege=eintraege,
+            toepfe=toepfe,
+            gewaehlter_topf=topf,
+            offene_anzahl=len(review_liste(db)),
+            umbuchungen_anzahl=len(offene_umbuchungen(db)),
+        ),
     )
 
 
@@ -66,12 +74,14 @@ async def topf_setzen(buchung_id: int, request: Request, db: Session = Depends(g
 
 
 @router.post("/buchungen/{buchung_id}/als-umbuchung")
-def als_umbuchung_markieren(buchung_id: int, request: Request, db: Session = Depends(get_db)):
+async def als_umbuchung_markieren(buchung_id: int, request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
     b = db.get(Buchung, buchung_id)
     if b is None:
         raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
     markiere_als_umbuchung(db, b)
-    return redirect(request, f"/buchungen/{buchung_id}")
+    ziel = form.get("zurueck") or f"/buchungen/{buchung_id}"
+    return redirect(request, ziel)
 
 
 @router.post("/buchungen/{buchung_id}/umbuchung-entfernen")
