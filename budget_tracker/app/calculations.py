@@ -230,3 +230,18 @@ def vorhandene_buchungstitel(db: Session) -> list[str]:
     regeln = {b for (b,) in db.query(ForecastRegel.bezeichnung).distinct()}
     vorkommen = {b for (b,) in db.query(ForecastVorkommen.bezeichnung).distinct()}
     return sorted(titel | regeln | vorkommen, key=str.lower)
+
+
+def unverknuepfte_buchungen(db: Session) -> list[Buchung]:
+    """Reale Buchungen, die noch mit keinem FORECAST_VORKOMMEN verknuepft sind -
+    Kandidaten fuer die manuelle Verknuepfung eines offenen Vorkommens."""
+    verknuepfte_ids = {
+        v
+        for (v,) in db.query(ForecastVorkommen.verknuepfte_buchung_id).filter(
+            ForecastVorkommen.verknuepfte_buchung_id.isnot(None)
+        )
+    }
+    query = db.query(Buchung).filter(Buchung.ist_umbuchung.is_(False))
+    if verknuepfte_ids:
+        query = query.filter(~Buchung.id.in_(verknuepfte_ids))
+    return query.order_by(Buchung.datum.desc()).all()

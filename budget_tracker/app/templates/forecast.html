@@ -78,6 +78,20 @@
         {% endif %}
       </div>
     </div>
+    {% if daten.kandidaten_buchungen %}
+    <details style="margin-top:10px;">
+      <summary class="link-btn">{{ icons.link() }}mit CSV-Buchung verknüpfen</summary>
+      <form method="post" action="{{ base }}/forecast/vorkommen/{{ e.objekt.id }}/verknuepfen" class="form-grid" style="margin-top:8px;">
+        <select name="buchung_id" required>
+          <option value="" disabled selected>Buchung wählen …</option>
+          {% for x in daten.kandidaten_buchungen %}
+            <option value="{{ x.id }}">{{ x.datum | datum_kurz }} · {{ x.betrag | eur }} · {{ x.titel or x.verwendungszweck or x.beschreibung or x.typ }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn secondary" type="submit">Verknüpfen</button>
+      </form>
+    </details>
+    {% endif %}
   </div>
 {% endfor %}
 

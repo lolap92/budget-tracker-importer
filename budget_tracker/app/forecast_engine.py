@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.config import FORECAST_HORIZON_MONATE, SONDERAUSGABEN_TOPF
 from app.dateutils import add_months, safe_date
-from app.models import ForecastRegel, ForecastVorkommen, Topf, TopfUmbuchung
+from app.models import Buchung, ForecastRegel, ForecastVorkommen, Topf, TopfUmbuchung
 
 
 def _occurrence_dates(regel: ForecastRegel, horizon_end: dt.date) -> list[dt.date]:
@@ -89,6 +89,33 @@ def erstelle_manuelles_vorkommen(db: Session, topf_id: int, bezeichnung: str, be
     db.add(vorkommen)
     db.commit()
     return vorkommen
+
+
+def vorkommen_manuell_verknuepfen(db: Session, vorkommen: ForecastVorkommen, buchung: Buchung) -> None:
+    """Manuelle Verknuepfung mit einer realen CSV-Buchung - fuer Faelle, in denen
+    die automatische Betrags-/Datumstoleranz keinen Treffer gefunden hat.
+    Wirkt wie ein automatischer Treffer: das Vorkommen uebernimmt Betrag/Datum
+    der Buchung, die Buchung uebernimmt Topf und sprechenden Namen des
+    Vorkommens und verschwindet damit aus der gestrichelten Zukunfts-Ansicht."""
+    if vorkommen.verknuepfte_buchung_id is not None or vorkommen.verknuepfte_topf_umbuchung_id is not None:
+        raise ValueError("Vorkommen ist bereits aufgeloest.")
+    if buchung.ist_umbuchung:
+        raise ValueError("Eine Umbuchung kann nicht mit einem Forecast-Vorkommen verknuepft werden.")
+    bereits_verknuepft = (
+        db.query(ForecastVorkommen)
+        .filter(ForecastVorkommen.verknuepfte_buchung_id == buchung.id)
+        .first()
+    )
+    if bereits_verknuepft is not None:
+        raise ValueError("Diese Buchung ist bereits mit einem anderen Vorkommen verknuepft.")
+
+    vorkommen.verknuepfte_buchung_id = buchung.id
+    vorkommen.erwarteter_betrag = buchung.betrag
+    vorkommen.erwartetes_datum = buchung.datum
+
+    buchung.topf_id = vorkommen.topf_id
+    buchung.titel = vorkommen.bezeichnung
+    buchung.zuordnung_quelle = "regel"
 
 
 def vorkommen_auf_sonderausgaben_buchen(db: Session, vorkommen: ForecastVorkommen) -> TopfUmbuchung:

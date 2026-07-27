@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.calculations import (
     prognose_topf,
+    unverknuepfte_buchungen,
     vorhandene_buchungstitel,
     zeitachse_topf,
     ziel_fortschritt_haus_kredit,
@@ -17,9 +18,10 @@ from app.forecast_engine import (
     ensure_forecast_vorkommen,
     erstelle_manuelles_vorkommen,
     vorkommen_auf_sonderausgaben_buchen,
+    vorkommen_manuell_verknuepfen,
     vorkommen_verschieben,
 )
-from app.models import ForecastRegel, ForecastVorkommen, Topf
+from app.models import Buchung, ForecastRegel, ForecastVorkommen, Topf
 from app.webutils import ctx, redirect, templates, topfklasse
 
 router = APIRouter()
@@ -55,6 +57,7 @@ def uebersicht(request: Request, topf: int | None = None, db: Session = Depends(
             "chart_svg": render_prognose_chart(prognose.monatswerte, topfklasse(gewaehlter_topf.name)),
             "ziel": ziel_fortschritt_haus_kredit(db, gewaehlter_topf),
             "sonderausgaben_topf_id": _sonderausgaben_id(db),
+            "kandidaten_buchungen": unverknuepfte_buchungen(db),
         }
 
     return templates.TemplateResponse(
@@ -147,6 +150,25 @@ def verschieben_route(vorkommen_id: int, request: Request, db: Session = Depends
     vorkommen_verschieben(v)
     db.commit()
     return redirect(request, f"/forecast?topf={v.topf_id}")
+
+
+@router.post("/forecast/vorkommen/{vorkommen_id}/verknuepfen")
+async def verknuepfen_route(vorkommen_id: int, request: Request, db: Session = Depends(get_db)):
+    v = db.get(ForecastVorkommen, vorkommen_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vorkommen nicht gefunden")
+    form = await request.form()
+    buchung = db.get(Buchung, int(form["buchung_id"])) if form.get("buchung_id") else None
+    if buchung is None:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+    topf_id = v.topf_id
+    try:
+        vorkommen_manuell_verknuepfen(db, v, buchung)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return redirect(request, f"/forecast?topf={topf_id}")
 
 
 @router.post("/forecast/vorkommen/{vorkommen_id}/sonderausgaben")
