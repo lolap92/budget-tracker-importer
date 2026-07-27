@@ -105,11 +105,15 @@
 </div>
 {% endif %}
 
-{% if b | ist_manuell %}
+{% if b | ist_loeschbar %}
 <div class="card">
-  <div class="card-label">Manuell erfasste Buchung löschen</div>
-  <p class="b-ref" style="font-style:normal;margin-bottom:10px;">Nur sinnvoll, wenn diese Buchung ein Versehen war oder inzwischen dieselbe Bewegung real per CSV importiert wurde – sonst entsteht eine Dopplung im Topf-Saldo.</p>
-  <form method="post" action="{{ base }}/buchungen/{{ b.id }}/loeschen" onsubmit="return confirm('Diese manuell erfasste Buchung wirklich löschen?');">
+  <div class="card-label">Buchung löschen</div>
+  {% if b | ist_manuell %}
+    <p class="b-ref" style="font-style:normal;margin-bottom:10px;">Nur sinnvoll, wenn diese Buchung ein Versehen war oder inzwischen dieselbe Bewegung real per CSV importiert wurde – sonst entsteht eine Dopplung im Topf-Saldo.</p>
+  {% else %}
+    <p class="b-ref" style="font-style:normal;margin-bottom:10px;">Für Karteileichen, die sich keinem Topf sinnvoll zuordnen lassen (z.B. Test-Buchungen). Taucht dieselbe transaction_id in einem späteren CSV-Import erneut auf, wird sie wieder angelegt.</p>
+  {% endif %}
+  <form method="post" action="{{ base }}/buchungen/{{ b.id }}/loeschen" onsubmit="return confirm('Diese Buchung wirklich löschen?');">
     <button class="btn-outline" type="submit" style="flex:none;color:var(--warn);border-color:var(--warn);">Buchung löschen</button>
   </form>
 </div>

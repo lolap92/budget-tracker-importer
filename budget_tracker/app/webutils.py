@@ -9,7 +9,7 @@ from fastapi import Request
 from fastapi.responses import RedirectResponse
 from starlette.templating import Jinja2Templates
 
-from app.manual_entry import ist_manuelle_buchung
+from app.manual_entry import ist_loeschbar, ist_manuelle_buchung
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -68,6 +68,7 @@ templates.env.filters["datum_kurz"] = datum_kurz
 templates.env.filters["monat_de"] = monat_de
 templates.env.filters["topfklasse"] = topfklasse
 templates.env.filters["ist_manuell"] = ist_manuelle_buchung
+templates.env.filters["ist_loeschbar"] = ist_loeschbar
 
 
 def base_path(request: Request) -> str:

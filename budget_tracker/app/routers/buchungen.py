@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.calculations import offene_umbuchungen, review_liste, vorhandene_buchungstitel
 from app.database import get_db
 from app.forecast_engine import erstelle_manuelles_vorkommen
-from app.manual_entry import erstelle_manuelle_buchung, loesche_manuelle_buchung
+from app.manual_entry import erstelle_manuelle_buchung, loesche_buchung
 from app.models import Buchung, Topf, TopfUmbuchung
 from app.umbuchung import (
     entmarkiere_umbuchung,
@@ -101,15 +101,17 @@ async def neue_buchung_anlegen(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/buchungen/{buchung_id}/loeschen")
-def buchung_loeschen(buchung_id: int, request: Request, db: Session = Depends(get_db)):
+async def buchung_loeschen(buchung_id: int, request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
     b = db.get(Buchung, buchung_id)
     if b is None:
         raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
     try:
-        loesche_manuelle_buchung(db, b)
+        loesche_buchung(db, b)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return redirect(request, "/buchungen")
+    ziel = form.get("zurueck") or "/buchungen"
+    return redirect(request, ziel)
 
 
 @router.get("/buchungen/{buchung_id}")

@@ -33,6 +33,10 @@
         <input type="hidden" name="zurueck" value="/zuordnen">
         <button class="btn-outline" type="submit">als Umbuchung markieren</button>
       </form>
+      <form method="post" action="{{ base }}/buchungen/{{ b.id }}/loeschen" onsubmit="return confirm('Diese Buchung wirklich löschen?');">
+        <input type="hidden" name="zurueck" value="/zuordnen">
+        <button class="btn-outline" type="submit" style="color:var(--warn);border-color:var(--warn);">löschen</button>
+      </form>
     </div>
   </div>
 {% else %}
