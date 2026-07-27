@@ -20,7 +20,10 @@ SONDERAUSGABEN_TOPF = "Sonderausgaben"
 HAUS_KREDIT_TOPF = "Haus Kredit"
 
 # Toleranzen fuer automatisches Matching (Startwerte laut Konzept Abschnitt 6/12).
-FORECAST_DATUM_TOLERANZ_TAGE = 3
+# Auf 7 Tage angehoben: wiederkehrende Ueberweisungen rutschen an Monats-
+# grenzen durch Wochenenden/Feiertage oft mehrere Tage in den Folgemonat,
+# was mit den urspruenglichen 3 Tagen regelmaessig nicht mehr traf.
+FORECAST_DATUM_TOLERANZ_TAGE = 7
 FORECAST_BETRAG_TOLERANZ = 0  # exakter Betrag als Startwert
 
 # Toleranz fuer den Abgleich-Vorschlag zwischen zwei Bankumbuchungen.
