@@ -1,5 +1,5 @@
-"""Erzeugung von FORECAST_VORKOMMEN aus FORECAST_REGEL sowie die drei
-Wege, ein offenes Vorkommen aufzuloesen (Konzept Abschnitt 6)."""
+"""Erzeugung von FORECAST_VORKOMMEN aus FORECAST_REGEL sowie die Wege,
+ein offenes Vorkommen aufzuloesen oder zu verwerfen (Konzept Abschnitt 6)."""
 import datetime as dt
 
 from sqlalchemy.orm import Session
@@ -116,6 +116,21 @@ def vorkommen_manuell_verknuepfen(db: Session, vorkommen: ForecastVorkommen, buc
     buchung.topf_id = vorkommen.topf_id
     buchung.titel = vorkommen.bezeichnung
     buchung.zuordnung_quelle = "regel"
+
+
+def vorkommen_loeschen(db: Session, vorkommen: ForecastVorkommen) -> None:
+    """Verwirft ein offenes Vorkommen (z.B. eine nie eingetroffene Erwartung).
+
+    Setzt statt eines echten Deletes nur ignoriert=True: der Datensatz bleibt
+    fuer eine aus einer Regel erzeugte Buchung erhalten, damit die
+    Generierung in ensure_forecast_vorkommen ihn weiter als "bereits
+    vorhanden" fuer diesen Zeitraum erkennt und ihn nicht beim naechsten
+    Scan erneut anlegt. Aus allen Listen (Zeitachse, Prognose, Matching)
+    verschwindet er trotzdem, da die dortigen offene_vorkommen_query()-
+    Abfragen ignorierte Vorkommen ausschliessen."""
+    if vorkommen.verknuepfte_buchung_id is not None or vorkommen.verknuepfte_topf_umbuchung_id is not None:
+        raise ValueError("Nur noch offene Vorkommen koennen geloescht werden.")
+    vorkommen.ignoriert = True
 
 
 def vorkommen_auf_sonderausgaben_buchen(db: Session, vorkommen: ForecastVorkommen) -> TopfUmbuchung:

@@ -76,6 +76,9 @@
           <button class="credit-btn" type="submit">{{ icons.swap() }}auf Sonderausgaben buchen</button>
         </form>
         {% endif %}
+        <form method="post" action="{{ base }}/forecast/vorkommen/{{ e.objekt.id }}/loeschen" class="inline" onsubmit="return confirm('Dieses Forecast-Vorkommen wirklich löschen?');">
+          <button class="push-btn" type="submit" style="color:var(--warn);">{{ icons.trash() }}löschen</button>
+        </form>
       </div>
     </div>
     {% if daten.kandidaten_buchungen %}

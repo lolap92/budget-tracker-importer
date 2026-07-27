@@ -12,6 +12,7 @@ def offene_vorkommen_query(db: Session, topf_id: int | None = None):
     q = db.query(ForecastVorkommen).filter(
         ForecastVorkommen.verknuepfte_buchung_id.is_(None),
         ForecastVorkommen.verknuepfte_topf_umbuchung_id.is_(None),
+        ForecastVorkommen.ignoriert.is_(False),
     )
     if topf_id is not None:
         q = q.filter(ForecastVorkommen.topf_id == topf_id)

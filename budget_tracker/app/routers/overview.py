@@ -1,11 +1,10 @@
-import datetime as dt
-
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app import watcher
 from app.calculations import (
     kontostand_gesamt,
+    neuestes_buchungsdatum,
     offene_umbuchungen,
     prognose_topf,
     review_liste,
@@ -43,7 +42,7 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             watcher_status=watcher.status(),
             offene_anzahl=len(review_liste(db)),
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
-            heute=dt.date.today(),
+            stand_datum=neuestes_buchungsdatum(db),
         ),
     )
 

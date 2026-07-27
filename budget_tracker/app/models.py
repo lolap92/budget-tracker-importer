@@ -134,6 +134,7 @@ class ForecastVorkommen(Base):
     verknuepfte_topf_umbuchung_id: Mapped[int | None] = mapped_column(
         ForeignKey("topf_umbuchung.id"), nullable=True
     )
+    ignoriert: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     regel: Mapped["ForecastRegel | None"] = relationship(
         "ForecastRegel", back_populates="vorkommen"

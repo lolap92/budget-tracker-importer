@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config import FORECAST_HORIZON_MONATE, HAUS_KREDIT_TOPF
 from app.dateutils import add_months, month_end
+from app.matching import offene_vorkommen_query
 from app.models import Buchung, ForecastRegel, ForecastVorkommen, Topf, TopfUmbuchung
 
 
@@ -72,15 +73,7 @@ def prognose_topf(
     heute = heute or dt.date.today()
     aktueller_saldo = saldo_topf(db, topf)
 
-    offene_vorkommen = (
-        db.query(ForecastVorkommen)
-        .filter(
-            ForecastVorkommen.topf_id == topf.id,
-            ForecastVorkommen.verknuepfte_buchung_id.is_(None),
-            ForecastVorkommen.verknuepfte_topf_umbuchung_id.is_(None),
-        )
-        .all()
-    )
+    offene_vorkommen = offene_vorkommen_query(db, topf.id).all()
 
     monatswerte = []
     for i in range(monate):
@@ -179,14 +172,7 @@ def zeitachse_topf(db: Session, topf: Topf) -> dict:
 
     zukunft: list[ZeitachsenEintrag] = []
     offene_vorkommen = (
-        db.query(ForecastVorkommen)
-        .filter(
-            ForecastVorkommen.topf_id == topf.id,
-            ForecastVorkommen.verknuepfte_buchung_id.is_(None),
-            ForecastVorkommen.verknuepfte_topf_umbuchung_id.is_(None),
-        )
-        .order_by(ForecastVorkommen.erwartetes_datum.asc())
-        .all()
+        offene_vorkommen_query(db, topf.id).order_by(ForecastVorkommen.erwartetes_datum.asc()).all()
     )
     for v in offene_vorkommen:
         zukunft.append(
@@ -221,6 +207,14 @@ def offene_umbuchungen(db: Session) -> list[Buchung]:
         .order_by(Buchung.datum.desc())
         .all()
     )
+
+
+def neuestes_buchungsdatum(db: Session) -> dt.date | None:
+    """Datum der zuletzt importierten/erfassten Buchung - fuer den 'Stand'
+    auf der Uebersicht, da dieser zeigen soll, wie aktuell die Datenlage
+    tatsaechlich ist, statt nur des heutigen Kalendertags."""
+    buchung = db.query(Buchung).order_by(Buchung.datum.desc()).first()
+    return buchung.datum if buchung else None
 
 
 def vorhandene_buchungstitel(db: Session) -> list[str]:
