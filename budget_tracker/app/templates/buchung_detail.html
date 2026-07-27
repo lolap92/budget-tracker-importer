@@ -42,7 +42,7 @@
     <input
       type="text" name="titel" list="buchungstitel-vorschlaege" required
       placeholder="Sprechender Titel, z.B. Bargeldabhebung"
-      value="{{ b.titel or '' }}"
+      value="{{ b.titel or b.verwendungszweck or '' }}"
       style="width:100%;"
     >
     <div class="assign-row">
