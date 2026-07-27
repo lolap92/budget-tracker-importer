@@ -8,6 +8,8 @@
 Buchung muss bereits einen Datenbank-Primaerschluessel besitzen (fuer die
 Verknuepfung mit einem FORECAST_VORKOMMEN), also vor dem Aufruf flushen.
 """
+import re
+
 from sqlalchemy.orm import Session
 
 from app.config import SONDERAUSGABEN_TOPF
@@ -17,6 +19,13 @@ from app.models import Buchung, Topf
 
 def _topf_by_name(db: Session, name: str) -> Topf | None:
     return db.query(Topf).filter(Topf.name == name).first()
+
+
+def _normalisiert(text: str) -> str:
+    """Entfernt Leer- und Sonderzeichen, damit z.B. 'Hauskredit' (wie es Banken
+    im Verwendungszweck oft ohne Leerzeichen schreiben) den Topf 'Haus Kredit'
+    trifft."""
+    return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
 def _verknuepfe_offenes_forecast_vorkommen(db: Session, buchung: Buchung) -> None:
@@ -44,12 +53,12 @@ def topf_zuordnen(db: Session, buchung: Buchung) -> None:
             _verknuepfe_offenes_forecast_vorkommen(db, buchung)
             return
 
-    verwendungszweck_text = " ".join(
-        filter(None, [buchung.verwendungszweck, buchung.beschreibung])
-    ).lower()
-    if verwendungszweck_text:
+    verwendungszweck_norm = _normalisiert(
+        " ".join(filter(None, [buchung.verwendungszweck, buchung.beschreibung]))
+    )
+    if verwendungszweck_norm:
         for topf in db.query(Topf).order_by(Topf.reihenfolge).all():
-            if topf.name.lower() in verwendungszweck_text:
+            if _normalisiert(topf.name) in verwendungszweck_norm:
                 buchung.topf_id = topf.id
                 buchung.zuordnung_quelle = "verwendungszweck"
                 _verknuepfe_offenes_forecast_vorkommen(db, buchung)
