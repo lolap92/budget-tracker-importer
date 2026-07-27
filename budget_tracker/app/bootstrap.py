@@ -2,9 +2,10 @@
 
 Beim allerersten Start (noch keine KONFIGURATION vorhanden) wird zuerst
 /homeassistant/budget_tracker/seed-data.json gesucht. Existiert sie,
-werden Konfiguration, Toepfe und Forecast-Regeln daraus uebernommen.
-Andernfalls bleibt die App im Bootstrap-Zustand, bis die Werte ueber die
-First-Start-Seite eingegeben wurden.
+werden Konfiguration, Toepfe, Forecast-Regeln und einmalige geplante
+Buchungen (Schluessel "buchungen") daraus uebernommen. Andernfalls bleibt
+die App im Bootstrap-Zustand, bis die Werte ueber die First-Start-Seite
+eingegeben wurden.
 
 seed-data.json enthaelt private Daten, wird nie veraendert und nie committet.
 """
@@ -16,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.config import DEFAULT_IMPORT_DIR, SEED_FILE, TOPF_NAMEN
 from app.forecast_engine import ensure_forecast_vorkommen
-from app.models import ForecastRegel, Konfiguration, Topf
+from app.models import ForecastRegel, ForecastVorkommen, Konfiguration, Topf
 
 logger = logging.getLogger("budget_tracker.bootstrap")
 
@@ -80,10 +81,29 @@ def bootstrap_aus_seed_datei(db: Session) -> bool:
             )
         )
 
+    for buchung_daten in daten.get("buchungen", []):
+        topf_name = buchung_daten["topf"]
+        if topf_name not in name_zu_id:
+            raise ValueError(f"seed-data.json: Buchung referenziert unbekannten Topf '{topf_name}'.")
+        db.add(
+            ForecastVorkommen(
+                regel_id=None,
+                topf_id=name_zu_id[topf_name],
+                bezeichnung=buchung_daten.get("kommentar") or buchung_daten.get("bezeichnung") or "Geplante Buchung",
+                erwarteter_betrag=buchung_daten["betrag"],
+                erwartetes_datum=dt.date.fromisoformat(buchung_daten["datum"]),
+            )
+        )
+
     db.flush()
     ensure_forecast_vorkommen(db)
     db.commit()
-    logger.info("Bootstrap aus seed-data.json abgeschlossen (%d Toepfe, %d Regeln).", len(name_zu_id), len(daten.get("regeln", [])))
+    logger.info(
+        "Bootstrap aus seed-data.json abgeschlossen (%d Toepfe, %d Regeln, %d geplante Buchungen).",
+        len(name_zu_id),
+        len(daten.get("regeln", [])),
+        len(daten.get("buchungen", [])),
+    )
     return True
 
 

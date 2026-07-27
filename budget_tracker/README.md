@@ -46,7 +46,11 @@ in den Container eingebunden; das Add-on überwacht ihn selbstständig
 Lege eine `seed-data.json` (siehe [`seed-data.example.json`](./seed-data.example.json))
 direkt unter `/homeassistant/budget_tracker/` ab – **nicht** im `imports`-Unterordner.
 Beim allerersten Start liest die App daraus automatisch Startdatum,
-Topf-Startsalden und alle Forecast-Regeln ein.
+Topf-Startsalden, alle Forecast-Regeln (Schlüssel `regeln`) sowie optional
+einmalige geplante Buchungen (Schlüssel `buchungen`, je Eintrag `topf`,
+`datum`, `betrag`, `kommentar`) ein – letztere erscheinen als offene
+Forecast-Vorkommen und werden automatisch mit der passenden realen
+CSV-Buchung verknüpft, sobald sie importiert wird.
 
 Die Datei enthält private Beträge und bleibt ausschließlich auf dem Green:
 Sie wird nie verändert, nie geloggt und nie ins Repository committet

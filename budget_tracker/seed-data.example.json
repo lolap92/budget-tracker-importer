@@ -35,5 +35,13 @@
       "start_datum": "2026-02-01",
       "end_datum": "2026-07-01"
     }
+  ],
+  "buchungen": [
+    {
+      "topf": "Sonderausgaben",
+      "datum": "2026-08-28",
+      "betrag": -2800,
+      "kommentar": "Öltank-Füllung"
+    }
   ]
 }
