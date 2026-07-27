@@ -29,7 +29,7 @@
     <a href="{{ base }}/buchungen/{{ b.id }}" class="buchung {{ 'unresolved' if (b.topf_id is none) else '' }}" style="display:block;color:inherit;">
       <div class="b-top">
         <div>
-          <div class="b-desc">{{ b.verwendungszweck or b.beschreibung or b.typ }}</div>
+          <div class="b-desc">{{ b.titel or b.verwendungszweck or b.beschreibung or b.typ }}</div>
           <div class="b-sub">{{ b.datum | datum_de }}</div>
         </div>
         <div class="b-amt {{ 'pos' if b.betrag >= 0 else 'neg' }}">{{ b.betrag | eur }}</div>
@@ -83,7 +83,7 @@
           {% if e.art == 'buchung' %}
           <tr onclick="location.href='{{ base }}/buchungen/{{ b.id }}'" style="cursor:pointer;">
             <td>{{ b.datum | datum_kurz }}</td>
-            <td class="desc">{{ b.verwendungszweck or b.beschreibung or b.typ }}</td>
+            <td class="desc">{{ b.titel or b.verwendungszweck or b.beschreibung or b.typ }}</td>
             <td class="num {{ 'pos' if b.betrag >= 0 else '' }}">{{ b.betrag | eur }}</td>
             <td>
               {% if b.topf_id is none %}<span class="chip offen">offen</span>

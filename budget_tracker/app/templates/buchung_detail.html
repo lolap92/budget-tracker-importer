@@ -7,13 +7,18 @@
 
 <a class="back-link" href="{{ base }}/buchungen">{{ icons.back() }}Buchungen</a>
 
+{% include "_datalist.html" %}
+
+{% if fehler %}<div class="fehler">{{ fehler }}</div>{% endif %}
+
 <div class="card">
   <div class="card-label">{{ b.datum | datum_de }}</div>
   <div class="stand-card" style="padding-top:0;">
     <div class="sc-amt {{ 'sc-status ok' if b.betrag >= 0 else '' }}" style="font-size:26px;">{{ b.betrag | eur }}</div>
   </div>
-  <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:10px;">{{ b.verwendungszweck or b.beschreibung or b.typ }}</div>
+  <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:10px;">{{ b.titel or b.verwendungszweck or b.beschreibung or b.typ }}</div>
 
+  {% if b.titel %}<div class="meta-row"><span class="k">Titel</span><span class="v">{{ b.titel }}</span></div>{% endif %}
   <div class="meta-row"><span class="k">Typ</span><span class="v">{{ b.typ }}</span></div>
   <div class="meta-row"><span class="k">Empfänger</span><span class="v">{{ b.empfaenger_name or '–' }}</span></div>
   <div class="meta-row"><span class="k">IBAN</span><span class="v">{{ b.empfaenger_iban or '–' }}</span></div>
@@ -33,10 +38,18 @@
 {% if not b.ist_umbuchung %}
 <div class="card">
   <div class="card-label">Topf zuweisen</div>
-  <form method="post" action="{{ base }}/buchungen/{{ b.id }}/topf" class="assign-row">
-    {% for t in toepfe %}
-      <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
-    {% endfor %}
+  <form method="post" action="{{ base }}/buchungen/{{ b.id }}/topf">
+    <input
+      type="text" name="titel" list="buchungstitel-vorschlaege" required
+      placeholder="Sprechender Titel, z.B. Bargeldabhebung"
+      value="{{ b.titel or '' }}"
+      style="width:100%;"
+    >
+    <div class="assign-row">
+      {% for t in toepfe %}
+        <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
+      {% endfor %}
+    </div>
   </form>
 </div>
 
@@ -63,7 +76,7 @@
       {% for v in vorschlaege %}
         <div class="pair">
           <div class="p-side"><span class="lbl">{{ v.datum | datum_de }}</span><span class="val">{{ v.betrag | eur }}</span></div>
-          <div class="b-ref" style="margin-bottom:6px;">{{ v.verwendungszweck or v.beschreibung }}</div>
+          <div class="b-ref" style="margin-bottom:6px;">{{ v.titel or v.verwendungszweck or v.beschreibung }}</div>
           <form method="post" action="{{ base }}/umbuchungen/abgleichen" class="assign-row">
             <input type="hidden" name="buchung_a" value="{{ b.id }}">
             <input type="hidden" name="buchung_b" value="{{ v.id }}">

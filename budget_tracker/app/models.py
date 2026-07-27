@@ -69,6 +69,7 @@ class Buchung(Base):
     datum: Mapped[dt.date] = mapped_column(Date, nullable=False)
     typ: Mapped[str] = mapped_column(String, nullable=False)
     betrag: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    titel: Mapped[str | None] = mapped_column(String, nullable=True)
     verwendungszweck: Mapped[str | None] = mapped_column(String, nullable=True)
     empfaenger_name: Mapped[str | None] = mapped_column(String, nullable=True)
     empfaenger_iban: Mapped[str | None] = mapped_column(String, nullable=True)

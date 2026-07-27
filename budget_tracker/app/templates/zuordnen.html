@@ -4,6 +4,8 @@
 {% block header_action %}<span class="chip offen">{{ offene | length }} offen</span>{% endblock %}
 {% block content %}
 
+{% include "_datalist.html" %}
+
 {% for b in offene %}
   <div class="buchung unresolved">
     <div class="b-top">
@@ -13,10 +15,17 @@
       </div>
       <div class="b-amt {{ 'pos' if b.betrag >= 0 else 'neg' }}">{{ b.betrag | eur }}</div>
     </div>
-    <form method="post" action="{{ base }}/zuordnen/{{ b.id }}" class="assign-row">
-      {% for t in toepfe %}
-        <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
-      {% endfor %}
+    <form method="post" action="{{ base }}/zuordnen/{{ b.id }}">
+      <input
+        type="text" name="titel" list="buchungstitel-vorschlaege" required
+        placeholder="Sprechender Titel, z.B. Bargeldabhebung"
+        style="width:100%;margin-top:11px;"
+      >
+      <div class="assign-row">
+        {% for t in toepfe %}
+          <button class="assign-btn {{ t.name | topfklasse }}" type="submit" name="topf_id" value="{{ t.id }}">{{ t.name }}</button>
+        {% endfor %}
+      </div>
     </form>
     <div class="pair-actions">
       <form method="post" action="{{ base }}/buchungen/{{ b.id }}/als-umbuchung">

@@ -7,6 +7,8 @@
 
 <a class="back-link" href="{{ base }}/buchungen">{{ icons.back() }}Buchungen</a>
 
+{% include "_datalist.html" %}
+
 {% if fehler %}<div class="fehler">{{ fehler }}</div>{% endif %}
 
 <form method="post" action="{{ base }}/buchungen/neu" class="form-grid card">
@@ -30,7 +32,7 @@
   </label>
   <label>
     Bezeichnung
-    <input type="text" name="bezeichnung" required placeholder="z.B. Bargeldabhebung">
+    <input type="text" name="bezeichnung" list="buchungstitel-vorschlaege" required placeholder="z.B. Bargeldabhebung">
   </label>
   <label>
     Betrag (€, negativ = Ausgang)

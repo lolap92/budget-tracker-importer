@@ -11,6 +11,8 @@
   {% endfor %}
 </div>
 
+{% include "_datalist.html" %}
+
 {% if daten %}
 {% set topf = daten.topf %}
 {% set prognose = daten.prognose %}
@@ -127,7 +129,7 @@
     <summary>Neue Regel anlegen</summary>
     <form method="post" action="{{ base }}/forecast/regel/neu" class="form-grid">
       <input type="hidden" name="topf_id" value="{{ topf.id }}">
-      <label>Bezeichnung <input type="text" name="bezeichnung" required></label>
+      <label>Bezeichnung <input type="text" name="bezeichnung" list="buchungstitel-vorschlaege" required></label>
       <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="betrag" required></label>
       <label>Rhythmus
         <select name="rhythmus">
@@ -147,7 +149,7 @@
     <summary>Einmalige geplante Buchung anlegen</summary>
     <form method="post" action="{{ base }}/forecast/vorkommen/neu" class="form-grid">
       <input type="hidden" name="topf_id" value="{{ topf.id }}">
-      <label>Bezeichnung <input type="text" name="bezeichnung" required placeholder="z.B. Öltank-Füllung"></label>
+      <label>Bezeichnung <input type="text" name="bezeichnung" list="buchungstitel-vorschlaege" required placeholder="z.B. Öltank-Füllung"></label>
       <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="erwarteter_betrag" required></label>
       <label>Erwartetes Datum <input type="date" name="erwartetes_datum" required></label>
       <button class="btn secondary" type="submit">Anlegen</button>

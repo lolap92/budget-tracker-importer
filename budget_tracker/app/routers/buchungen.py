@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.calculations import offene_umbuchungen, review_liste
+from app.calculations import offene_umbuchungen, review_liste, vorhandene_buchungstitel
 from app.database import get_db
 from app.forecast_engine import erstelle_manuelles_vorkommen
 from app.manual_entry import erstelle_manuelle_buchung, loesche_manuelle_buchung
@@ -55,7 +55,13 @@ def liste(request: Request, topf: int | None = None, db: Session = Depends(get_d
 def neue_buchung_formular(request: Request, db: Session = Depends(get_db)):
     toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
     return templates.TemplateResponse(
-        "buchung_neu.html", ctx(request, toepfe=toepfe, heute=dt.date.today().isoformat())
+        "buchung_neu.html",
+        ctx(
+            request,
+            toepfe=toepfe,
+            heute=dt.date.today().isoformat(),
+            vorhandene_titel=vorhandene_buchungstitel(db),
+        ),
     )
 
 
@@ -82,7 +88,13 @@ async def neue_buchung_anlegen(request: Request, db: Session = Depends(get_db)):
     if fehler:
         return templates.TemplateResponse(
             "buchung_neu.html",
-            ctx(request, toepfe=toepfe, heute=dt.date.today().isoformat(), fehler=fehler),
+            ctx(
+                request,
+                toepfe=toepfe,
+                heute=dt.date.today().isoformat(),
+                fehler=fehler,
+                vorhandene_titel=vorhandene_buchungstitel(db),
+            ),
             status_code=400,
         )
     return redirect(request, "/buchungen")
@@ -110,7 +122,14 @@ def detail(buchung_id: int, request: Request, db: Session = Depends(get_db)):
     if b.ist_umbuchung and b.topf_id is None:
         vorschlaege = vorschlaege_fuer_abgleich(db, b)
     return templates.TemplateResponse(
-        "buchung_detail.html", ctx(request, b=b, toepfe=toepfe, vorschlaege=vorschlaege)
+        "buchung_detail.html",
+        ctx(
+            request,
+            b=b,
+            toepfe=toepfe,
+            vorschlaege=vorschlaege,
+            vorhandene_titel=vorhandene_buchungstitel(db),
+        ),
     )
 
 
@@ -120,6 +139,27 @@ async def topf_setzen(buchung_id: int, request: Request, db: Session = Depends(g
     b = db.get(Buchung, buchung_id)
     if b is None:
         raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    titel = (form.get("titel") or "").strip()
+    if not titel:
+        toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
+        vorschlaege = []
+        if b.ist_umbuchung and b.topf_id is None:
+            vorschlaege = vorschlaege_fuer_abgleich(db, b)
+        return templates.TemplateResponse(
+            "buchung_detail.html",
+            ctx(
+                request,
+                b=b,
+                toepfe=toepfe,
+                vorschlaege=vorschlaege,
+                vorhandene_titel=vorhandene_buchungstitel(db),
+                fehler="Bitte einen sprechenden Titel vergeben.",
+            ),
+            status_code=400,
+        )
+
+    b.titel = titel
     b.topf_id = int(form["topf_id"])
     b.zuordnung_quelle = "manuell"
     db.commit()

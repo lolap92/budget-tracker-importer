@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config import FORECAST_HORIZON_MONATE, HAUS_KREDIT_TOPF
 from app.dateutils import add_months, month_end
-from app.models import Buchung, ForecastVorkommen, Topf, TopfUmbuchung
+from app.models import Buchung, ForecastRegel, ForecastVorkommen, Topf, TopfUmbuchung
 
 
 def _umbuchung_zaehlt_fuer_saldo(b: Buchung) -> bool:
@@ -137,7 +137,7 @@ def zeitachse_topf(db: Session, topf: Topf) -> dict:
 
     for b in db.query(Buchung).filter(Buchung.topf_id == topf.id).all():
         if _umbuchung_zaehlt_fuer_saldo(b):
-            bezeichnung = b.verwendungszweck or b.beschreibung or b.typ
+            bezeichnung = b.titel or b.verwendungszweck or b.beschreibung or b.typ
             vergangenheit.append(
                 ZeitachsenEintrag(
                     datum=b.datum,
@@ -221,3 +221,12 @@ def offene_umbuchungen(db: Session) -> list[Buchung]:
         .order_by(Buchung.datum.desc())
         .all()
     )
+
+
+def vorhandene_buchungstitel(db: Session) -> list[str]:
+    """Alle bereits verwendeten sprechenden Namen - fuer Vorschlaege bei der
+    manuellen Titelvergabe (Buchungs-Titel, Regel- und Vorkommen-Bezeichnungen)."""
+    titel = {t for (t,) in db.query(Buchung.titel).filter(Buchung.titel.isnot(None)).distinct()}
+    regeln = {b for (b,) in db.query(ForecastRegel.bezeichnung).distinct()}
+    vorkommen = {b for (b,) in db.query(ForecastVorkommen.bezeichnung).distinct()}
+    return sorted(titel | regeln | vorkommen, key=str.lower)

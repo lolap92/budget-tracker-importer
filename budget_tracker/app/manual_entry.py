@@ -32,7 +32,7 @@ def erstelle_manuelle_buchung(
         datum=datum,
         typ="MANUELL",
         betrag=betrag,
-        verwendungszweck=bezeichnung,
+        titel=bezeichnung,
         topf_id=topf_id,
         zuordnung_quelle="manuell",
         importiert_am=dt.datetime.utcnow(),

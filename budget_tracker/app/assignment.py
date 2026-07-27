@@ -21,12 +21,14 @@ def _topf_by_name(db: Session, name: str) -> Topf | None:
 
 def _verknuepfe_offenes_forecast_vorkommen(db: Session, buchung: Buchung) -> None:
     """Zusaetzlicher Forecast-Abgleich: verlinkt ein offenes Vorkommen desselben
-    Topfs, unabhaengig davon, wie der Topf ermittelt wurde (Zins, Text oder Regel)."""
+    Topfs, unabhaengig davon, wie der Topf ermittelt wurde (Zins, Text oder Regel).
+    Uebernimmt dabei dessen Bezeichnung als sprechenden Namen der Buchung."""
     vorkommen = finde_passendes_vorkommen(db, buchung, topf_id=buchung.topf_id)
     if vorkommen is not None:
         vorkommen.verknuepfte_buchung_id = buchung.id
         vorkommen.erwarteter_betrag = buchung.betrag
         vorkommen.erwartetes_datum = buchung.datum
+        buchung.titel = vorkommen.bezeichnung
 
 
 def topf_zuordnen(db: Session, buchung: Buchung) -> None:
@@ -38,6 +40,7 @@ def topf_zuordnen(db: Session, buchung: Buchung) -> None:
         if topf is not None:
             buchung.topf_id = topf.id
             buchung.zuordnung_quelle = "zins"
+            buchung.titel = "Zinsgutschrift"
             _verknuepfe_offenes_forecast_vorkommen(db, buchung)
             return
 
@@ -56,6 +59,7 @@ def topf_zuordnen(db: Session, buchung: Buchung) -> None:
     if vorkommen is not None:
         buchung.topf_id = vorkommen.topf_id
         buchung.zuordnung_quelle = "regel"
+        buchung.titel = vorkommen.bezeichnung
         vorkommen.verknuepfte_buchung_id = buchung.id
         vorkommen.erwarteter_betrag = buchung.betrag
         vorkommen.erwartetes_datum = buchung.datum

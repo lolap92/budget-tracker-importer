@@ -4,7 +4,12 @@ from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.calculations import prognose_topf, zeitachse_topf, ziel_fortschritt_haus_kredit
+from app.calculations import (
+    prognose_topf,
+    vorhandene_buchungstitel,
+    zeitachse_topf,
+    ziel_fortschritt_haus_kredit,
+)
 from app.chart import render_prognose_chart
 from app.config import SONDERAUSGABEN_TOPF
 from app.database import get_db
@@ -59,6 +64,7 @@ def uebersicht(request: Request, topf: int | None = None, db: Session = Depends(
             toepfe=toepfe,
             gewaehlter_topf_id=gewaehlter_topf.id if gewaehlter_topf else None,
             daten=daten,
+            vorhandene_titel=vorhandene_buchungstitel(db),
         ),
     )
 
@@ -67,7 +73,13 @@ def uebersicht(request: Request, topf: int | None = None, db: Session = Depends(
 def regel_formular(request: Request, db: Session = Depends(get_db)):
     toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
     return templates.TemplateResponse(
-        "regel_neu.html", ctx(request, toepfe=toepfe, heute=dt.date.today().isoformat())
+        "regel_neu.html",
+        ctx(
+            request,
+            toepfe=toepfe,
+            heute=dt.date.today().isoformat(),
+            vorhandene_titel=vorhandene_buchungstitel(db),
+        ),
     )
 
 
@@ -99,7 +111,13 @@ async def regel_anlegen(request: Request, db: Session = Depends(get_db)):
     if fehler:
         return templates.TemplateResponse(
             "regel_neu.html",
-            ctx(request, toepfe=toepfe, heute=dt.date.today().isoformat(), fehler=fehler),
+            ctx(
+                request,
+                toepfe=toepfe,
+                heute=dt.date.today().isoformat(),
+                fehler=fehler,
+                vorhandene_titel=vorhandene_buchungstitel(db),
+            ),
             status_code=400,
         )
 
