@@ -154,6 +154,13 @@
   {% if not daten.zeitachse.zukunft %}<p class="empty-state">Noch keine Buchungen in diesem Topf.</p>{% endif %}
 {% endfor %}
 
+{% if daten.zeitachse.vergangenheit_gekuerzt %}
+<a class="rules-nav" href="{{ base }}/buchungen?topf={{ topf.id }}">
+  <span class="rn-left">{{ icons.list() }}Alle {{ daten.zeitachse.vergangenheit_gesamt }} Buchungen dieses Topfs</span>
+  {{ icons.forward() }}
+</a>
+{% endif %}
+
 {% endif %}
 
 {% endif %}

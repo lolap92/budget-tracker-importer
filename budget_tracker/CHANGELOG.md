@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.16.0 - 2026-07-28
+
+- **Neu: Die Buchungsliste blättert.** Statt aller Einträge auf einer Seite werden 50 gezeigt, darunter „← neuere / ältere →" mit Seitenzahl und Gesamtanzahl. Der Topf-Filter bleibt beim Blättern erhalten. Nach ein paar Jahren CSV-Import wurde die Seite sonst mehrere tausend Einträge lang. Nebenbei behoben: bei mehreren Buchungen mit demselben Datum war die Reihenfolge nicht festgelegt – beim Blättern hätte ein Eintrag dadurch doppelt oder gar nicht erscheinen können.
+- **Die Zeitachse auf der Forecast-Seite zeigt die 25 jüngsten vergangenen Einträge**, darunter einen Verweis auf die vollständige Liste des Topfs. Die geplanten Einträge oberhalb des Trenners bleiben ungekürzt – sie sind durch den 12-Monats-Horizont ohnehin begrenzt und alle handlungsrelevant.
+- **„Buchung anlegen" heißt jetzt, was es tut.** Die Auswahl „Vergangenheit / Zukunft" hieß irreführend so, obwohl die geplante Variante auch ein bereits fälliges Datum akzeptiert – und das ist richtig so: eine fällige, aber noch nicht eingetroffene Erwartung bleibt sinnvollerweise in der Prognose, bis die reale Buchung sie auflöst. Die Optionen heißen jetzt „Ist schon passiert – sofort verbuchen" und „Wird noch erwartet – als geplante Buchung anlegen", der Hinweistext erklärt beide Fälle. Ergänzt wurden die bisher komplett fehlenden Prüfungen für geplante Buchungen: Betrag 0 und ein Datum vor dem Startdatum werden abgelehnt.
+- Test-Suite auf 204 Tests.
+
 ## 1.15.0 - 2026-07-28
 
 - **Fehlerbehebung (fehlende Monate im Plan):** Ob ein Monat schon eingeplant war, wurde über ein Zeitfenster um den berechneten Termin geraten. Das Fenster musste breit genug sein, um ein um einen Monat verschobenes Vorkommen wiederzuerkennen – 61 Tage – und war damit zwangsläufig auch breit genug, um bei einer monatlichen Regel den Nachbarmonat mitzuzählen. Folge: eine Lücke im Plan blieb dauerhaft unsichtbar, weil der Folgemonat sie „belegte". Besonders nach „Regel bearbeiten" fehlten still einzelne Monate. Die neue Spalte `generiert_fuer` hält den berechneten Termin unveränderlich fest, damit wird aus der Schätzung ein exakter Abgleich. Migration `0005` füllt sie für bestehende Vorkommen. **Nach dem Update füllt der nächste Scan die bisher unsichtbar fehlenden Monate auf – die Prognose ändert sich dadurch.** Bereits doppelt vorhandene Vorkommen werden bewusst nicht zusammengeführt: zwei Einträge am selben Tag können legitim sein (ein verschobener plus der reguläre).

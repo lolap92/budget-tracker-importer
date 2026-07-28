@@ -15,14 +15,17 @@
   <label>
     Zeitpunkt
     <select name="art" required>
-      <option value="vergangenheit">Vergangenheit – sofort buchen</option>
-      <option value="zukunft">Zukunft – geplant, wird später mit CSV verknüpft</option>
+      <option value="vergangenheit">Ist schon passiert – sofort verbuchen</option>
+      <option value="zukunft">Wird noch erwartet – als geplante Buchung anlegen</option>
     </select>
   </label>
   <p class="b-ref" style="font-style:normal;margin-top:-4px;">
-    „Vergangenheit" legt die Buchung sofort real an und zählt direkt in den Topf-Saldo.
-    „Zukunft" legt ein offenes Forecast-Vorkommen an, das automatisch mit der passenden
-    realen CSV-Buchung verknüpft wird, sobald sie importiert wird.
+    „Ist schon passiert" legt die Buchung sofort real an und zählt direkt in den Topf-Saldo;
+    das Datum muss in der Vergangenheit liegen.
+    „Wird noch erwartet" legt ein offenes Forecast-Vorkommen an, das automatisch mit der
+    passenden realen CSV-Buchung verknüpft wird, sobald sie importiert wird. Ein bereits
+    fälliges Datum ist dabei erlaubt – die Erwartung gilt dann als überfällig und bleibt
+    so lange in der Prognose, bis die echte Buchung eintrifft.
   </p>
   <label>
     Topf

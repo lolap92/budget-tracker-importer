@@ -276,7 +276,23 @@ def regel_bearbeiten(
 
 def erstelle_manuelles_vorkommen(db: Session, topf_id: int, bezeichnung: str, betrag, datum: dt.date) -> ForecastVorkommen:
     """Freie, einmalige geplante Buchung ohne Regel - wird spaeter automatisch
-    mit einer realen CSV-Buchung abgeglichen (Konzept Abschnitt 6)."""
+    mit einer realen CSV-Buchung abgeglichen (Konzept Abschnitt 6).
+
+    Ein Datum in der Vergangenheit ist ausdruecklich erlaubt: eine faellige,
+    aber noch nicht eingetroffene Erwartung ist ein gueltiger Zustand und
+    bleibt so lange in der Prognose, bis die reale Buchung sie aufloest.
+    Vor dem Startdatum ist dagegen nichts zu erwarten - was davor liegt,
+    steckt bereits im Topf-Startsaldo.
+    """
+    if float(betrag) == 0:
+        raise ValueError("Betrag darf nicht 0 sein.")
+
+    konfiguration = db.query(Konfiguration).first()
+    if konfiguration is not None and datum < konfiguration.start_datum:
+        raise ValueError(
+            f"Datum liegt vor dem Startdatum ({konfiguration.start_datum.strftime('%d.%m.%Y')})."
+        )
+
     vorkommen = ForecastVorkommen(
         regel_id=None,
         topf_id=topf_id,

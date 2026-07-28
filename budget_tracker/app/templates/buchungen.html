@@ -116,4 +116,21 @@
   </div>
 </div>
 
+{% if seiten_gesamt > 1 %}
+{% set basis = base ~ '/buchungen?' ~ ('topf=' ~ gewaehlter_topf ~ '&' if gewaehlter_topf else '') %}
+<div class="seiten-nav">
+  {% if seite > 1 %}
+    <a class="fchip" href="{{ basis }}seite={{ seite - 1 }}">&larr; neuere</a>
+  {% else %}
+    <span class="fchip leer">&larr; neuere</span>
+  {% endif %}
+  <span class="seiten-info">Seite {{ seite }} von {{ seiten_gesamt }} · {{ anzahl_gesamt }} Einträge</span>
+  {% if seite < seiten_gesamt %}
+    <a class="fchip" href="{{ basis }}seite={{ seite + 1 }}">ältere &rarr;</a>
+  {% else %}
+    <span class="fchip leer">ältere &rarr;</span>
+  {% endif %}
+</div>
+{% endif %}
+
 {% endblock %}

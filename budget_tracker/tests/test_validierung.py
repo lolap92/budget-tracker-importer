@@ -236,3 +236,60 @@ class TestJahresregelAnkerWarnung:
         text = TestClient(fastapi_app).get(f"/forecast/regeln?topf={regel.topf_id}").text
 
         assert "liegt im Startmonat vor dem Startdatum" in text
+
+
+class TestGeplanteBuchung:
+    """B10: 'Wird noch erwartet' akzeptiert ein bereits faelliges Datum -
+    eine ueberfaellige Erwartung ist ein gueltiger Zustand. Was fehlte, waren
+    die uebrigen Pruefungen."""
+
+    @pytest.fixture
+    def client(self, db, app):
+        return TestClient(fastapi_app)
+
+    def _anlegen(self, client, app, datum, betrag="-900"):
+        return client.post(
+            "/buchungen/neu",
+            data={
+                "art": "zukunft",
+                "topf_id": str(app["Urlaub"].id),
+                "bezeichnung": "Öltank-Füllung",
+                "betrag": betrag,
+                "datum": datum,
+            },
+            follow_redirects=False,
+        )
+
+    def test_ueberfaelliges_datum_ist_erlaubt(self, client, db, app):
+        from app.models import ForecastVorkommen
+
+        antwort = self._anlegen(client, app, "2026-03-01")
+
+        assert antwort.status_code == 303
+        assert db.query(ForecastVorkommen).one().erwartetes_datum == dt.date(2026, 3, 1)
+
+    def test_datum_vor_dem_startdatum_wird_abgelehnt(self, client, app):
+        antwort = self._anlegen(client, app, "2025-06-01")
+
+        assert antwort.status_code == 400
+        assert "vor dem Startdatum" in antwort.text
+
+    def test_betrag_null_wird_abgelehnt(self, client, app):
+        antwort = self._anlegen(client, app, "2026-09-01", betrag="0")
+
+        assert antwort.status_code == 400
+        assert "Betrag darf nicht 0 sein" in antwort.text
+
+    def test_unbekannte_art_wird_abgelehnt(self, client, app):
+        antwort = client.post(
+            "/buchungen/neu",
+            data={
+                "art": "irgendwas",
+                "topf_id": str(app["Urlaub"].id),
+                "bezeichnung": "Test",
+                "betrag": "-10",
+                "datum": "2026-09-01",
+            },
+        )
+
+        assert antwort.status_code == 400

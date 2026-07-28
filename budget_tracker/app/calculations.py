@@ -10,7 +10,11 @@ from decimal import Decimal
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.config import FORECAST_HORIZON_MONATE, HAUS_KREDIT_TOPF
+from app.config import (
+    FORECAST_HORIZON_MONATE,
+    HAUS_KREDIT_TOPF,
+    ZEITACHSE_VERGANGENHEIT_MAX,
+)
 from app.dateutils import add_months, month_end
 from app.matching import offene_vorkommen_query
 from app.models import Buchung, ForecastRegel, ForecastVorkommen, Topf, TopfUmbuchung
@@ -165,11 +169,19 @@ class ZeitachsenEintrag:
     objekt: object
 
 
-def zeitachse_topf(db: Session, topf: Topf) -> dict:
+def zeitachse_topf(
+    db: Session, topf: Topf, vergangenheit_max: int = ZEITACHSE_VERGANGENHEIT_MAX
+) -> dict:
     """Chronologische Liste, verankert am aktuellen Kalendermonat.
 
     Vergangenheit (reale Buchungen + Topf-Umbuchungen) absteigend unterhalb
     des Ankers, offene Forecast-Vorkommen aufsteigend oberhalb (gestrichelt).
+
+    Die Vergangenheit wird auf die juengsten vergangenheit_max Eintraege
+    gekuerzt - die Zeitachse ist eine Uebersicht, die vollstaendige Liste
+    steht unter /buchungen. vergangenheit_gekuerzt sagt der Vorlage, ob sie
+    darauf verweisen soll. Die Zukunft bleibt ungekuerzt: offene Erwartungen
+    sind endlich (12-Monats-Horizont) und alle handlungsrelevant.
     """
     vergangenheit: list[ZeitachsenEintrag] = []
 
@@ -231,7 +243,14 @@ def zeitachse_topf(db: Session, topf: Topf) -> dict:
             )
         )
 
-    return {"zukunft": zukunft, "vergangenheit": vergangenheit, "anker_monat": dt.date.today().replace(day=1)}
+    gekuerzt = len(vergangenheit) > vergangenheit_max
+    return {
+        "zukunft": zukunft,
+        "vergangenheit": vergangenheit[:vergangenheit_max],
+        "vergangenheit_gesamt": len(vergangenheit),
+        "vergangenheit_gekuerzt": gekuerzt,
+        "anker_monat": dt.date.today().replace(day=1),
+    }
 
 
 def review_liste(db: Session) -> list[Buchung]:

@@ -6,6 +6,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.calculations import offene_umbuchungen, review_liste, vorhandene_buchungstitel
+from app.config import BUCHUNGEN_PRO_SEITE
 from app.database import get_db
 from app.forecast_engine import erstelle_manuelles_vorkommen
 from app.manual_entry import erstelle_manuelle_buchung, loesche_buchung
@@ -22,7 +23,12 @@ router = APIRouter()
 
 
 @router.get("/buchungen")
-def liste(request: Request, topf: int | None = None, db: Session = Depends(get_db)):
+def liste(
+    request: Request,
+    topf: int | None = None,
+    seite: int = 1,
+    db: Session = Depends(get_db),
+):
     toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
 
     buchungen_q = db.query(Buchung)
@@ -33,17 +39,32 @@ def liste(request: Request, topf: int | None = None, db: Session = Depends(get_d
             or_(TopfUmbuchung.von_topf_id == topf, TopfUmbuchung.nach_topf_id == topf)
         )
 
-    eintraege = [{"art": "buchung", "datum": b.datum, "objekt": b} for b in buchungen_q.all()]
-    eintraege += [
-        {"art": "topf_umbuchung", "datum": u.datum, "objekt": u} for u in umbuchungen_q.all()
+    alle = [
+        {"art": "buchung", "datum": b.datum, "objekt": b, "id": b.id} for b in buchungen_q.all()
     ]
-    eintraege.sort(key=lambda e: (e["datum"]), reverse=True)
+    alle += [
+        {"art": "topf_umbuchung", "datum": u.datum, "objekt": u, "id": u.id}
+        for u in umbuchungen_q.all()
+    ]
+    # Buchungen und Topf-Umbuchungen liegen in zwei Tabellen und muessen fuer
+    # die gemeinsame Zeitachse in Python sortiert werden. Die ID als zweites
+    # Kriterium haelt die Reihenfolge bei gleichem Datum stabil - sonst koennte
+    # derselbe Eintrag beim Blaettern auf zwei Seiten auftauchen oder ganz
+    # zwischen ihnen verschwinden.
+    alle.sort(key=lambda e: (e["datum"], e["art"], e["id"]), reverse=True)
+
+    seiten_gesamt = max(1, -(-len(alle) // BUCHUNGEN_PRO_SEITE))
+    seite = max(1, min(seite, seiten_gesamt))
+    start = (seite - 1) * BUCHUNGEN_PRO_SEITE
 
     return templates.TemplateResponse(
         "buchungen.html",
         ctx(
             request,
-            eintraege=eintraege,
+            eintraege=alle[start : start + BUCHUNGEN_PRO_SEITE],
+            anzahl_gesamt=len(alle),
+            seite=seite,
+            seiten_gesamt=seiten_gesamt,
             toepfe=toepfe,
             gewaehlter_topf=topf,
             offene_anzahl=len(review_liste(db)),
@@ -82,7 +103,9 @@ async def neue_buchung_anlegen(request: Request, db: Session = Depends(get_db)):
         elif art == "zukunft":
             erstelle_manuelles_vorkommen(db, topf_id, bezeichnung, betrag, datum)
         else:
-            raise ValueError("Bitte Vergangenheit oder Zukunft auswaehlen.")
+            raise ValueError(
+                "Bitte auswaehlen, ob die Buchung schon passiert ist oder noch erwartet wird."
+            )
     except (ValueError, KeyError, InvalidOperation) as exc:
         fehler = str(exc)
 

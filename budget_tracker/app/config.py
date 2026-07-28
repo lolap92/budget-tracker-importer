@@ -37,6 +37,15 @@ UMBUCHUNG_DATUM_TOLERANZ_TAGE = 10
 DIRECTORY_SCAN_INTERVAL_SECONDS = int(os.environ.get("SCAN_INTERVAL_SECONDS", "30"))
 FORECAST_HORIZON_MONATE = 12
 
+# Seitengroesse der Buchungsliste. Nach ein paar Jahren CSV-Import waeren es
+# sonst mehrere tausend Eintraege auf einer Seite.
+BUCHUNGEN_PRO_SEITE = 50
+
+# Wie viele vergangene Eintraege die Zeitachse auf der Forecast-Seite zeigt.
+# Sie ist eine Uebersicht, keine vollstaendige Liste - dafuer gibt es
+# /buchungen, worauf am Ende der gekuerzten Liste auch verwiesen wird.
+ZEITACHSE_VERGANGENHEIT_MAX = 25
+
 # Wie weit vor dem aktuellen Monat noch Vorkommen erzeugt werden. Ohne diese
 # Untergrenze legt eine Regel mit weit zurueckliegendem Startdatum (der
 # Normalfall bei seed-data.json) fuer jeden vergangenen Monat ein Vorkommen an.
