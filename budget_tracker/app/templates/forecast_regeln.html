@@ -33,6 +33,7 @@
         </select>
       </label>
       <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" required></label>
+      <p class="b-ref" style="font-style:normal;margin-top:-4px;">Bei <strong>jährlich</strong> zählt nur der Tag – der Monat kommt aus dem Startdatum. Liegt der Anker-Tag im Startmonat vor dem Startdatum, greift die Regel erst ein Jahr später.</p>
       <label>Start <input type="date" name="start_datum" required></label>
       <label>Ende (optional) <input type="date" name="end_datum"></label>
       <button class="btn secondary" type="submit">Regel anlegen</button>
@@ -65,6 +66,9 @@
     <div class="f-foot">
       <span class="chip offen">{{ r.rhythmus }}</span>
     </div>
+    {% if r.anker_warnung %}
+    <div class="sc-status bad" style="margin-top:8px;">{{ icons.warn_triangle() }}{{ r.anker_warnung }}</div>
+    {% endif %}
     <details style="margin-top:10px;">
       <summary class="link-btn">{{ icons.edit() }}bearbeiten</summary>
       <form method="post" action="{{ base }}/forecast/regel/{{ r.id }}/bearbeiten" class="form-grid" style="margin-top:10px;">
@@ -83,6 +87,7 @@
           </select>
         </label>
         <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" value="{{ r.anker_tag }}" required></label>
+        <p class="b-ref" style="font-style:normal;margin-top:-4px;">Bei <strong>jährlich</strong> zählt nur der Tag – der Monat kommt aus dem Startdatum.</p>
         <label>Start <input type="date" name="start_datum" value="{{ r.start_datum.isoformat() }}" required></label>
         <label>Ende (optional) <input type="date" name="end_datum" value="{{ r.end_datum.isoformat() if r.end_datum else '' }}"></label>
         <button class="btn secondary" type="submit">Speichern</button>

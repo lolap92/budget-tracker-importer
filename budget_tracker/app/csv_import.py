@@ -7,6 +7,7 @@ description. Dedublizierung ausschliesslich ueber transaction_id.
 import csv
 import datetime as dt
 import logging
+import re
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -39,18 +40,58 @@ def _parse_datum(value: str) -> dt.date | None:
     return None
 
 
-def _parse_betrag(value: str) -> Decimal | None:
-    value = (value or "").strip().replace("€", "").replace(" ", "")
+def _bereinigt(value: str) -> str:
+    return (value or "").strip().replace("€", "").replace(" ", "").replace(" ", "")
+
+
+# "1.234" ist fuer sich genommen nicht entscheidbar: englisch gelesen sind es
+# 1,234 (gerundet 1,23 EUR), deutsch gelesen 1.234 EUR - ein Faktor 1000.
+_MEHRDEUTIG = re.compile(r"^-?\d{1,3}\.\d{3}$")
+
+
+def zahlenformat(werte: list[str]) -> str | None:
+    """Leitet aus allen Betraegen einer Datei ab, ob sie deutsch oder englisch
+    formatiert sind. Einzelne Werte sind teils mehrdeutig, die Datei als
+    Ganzes fast nie: es genuegt ein Wert mit eindeutigem Dezimaltrenner.
+    """
+    for roh in werte:
+        v = _bereinigt(roh)
+        if "," in v and "." in v:
+            return "deutsch" if v.rfind(",") > v.rfind(".") else "englisch"
+        if re.search(r",\d{1,2}$", v):
+            return "deutsch"
+        if re.search(r"\.\d{1,2}$", v):
+            return "englisch"
+        if re.search(r",\d{3}(?:\D|$)", v):
+            return "englisch"  # Komma als Tausendertrenner
+    return None
+
+
+def _parse_betrag(value: str, format_hinweis: str | None = None) -> Decimal | None:
+    value = _bereinigt(value)
     if not value:
         return None
+
     if "," in value and "." in value:
-        # 1.234,56 -> deutsches Format
         if value.rfind(",") > value.rfind("."):
             value = value.replace(".", "").replace(",", ".")
         else:
             value = value.replace(",", "")
     elif "," in value:
         value = value.replace(",", ".")
+    elif _MEHRDEUTIG.match(value):
+        # Nur der Dateikontext kann das aufloesen. Ohne ihn wird die Zeile
+        # bewusst verworfen statt geraten - ein um Faktor 1000 falscher Betrag
+        # faellt in keiner Summe auf.
+        if format_hinweis == "deutsch":
+            value = value.replace(".", "")
+        elif format_hinweis != "englisch":
+            logger.warning(
+                "Betrag %r ist ohne Dateikontext nicht eindeutig (1.234 EUR oder 1,234 EUR?).",
+                value,
+            )
+            return None
+
     try:
         return Decimal(value)
     except InvalidOperation:
@@ -98,6 +139,13 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
         stats["meldung"] = "kein passendes Spaltenformat"
         return stats
 
+    # Erst komplett einlesen: das Zahlenformat laesst sich nur aus der ganzen
+    # Datei ableiten, nicht aus einer einzelnen Zeile (siehe zahlenformat()).
+    zeilen = list(reader)
+    format_hinweis = zahlenformat([(z.get("amount") or "") for z in zeilen])
+    if format_hinweis is None and zeilen:
+        logger.info("Zahlenformat von %s nicht eindeutig bestimmbar.", pfad.name)
+
     vorhandene_ids = {row[0] for row in db.query(Buchung.transaction_id).all()}
 
     # Bewegungen vor dem Startdatum stecken bereits in den Topf-Startsalden.
@@ -106,7 +154,7 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
     konfiguration = db.query(Konfiguration).first()
     start_datum = konfiguration.start_datum if konfiguration is not None else None
 
-    for row in reader:
+    for row in zeilen:
         stats["gelesen"] += 1
         row = {
             (k or "").strip(): ((v[0] if isinstance(v, list) else v) or "").strip()
@@ -124,7 +172,7 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
             continue
 
         datum = _parse_datum(row.get("date", ""))
-        betrag = _parse_betrag(row.get("amount", ""))
+        betrag = _parse_betrag(row.get("amount", ""), format_hinweis)
         if datum is None or betrag is None:
             logger.warning("Zeile mit transaction_id=%s uebersprungen (Datum/Betrag ungueltig).", transaction_id)
             stats["fehler"] += 1

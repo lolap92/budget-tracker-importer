@@ -29,6 +29,7 @@
     </select>
   </label>
   <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" required></label>
+  <p class="b-ref" style="font-style:normal;margin-top:-4px;">Bei <strong>jährlich</strong> zählt nur der Tag – der Monat kommt aus dem Startdatum. Liegt der Anker-Tag im Startmonat vor dem Startdatum, greift die Regel erst ein Jahr später.</p>
   <label>Start <input type="date" name="start_datum" value="{{ heute }}" required></label>
   <label>Ende (optional) <input type="date" name="end_datum"></label>
   <button class="btn" type="submit">Regel anlegen</button>

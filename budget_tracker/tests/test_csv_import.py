@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.csv_import import _parse_betrag, _parse_datum, import_csv_datei
+from app.csv_import import _parse_betrag, _parse_datum, import_csv_datei, zahlenformat
 from app.models import Buchung
 from tests.conftest import csv_schreiben
 
@@ -190,3 +190,65 @@ class TestStartdatum:
 
         assert stats["vor_startdatum"] == 0
         assert stats["neu"] == 1
+
+
+class TestZahlenformat:
+    """B5: '1.234' ist isoliert nicht entscheidbar - englisch 1,23 EUR,
+    deutsch 1.234 EUR. Das Format wird deshalb aus der ganzen Datei abgeleitet."""
+
+    @pytest.mark.parametrize(
+        "werte,erwartet",
+        [
+            (["-100.00", "1.234", "2500.50"], "englisch"),
+            (["-100,00", "1.234", "2.500,50"], "deutsch"),
+            (["1.234,56"], "deutsch"),
+            (["1,234.56"], "englisch"),
+            (["1.234", "5.678"], None),
+            ([], None),
+        ],
+    )
+    def test_erkennung(self, werte, erwartet):
+        assert zahlenformat(werte) == erwartet
+
+    @pytest.mark.parametrize(
+        "hinweis,erwartet",
+        [("englisch", Decimal("1.234")), ("deutsch", Decimal("1234")), (None, None)],
+    )
+    def test_mehrdeutiger_wert(self, hinweis, erwartet):
+        assert _parse_betrag("1.234", hinweis) == erwartet
+
+    @pytest.mark.parametrize("hinweis", ["deutsch", "englisch", None])
+    @pytest.mark.parametrize(
+        "roh,erwartet",
+        [
+            ("-1234.56", Decimal("-1234.56")),
+            ("1.234,56", Decimal("1234.56")),
+            ("1,234.56", Decimal("1234.56")),
+            ("12,5", Decimal("12.5")),
+        ],
+    )
+    def test_eindeutige_werte_unabhaengig_vom_hinweis(self, roh, erwartet, hinweis):
+        assert _parse_betrag(roh, hinweis) == erwartet
+
+    def test_deutsche_datei_wird_korrekt_importiert(self, db, app, tmp_path):
+        pfad = tmp_path / "de.csv"
+        pfad.write_text(
+            "transaction_id;date;type;amount;payment_reference;"
+            "counterparty_name;counterparty_iban;description\n"
+            "tx-1;2026-07-01;PAYMENT;-1.234;Miete;X;DE1;\n"
+            "tx-2;2026-07-02;PAYMENT;-2.500,50;Strom;X;DE2;\n",
+            encoding="utf-8",
+        )
+        import_csv_datei(db, pfad)
+
+        betraege = sorted(b.betrag for b in db.query(Buchung).all())
+        assert betraege == [Decimal("-2500.50"), Decimal("-1234.00")]
+
+    def test_mehrdeutige_zeile_wird_verworfen_statt_geraten(self, db, app, tmp_path):
+        """Ein um Faktor 1000 falscher Betrag faellt in keiner Summe auf -
+        lieber die Zeile melden."""
+        pfad = csv_schreiben(tmp_path / "e.csv", ["tx-1,2026-07-01,PAYMENT,1.234,X,X,DE1,"])
+        stats = import_csv_datei(db, pfad)
+
+        assert stats["neu"] == 0
+        assert stats["fehler"] == 1

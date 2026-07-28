@@ -9,7 +9,6 @@ from app.calculations import (
     saldo_topf,
     sondertilgung_status,
     zeitachse_topf,
-    ziel_fortschritt_haus_kredit,
 )
 from app.models import Buchung, ForecastRegel, ForecastVorkommen, TopfUmbuchung
 from tests.conftest import HEUTE
@@ -323,47 +322,6 @@ class TestSondertilgungStatus:
 
         assert sondertilgung_status(db, kredit)["wird_erreicht"] is True
 
-
-class TestZielFortschritt:
-    def test_nur_fuer_haus_kredit(self, db, app):
-        app["Urlaub"].jahresziel = Decimal("10000.00")
-        db.commit()
-
-        assert ziel_fortschritt_haus_kredit(db, app["Urlaub"]) is None
-
-    def test_ohne_jahresziel_kein_ergebnis(self, db, app):
-        assert ziel_fortschritt_haus_kredit(db, app["Haus Kredit"]) is None
-
-    def test_projektion_bis_zum_sondertilgungsdatum(self, db, app):
-        kredit = app["Haus Kredit"]
-        kredit.startsaldo = Decimal("4000.00")
-        kredit.jahresziel = Decimal("10000.00")
-        kredit.sondertilgung_datum = dt.date(2026, 12, 31)
-        db.commit()
-        vorkommen(db, kredit, "1000.00", dt.date(2026, 9, 1))
-        vorkommen(db, kredit, "1000.00", dt.date(2026, 10, 1))
-        # Nach dem Zieldatum - darf nicht mehr mitzaehlen.
-        vorkommen(db, kredit, "5000.00", dt.date(2027, 3, 1))
-
-        ziel = ziel_fortschritt_haus_kredit(db, kredit)
-
-        assert ziel["projizierter_saldo"] == Decimal("6000.00")
-        assert ziel["wird_erreicht"] is False
-        assert ziel["fehlbetrag"] == Decimal("4000.00")
-        assert ziel["anteil"] == 0.4
-
-    def test_anteil_ist_auf_null_bis_eins_begrenzt(self, db, app):
-        kredit = app["Haus Kredit"]
-        kredit.jahresziel = Decimal("10000.00")
-        kredit.startsaldo = Decimal("-500.00")
-        kredit.sondertilgung_datum = dt.date(2026, 12, 31)
-        db.commit()
-
-        assert ziel_fortschritt_haus_kredit(db, kredit)["anteil"] == 0.0
-
-        kredit.startsaldo = Decimal("25000.00")
-        db.commit()
-        assert ziel_fortschritt_haus_kredit(db, kredit)["anteil"] == 1.0
 
 
 class TestListenUndZeitachse:

@@ -10,7 +10,6 @@ from app.calculations import (
     review_liste,
     vorhandene_buchungstitel,
     zeitachse_topf,
-    ziel_fortschritt_haus_kredit,
 )
 from app.chart import render_prognose_chart
 from app.config import SONDERAUSGABEN_TOPF
@@ -18,6 +17,7 @@ from app.database import get_db
 from app.forecast_engine import (
     ensure_forecast_vorkommen,
     erstelle_manuelles_vorkommen,
+    jahresregel_anker_warnung,
     regel_bearbeiten,
     regel_erstellen,
     vorkommen_auf_sonderausgaben_buchen,
@@ -63,7 +63,6 @@ def uebersicht(request: Request, topf: str | None = None, db: Session = Depends(
             "topf": None,
             "prognose": prognose,
             "chart_svg": render_prognose_chart(prognose.monatswerte, "alle"),
-            "ziel": None,
         }
     elif gewaehlter_topf is not None:
         prognose = prognose_topf(db, gewaehlter_topf)
@@ -76,13 +75,13 @@ def uebersicht(request: Request, topf: str | None = None, db: Session = Depends(
         )
         for r in regeln:
             r.erste_faelligkeit = regel_erste_faelligkeit(db, r.id)
+            r.anker_warnung = jahresregel_anker_warnung(r)
         daten = {
             "topf": gewaehlter_topf,
             "prognose": prognose,
             "zeitachse": zeitachse,
             "regeln": regeln,
             "chart_svg": render_prognose_chart(prognose.monatswerte, topfklasse(gewaehlter_topf.name)),
-            "ziel": ziel_fortschritt_haus_kredit(db, gewaehlter_topf),
             "sonderausgaben_topf_id": _sonderausgaben_id(db),
             "kandidaten_buchungen": review_liste(db),
         }
@@ -117,6 +116,7 @@ def regeln_uebersicht(request: Request, topf: int | None = None, db: Session = D
         )
         for r in regeln:
             r.erste_faelligkeit = regel_erste_faelligkeit(db, r.id)
+            r.anker_warnung = jahresregel_anker_warnung(r)
 
     return templates.TemplateResponse(
         "forecast_regeln.html",
@@ -309,19 +309,3 @@ def sonderausgaben_route(vorkommen_id: int, request: Request, db: Session = Depe
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return redirect(request, f"/forecast?topf={topf_id}")
 
-
-@router.post("/topf/{topf_id}/einstellungen")
-async def topf_einstellungen(topf_id: int, request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
-    topf = db.get(Topf, topf_id)
-    if topf is None:
-        raise HTTPException(status_code=404, detail="Topf nicht gefunden")
-
-    jahresziel = (form.get("jahresziel") or "").replace(",", ".").strip()
-    topf.jahresziel = Decimal(jahresziel) if jahresziel else None
-
-    sondertilgung = form.get("sondertilgung_datum")
-    topf.sondertilgung_datum = dt.date.fromisoformat(sondertilgung) if sondertilgung else None
-
-    db.commit()
-    return redirect(request, f"/forecast?topf={topf_id}")

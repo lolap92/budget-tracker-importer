@@ -8,6 +8,7 @@ from app.forecast_engine import (
     _occurrence_dates,
     ensure_forecast_vorkommen,
     forecast_untergrenze,
+    regel_bearbeiten,
     vorkommen_auf_sonderausgaben_buchen,
     vorkommen_loeschen,
     vorkommen_manuell_verknuepfen,
@@ -291,3 +292,81 @@ class TestAufloesung:
         assert umbuchung.nach_topf_id == app["Sonderausgaben"].id
         assert umbuchung.betrag == Decimal("250.00")
         assert vorkommen.verknuepfte_topf_umbuchung_id == umbuchung.id
+
+
+class TestGeneriertFuer:
+    """B3: 'schon angelegt?' wird exakt beantwortet statt ueber ein Zeitfenster.
+
+    Das alte Fenster war 61 Tage breit - breit genug, um ein um einen Monat
+    verschobenes Vorkommen wiederzuerkennen, und damit zwangslaeufig auch
+    breit genug, um den Nachbarmonat einer monatlichen Regel mitzuzaehlen.
+    """
+
+    def test_generierte_vorkommen_merken_sich_ihren_termin(self, db, app):
+        regel_anlegen(db, app["Urlaub"], anker_tag=15)
+        ensure_forecast_vorkommen(db, heute=HEUTE)
+        db.commit()
+
+        for v in db.query(ForecastVorkommen):
+            assert v.generiert_fuer == v.erwartetes_datum
+
+    def test_frei_angelegtes_vorkommen_belegt_keinen_termin(self, db, app):
+        from app.forecast_engine import erstelle_manuelles_vorkommen
+
+        v = erstelle_manuelles_vorkommen(
+            db, app["Urlaub"].id, "Öltank", Decimal("-900.00"), dt.date(2026, 9, 1)
+        )
+
+        assert v.generiert_fuer is None
+
+    def test_verschobenes_vorkommen_behaelt_seinen_termin(self, db, app):
+        """Eine verschobene Rate ist verschoben, nicht verschwunden - ihr
+        Ursprungsmonat darf nicht neu befuellt werden."""
+        regel_anlegen(db, app["Urlaub"], anker_tag=15)
+        ensure_forecast_vorkommen(db, heute=HEUTE)
+        db.commit()
+        v = db.query(ForecastVorkommen).filter(
+            ForecastVorkommen.erwartetes_datum == dt.date(2026, 8, 15)).one()
+        v.erwartetes_datum = dt.date(2026, 12, 15)
+        db.commit()
+
+        assert ensure_forecast_vorkommen(db, heute=HEUTE) == 0
+        assert v.generiert_fuer == dt.date(2026, 8, 15)
+
+    def test_regel_bearbeiten_fuellt_alle_monate_neu(self, db, app):
+        """Regression: ein verworfenes Vorkommen, das nach einem Abgleich ein
+        paar Tage in den Folgemonat gerutscht war, verschluckte dessen
+        regulaeren Termin - nach 'Regel bearbeiten' fehlte der Monat still."""
+        regel = regel_anlegen(db, app["Urlaub"], anker_tag=15)
+        ensure_forecast_vorkommen(db, heute=HEUTE)
+        db.commit()
+        verworfen = db.query(ForecastVorkommen).filter(
+            ForecastVorkommen.erwartetes_datum == dt.date(2026, 6, 15)).one()
+        verworfen.erwartetes_datum = dt.date(2026, 7, 6)
+        verworfen.ignoriert = True
+        db.commit()
+
+        regel_bearbeiten(
+            db, regel, topf_id=regel.topf_id, bezeichnung="Sparrate",
+            betrag=Decimal("-250.00"), rhythmus="monatlich", anker_tag=15,
+            start_datum=regel.start_datum, end_datum=None,
+        )
+        db.commit()
+
+        juli = sorted(
+            v.erwartetes_datum
+            for v in db.query(ForecastVorkommen)
+            if v.erwartetes_datum.month == 7 and v.erwartetes_datum.year == 2026
+        )
+        assert juli == [dt.date(2026, 7, 6), dt.date(2026, 7, 15)]
+
+    def test_verworfenes_vorkommen_blockiert_seinen_termin_weiter(self, db, app):
+        regel_anlegen(db, app["Urlaub"], anker_tag=15)
+        ensure_forecast_vorkommen(db, heute=HEUTE)
+        db.commit()
+        v = db.query(ForecastVorkommen).filter(
+            ForecastVorkommen.erwartetes_datum == dt.date(2026, 8, 15)).one()
+        vorkommen_loeschen(db, v)
+        db.commit()
+
+        assert ensure_forecast_vorkommen(db, heute=HEUTE) == 0

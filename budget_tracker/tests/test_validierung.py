@@ -157,3 +157,82 @@ class TestFehlerseite:
 
         assert antwort.status_code == 400
         assert "Unbekannter Rhythmus" in antwort.text
+
+
+class TestBefristet:
+    """B8: 'befristet' heisst 'monatlich mit Enddatum' - ohne Enddatum war es
+    von 'monatlich' nicht zu unterscheiden und lief entgegen dem Namen weiter."""
+
+    def test_ohne_enddatum_abgelehnt(self, db, app):
+        with pytest.raises(ValueError, match="Enddatum erforderlich"):
+            regel_erstellen(db, **regel_daten(app["Urlaub"], rhythmus="befristet"))
+
+    def test_mit_enddatum_erlaubt(self, db, app):
+        regel = regel_erstellen(
+            db,
+            **regel_daten(
+                app["Urlaub"], rhythmus="befristet", end_datum=dt.date(2026, 12, 31)
+            ),
+        )
+        db.commit()
+
+        assert regel.end_datum == dt.date(2026, 12, 31)
+
+    def test_enddatum_vor_startdatum_abgelehnt(self, db, app):
+        with pytest.raises(ValueError, match="nicht vor dem Startdatum"):
+            regel_erstellen(
+                db, **regel_daten(app["Urlaub"], end_datum=START_DATUM - dt.timedelta(days=1))
+            )
+
+    def test_monatlich_bleibt_ohne_enddatum_erlaubt(self, db, app):
+        regel = regel_erstellen(db, **regel_daten(app["Urlaub"], rhythmus="monatlich"))
+        db.commit()
+
+        assert regel.end_datum is None
+
+
+class TestJahresregelAnkerWarnung:
+    """Bei jaehrlichen Regeln stammt der Monat aus start_datum, nur der Tag aus
+    anker_tag - passt das nicht zusammen, greift die Regel erst ein Jahr spaeter."""
+
+    def _regel(self, db, topf, anker_tag, start_datum):
+        return regel_erstellen(
+            db,
+            **regel_daten(
+                topf, rhythmus="jaehrlich", anker_tag=anker_tag, start_datum=start_datum
+            ),
+        )
+
+    def test_warnt_wenn_die_erste_faelligkeit_ein_jahr_springt(self, db, app):
+        from app.forecast_engine import jahresregel_anker_warnung
+
+        regel = self._regel(db, app["Urlaub"], anker_tag=1, start_datum=dt.date(2026, 9, 26))
+        db.commit()
+
+        warnung = jahresregel_anker_warnung(regel)
+        assert warnung is not None
+        assert "01.09.2027" in warnung
+
+    def test_schweigt_bei_passender_kombination(self, db, app):
+        from app.forecast_engine import jahresregel_anker_warnung
+
+        regel = self._regel(db, app["Urlaub"], anker_tag=26, start_datum=dt.date(2026, 9, 26))
+        db.commit()
+
+        assert jahresregel_anker_warnung(regel) is None
+
+    def test_schweigt_bei_monatlichen_regeln(self, db, app):
+        from app.forecast_engine import jahresregel_anker_warnung
+
+        regel = regel_erstellen(db, **regel_daten(app["Urlaub"], anker_tag=1))
+        db.commit()
+
+        assert jahresregel_anker_warnung(regel) is None
+
+    def test_warnung_steht_auf_der_regeln_seite(self, db, app):
+        regel = self._regel(db, app["Urlaub"], anker_tag=1, start_datum=dt.date(2026, 9, 26))
+        db.commit()
+
+        text = TestClient(fastapi_app).get(f"/forecast/regeln?topf={regel.topf_id}").text
+
+        assert "liegt im Startmonat vor dem Startdatum" in text

@@ -66,6 +66,35 @@ def _occurrence_dates(
     return dates
 
 
+def jahresregel_anker_warnung(regel: ForecastRegel) -> str | None:
+    """Warnt, wenn eine jaehrliche Regel erst ein Jahr spaeter greift als gedacht.
+
+    Bei rhythmus="jaehrlich" stammt der Monat aus start_datum und nur der Tag
+    aus anker_tag (siehe _occurrence_dates). Liegt diese Kombination im
+    Startmonat vor dem Startdatum, wird sie uebersprungen und die erste
+    Faelligkeit rutscht um ein volles Jahr nach hinten - z.B. Start 26.09.2026
+    mit Anker-Tag 1 ergibt den 01.09.2027, nicht den 01.10.2026.
+
+    Bewusst nur eine Warnung, keine Ablehnung: die Konstellation kann gewollt
+    sein ("ab naechstem Jahr immer am 1. September"). Das Formular sagt dazu
+    aber nichts, deshalb wird es an der Regel sichtbar gemacht.
+    """
+    if regel.rhythmus != "jaehrlich":
+        return None
+
+    im_startmonat = safe_date(regel.start_datum.year, regel.start_datum.month, regel.anker_tag)
+    if im_startmonat >= regel.start_datum:
+        return None
+
+    erste = safe_date(regel.start_datum.year + 1, regel.start_datum.month, regel.anker_tag)
+    return (
+        f"Anker-Tag {regel.anker_tag} liegt im Startmonat vor dem Startdatum "
+        f"({regel.start_datum.strftime('%d.%m.%Y')}) – erste Fälligkeit deshalb erst "
+        f"{erste.strftime('%d.%m.%Y')}. Bei jährlichen Regeln kommt der Monat aus dem "
+        f"Startdatum, nur der Tag aus dem Anker-Tag."
+    )
+
+
 def forecast_untergrenze(db: Session, heute: dt.date) -> dt.date:
     """Fruehestes Datum, fuer das ueberhaupt noch Vorkommen erzeugt werden.
 
@@ -85,9 +114,13 @@ def ensure_forecast_vorkommen(
 ) -> int:
     """Legt fuer jede aktive Regel die noch fehlenden Vorkommen bis zum Horizont an.
 
-    Erkennung von "bereits generiert" laeuft ueber ein Zeitfenster um die
-    berechnete Erwartung (deckt ein einmaliges manuelles Verschieben um
-    einen Monat ab), da keine zusaetzliche Spalte im Datenmodell vorgesehen ist.
+    "Bereits generiert" wird exakt ueber generiert_fuer beantwortet. Frueher
+    lief das ueber ein Zeitfenster um den berechneten Termin - das musste
+    breit genug sein, um ein um einen Monat verschobenes Vorkommen
+    wiederzuerkennen, und war damit zwangslaeufig auch breit genug, um den
+    Nachbarmonat einer monatlichen Regel mitzuzaehlen. Folge: eine Luecke im
+    Plan blieb unsichtbar (der Folgemonat "belegte" sie), und ein weiter
+    verschobenes Vorkommen erzeugte im Zielmonat eine Dopplung.
     """
     heute = heute or dt.date.today()
     horizon_end = add_months(heute, horizon_monate)
@@ -95,24 +128,27 @@ def ensure_forecast_vorkommen(
     erzeugt = 0
 
     for regel in db.query(ForecastRegel).all():
-        vorhandene = db.query(ForecastVorkommen).filter(ForecastVorkommen.regel_id == regel.id).all()
+        belegt = {
+            v.generiert_fuer
+            for v in db.query(ForecastVorkommen).filter(
+                ForecastVorkommen.regel_id == regel.id,
+                ForecastVorkommen.generiert_fuer.isnot(None),
+            )
+        }
         for d in _occurrence_dates(regel, horizon_end, untergrenze):
-            fenster_start = d - dt.timedelta(days=20)
-            fenster_ende = add_months(d, 1) + dt.timedelta(days=10)
-            bereits_vorhanden = any(
-                fenster_start <= v.erwartetes_datum <= fenster_ende for v in vorhandene
-            )
-            if bereits_vorhanden:
+            if d in belegt:
                 continue
-            neues_vorkommen = ForecastVorkommen(
-                regel_id=regel.id,
-                topf_id=regel.topf_id,
-                bezeichnung=regel.bezeichnung,
-                erwarteter_betrag=regel.betrag,
-                erwartetes_datum=d,
+            db.add(
+                ForecastVorkommen(
+                    regel_id=regel.id,
+                    topf_id=regel.topf_id,
+                    bezeichnung=regel.bezeichnung,
+                    erwarteter_betrag=regel.betrag,
+                    erwartetes_datum=d,
+                    generiert_fuer=d,
+                )
             )
-            db.add(neues_vorkommen)
-            vorhandene.append(neues_vorkommen)
+            belegt.add(d)
             erzeugt += 1
 
     if erzeugt:
@@ -143,7 +179,9 @@ def vorkommen_bearbeiten(
     vorkommen.erwartetes_datum = erwartetes_datum
 
 
-def _pruefe_regel_eingaben(betrag, rhythmus: str, anker_tag: int) -> None:
+def _pruefe_regel_eingaben(
+    betrag, rhythmus: str, anker_tag: int, start_datum: dt.date, end_datum: dt.date | None
+) -> None:
     """Gemeinsame Pruefungen fuer Anlegen und Bearbeiten einer Regel."""
     if float(betrag) == 0:
         raise ValueError("Betrag darf nicht 0 sein.")
@@ -153,6 +191,13 @@ def _pruefe_regel_eingaben(betrag, rhythmus: str, anker_tag: int) -> None:
         )
     if not 1 <= int(anker_tag) <= 31:
         raise ValueError("Anker-Tag muss zwischen 1 und 31 liegen.")
+    # "Befristet" heisst "monatlich mit Enddatum" - ohne Enddatum ist die Regel
+    # von "monatlich" nicht zu unterscheiden und laeuft entgegen ihrem Namen
+    # unbegrenzt weiter.
+    if rhythmus == "befristet" and end_datum is None:
+        raise ValueError("Bei Rhythmus 'befristet' ist ein Enddatum erforderlich.")
+    if end_datum is not None and end_datum < start_datum:
+        raise ValueError("Das Enddatum darf nicht vor dem Startdatum liegen.")
 
 
 def regel_erstellen(
@@ -171,7 +216,7 @@ def regel_erstellen(
     Pruefungen durchlaufen - vorher war ein Betrag von 0 nur beim Bearbeiten
     verboten, beim Anlegen ging er durch.
     """
-    _pruefe_regel_eingaben(betrag, rhythmus, anker_tag)
+    _pruefe_regel_eingaben(betrag, rhythmus, anker_tag, start_datum, end_datum)
 
     regel = ForecastRegel(
         topf_id=topf_id,
@@ -203,7 +248,7 @@ def regel_bearbeiten(
     gebuchten, nicht verworfenen) Vorkommen mit den neuen Parametern neu -
     bereits gebuchte/verknuepfte Vorkommen sind reales Faktum und bleiben
     unangetastet, bewusst verworfene (ignoriert) bleiben es auch."""
-    _pruefe_regel_eingaben(betrag, rhythmus, anker_tag)
+    _pruefe_regel_eingaben(betrag, rhythmus, anker_tag, start_datum, end_datum)
 
     regel.topf_id = topf_id
     regel.bezeichnung = bezeichnung
@@ -275,12 +320,11 @@ def vorkommen_loeschen(db: Session, vorkommen: ForecastVorkommen) -> None:
     """Verwirft ein offenes Vorkommen (z.B. eine nie eingetroffene Erwartung).
 
     Setzt statt eines echten Deletes nur ignoriert=True: der Datensatz bleibt
-    fuer eine aus einer Regel erzeugte Buchung erhalten, damit die
-    Generierung in ensure_forecast_vorkommen ihn weiter als "bereits
-    vorhanden" fuer diesen Zeitraum erkennt und ihn nicht beim naechsten
-    Scan erneut anlegt. Aus allen Listen (Zeitachse, Prognose, Matching)
-    verschwindet er trotzdem, da die dortigen offene_vorkommen_query()-
-    Abfragen ignorierte Vorkommen ausschliessen."""
+    fuer eine aus einer Regel erzeugte Buchung erhalten, damit seine
+    generiert_fuer-Faelligkeit belegt bleibt und ensure_forecast_vorkommen sie
+    nicht beim naechsten Scan erneut anlegt. Aus allen Listen (Zeitachse,
+    Prognose, Matching) verschwindet er trotzdem, da die dortigen
+    offene_vorkommen_query()-Abfragen ignorierte Vorkommen ausschliessen."""
     if vorkommen.verknuepfte_buchung_id is not None or vorkommen.verknuepfte_topf_umbuchung_id is not None:
         raise ValueError("Nur noch offene Vorkommen koennen geloescht werden.")
     vorkommen.ignoriert = True

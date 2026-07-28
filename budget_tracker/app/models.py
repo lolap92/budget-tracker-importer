@@ -37,6 +37,11 @@ class Topf(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     startsaldo: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    # Seit 1.15.0 nicht mehr ausgewertet: die Sondertilgungs-Aussage auf der
+    # Startseite leitet Betrag und Faelligkeit aus der Forecast-Regel ab
+    # (calculations.sondertilgung_status) und bleibt damit automatisch mit ihr
+    # in Sync. Die Spalten bleiben erhalten, damit bestehende seed-data.json
+    # weiter gelesen werden koennen, ohne dass eine Migration Daten wegwirft.
     jahresziel: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     sondertilgung_datum: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
     reihenfolge: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -128,6 +133,14 @@ class ForecastVorkommen(Base):
     bezeichnung: Mapped[str] = mapped_column(String, nullable=False)
     erwarteter_betrag: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     erwartetes_datum: Mapped[dt.date] = mapped_column(Date, nullable=False)
+
+    # Der von der Regel berechnete Termin, fuer den dieses Vorkommen erzeugt
+    # wurde - im Gegensatz zu erwartetes_datum unveraenderlich. Nur so laesst
+    # sich exakt beantworten, ob ein Monat bereits angelegt wurde:
+    # erwartetes_datum wird beim Abgleich mit einer realen Buchung, beim
+    # Verschieben und beim Bearbeiten ueberschrieben und taugt dafuer nicht.
+    # NULL bei frei angelegten Vorkommen, die keine Regel erzeugt hat.
+    generiert_fuer: Mapped[dt.date | None] = mapped_column(Date, nullable=True, index=True)
     verknuepfte_buchung_id: Mapped[int | None] = mapped_column(
         ForeignKey("buchung.id"), nullable=True
     )
