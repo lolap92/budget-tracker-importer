@@ -13,7 +13,7 @@ import re
 from sqlalchemy.orm import Session
 
 from app.config import SONDERAUSGABEN_TOPF
-from app.matching import finde_passendes_vorkommen
+from app.matching import finde_passendes_vorkommen, verknuepftes_vorkommen
 from app.models import Buchung, Topf
 
 
@@ -31,7 +31,12 @@ def _normalisiert(text: str) -> str:
 def _verknuepfe_offenes_forecast_vorkommen(db: Session, buchung: Buchung) -> None:
     """Zusaetzlicher Forecast-Abgleich: verlinkt ein offenes Vorkommen desselben
     Topfs, unabhaengig davon, wie der Topf ermittelt wurde (Zins, Text oder Regel).
-    Uebernimmt dabei dessen Bezeichnung als sprechenden Namen der Buchung."""
+    Uebernimmt dabei dessen Bezeichnung als sprechenden Namen der Buchung.
+
+    Eine bereits verknuepfte Buchung bleibt unangetastet - siehe die Sperre in
+    topf_zuordnen."""
+    if verknuepftes_vorkommen(db, buchung) is not None:
+        return
     vorkommen = finde_passendes_vorkommen(db, buchung, topf_id=buchung.topf_id)
     if vorkommen is not None:
         vorkommen.verknuepfte_buchung_id = buchung.id
@@ -43,6 +48,14 @@ def _verknuepfe_offenes_forecast_vorkommen(db: Session, buchung: Buchung) -> Non
 def topf_zuordnen(db: Session, buchung: Buchung) -> None:
     if buchung.ist_umbuchung:
         return
+
+    # Eine Buchung gehoert zu hoechstens einem FORECAST_VORKOMMEN. topf_zuordnen
+    # laeuft nicht nur einmalig beim Import, sondern erneut ueber
+    # entmarkiere_umbuchung ("ist doch keine Umbuchung"). Ohne diese Sperre
+    # haengt der zweite Lauf ein weiteres Vorkommen an dieselbe Buchung; beide
+    # gelten dann als erledigt und fallen aus der Prognose, obwohl es nur eine
+    # reale Zahlung gibt.
+    darf_verknuepfen = verknuepftes_vorkommen(db, buchung) is None
 
     if buchung.typ == "INTEREST_PAYMENT":
         topf = _topf_by_name(db, SONDERAUSGABEN_TOPF)
@@ -64,15 +77,16 @@ def topf_zuordnen(db: Session, buchung: Buchung) -> None:
                 _verknuepfe_offenes_forecast_vorkommen(db, buchung)
                 return
 
-    vorkommen = finde_passendes_vorkommen(db, buchung, nur_aus_regel=True)
-    if vorkommen is not None:
-        buchung.topf_id = vorkommen.topf_id
-        buchung.zuordnung_quelle = "regel"
-        buchung.titel = vorkommen.bezeichnung
-        vorkommen.verknuepfte_buchung_id = buchung.id
-        vorkommen.erwarteter_betrag = buchung.betrag
-        vorkommen.erwartetes_datum = buchung.datum
-        return
+    if darf_verknuepfen:
+        vorkommen = finde_passendes_vorkommen(db, buchung, nur_aus_regel=True)
+        if vorkommen is not None:
+            buchung.topf_id = vorkommen.topf_id
+            buchung.zuordnung_quelle = "regel"
+            buchung.titel = vorkommen.bezeichnung
+            vorkommen.verknuepfte_buchung_id = buchung.id
+            vorkommen.erwarteter_betrag = buchung.betrag
+            vorkommen.erwartetes_datum = buchung.datum
+            return
 
     buchung.topf_id = None
     buchung.zuordnung_quelle = None

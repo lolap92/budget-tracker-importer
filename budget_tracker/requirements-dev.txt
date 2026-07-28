@@ -2,3 +2,5 @@
 # Add-on-Image (Alpine, aarch64) nichts davon mitschleppt.
 -r app/requirements.txt
 pytest==9.1.1
+# fuer starlette.testclient (Rendering-Smoke-Tests)
+httpx==0.28.1

@@ -18,7 +18,8 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.models import Buchung, ForecastVorkommen, Konfiguration
+from app.matching import verknuepftes_vorkommen
+from app.models import Buchung, Konfiguration
 
 MANUAL_PREFIX = "manual-"
 
@@ -93,13 +94,9 @@ def loesche_buchung(db: Session, buchung: Buchung) -> None:
             gegenbuchung.topf_id = None
             gegenbuchung.umbuchung_final = False
 
-    verknuepftes_vorkommen = (
-        db.query(ForecastVorkommen)
-        .filter(ForecastVorkommen.verknuepfte_buchung_id == buchung.id)
-        .first()
-    )
-    if verknuepftes_vorkommen is not None:
-        verknuepftes_vorkommen.verknuepfte_buchung_id = None
+    vorkommen = verknuepftes_vorkommen(db, buchung)
+    if vorkommen is not None:
+        vorkommen.verknuepfte_buchung_id = None
 
     db.delete(buchung)
     db.commit()

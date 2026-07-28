@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
@@ -33,11 +35,21 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
                 "sondertilgung": sondertilgung_status(db, topf),
             }
         )
+    # Der Kontostand bleibt bankgenau und enthaelt daher auch Buchungen, die
+    # noch keinem Topf zugeordnet sind (offene Zuordnungen, schwebende
+    # Umbuchungen). Er laeuft dadurch zwangslaeufig von der Summe der
+    # Topf-Salden auseinander - die Differenz wird ausgewiesen, statt sie
+    # kommentarlos zwischen zwei direkt untereinander stehenden Zahlen
+    # stehen zu lassen.
+    kontostand = kontostand_gesamt(db)
+    nicht_zugeordnet = kontostand - sum((k["saldo"] for k in karten), Decimal(0))
+
     return templates.TemplateResponse(
         "overview.html",
         ctx(
             request,
-            kontostand=kontostand_gesamt(db),
+            kontostand=kontostand,
+            nicht_zugeordnet=nicht_zugeordnet,
             karten=karten,
             watcher_status=watcher.status(),
             offene_anzahl=len(review_liste(db)),

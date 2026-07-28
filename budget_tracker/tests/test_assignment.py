@@ -5,11 +5,17 @@ from decimal import Decimal
 import pytest
 
 from app.assignment import topf_zuordnen
+from app.calculations import kontostand_gesamt, prognose_topf, saldo_topf
 from app.manual_entry import erstelle_manuelle_buchung, ist_loeschbar, loesche_buchung
 from app.matching import finde_passendes_vorkommen
 from app.models import Buchung, ForecastRegel, ForecastVorkommen
-from app.umbuchung import abgleichen, endgueltig_verbuchen, markiere_als_umbuchung
-from tests.conftest import START_DATUM
+from app.umbuchung import (
+    abgleichen,
+    endgueltig_verbuchen,
+    entmarkiere_umbuchung,
+    markiere_als_umbuchung,
+)
+from tests.conftest import HEUTE, START_DATUM
 
 
 def zuordnen(db, **kwargs) -> Buchung:
@@ -159,7 +165,7 @@ class TestUmbuchung:
         assert ab.gegenbuchung_id == auf.id
         assert auf.gegenbuchung_id == ab.id
         # Beide Seiten zusammen sind fuer den Topf ein Nullsummenspiel.
-        from app.calculations import saldo_topf
+        from app.calculations import kontostand_gesamt, prognose_topf, saldo_topf
 
         assert saldo_topf(db, app["Urlaub"]) == Decimal("0.00")
 
@@ -172,13 +178,99 @@ class TestUmbuchung:
         with pytest.raises(ValueError, match="Vorzeichen"):
             abgleichen(db, a, b, app["Urlaub"].id)
 
+    def test_markieren_gibt_das_verknuepfte_vorkommen_wieder_frei(self, db, app):
+        """Regression: sonst verschwindet der Betrag aus Saldo *und* Prognose.
+
+        Die Markierung sagt aus, dass diese Buchung nicht die erwartete
+        Ausgabe war - die Erwartung steht also weiter aus.
+        """
+        urlaub = app["Urlaub"]
+        v = ForecastVorkommen(
+            topf_id=urlaub.id,
+            bezeichnung="Hotel Mallorca",
+            erwarteter_betrag=Decimal("-800.00"),
+            erwartetes_datum=dt.date(2026, 7, 20),
+        )
+        db.add(v)
+        db.commit()
+        b = zuordnen(db, verwendungszweck="Urlaub Hotel", betrag="-800.00",
+                     datum=dt.date(2026, 7, 20))
+        assert v.verknuepfte_buchung_id == b.id
+
+        markiere_als_umbuchung(db, b)
+
+        assert v.verknuepfte_buchung_id is None
+        assert b.topf_id is None
+
+    def test_der_gesamte_umbuchungs_zyklus_ist_spurlos(self, db, app):
+        """800 EUR raus und wieder rein darf Saldo und Prognose unveraendert
+        lassen - die Erwartung bleibt dabei erhalten."""
+        urlaub = app["Urlaub"]
+        urlaub.startsaldo = Decimal("1000.00")
+        db.commit()
+        db.add(
+            ForecastVorkommen(
+                topf_id=urlaub.id,
+                bezeichnung="Hotel Mallorca",
+                erwarteter_betrag=Decimal("-800.00"),
+                erwartetes_datum=dt.date(2026, 7, 20),
+            )
+        )
+        db.commit()
+        vorher = (
+            kontostand_gesamt(db),
+            saldo_topf(db, urlaub),
+            prognose_topf(db, urlaub, heute=HEUTE).monatswerte[-1].saldo,
+        )
+
+        ab = zuordnen(db, transaction_id="tx-ab", verwendungszweck="Urlaub Hotel",
+                      betrag="-800.00", datum=dt.date(2026, 7, 20))
+        markiere_als_umbuchung(db, ab)
+        auf = zuordnen(db, transaction_id="tx-auf", betrag="800.00",
+                       datum=dt.date(2026, 7, 22))
+        markiere_als_umbuchung(db, auf)
+        abgleichen(db, ab, auf, urlaub.id)
+
+        nachher = (
+            kontostand_gesamt(db),
+            saldo_topf(db, urlaub),
+            prognose_topf(db, urlaub, heute=HEUTE).monatswerte[-1].saldo,
+        )
+        assert nachher == vorher == (Decimal("1000.00"), Decimal("1000.00"), Decimal("200.00"))
+
+    def test_entmarkieren_haengt_kein_zweites_vorkommen_an(self, db, app):
+        """Regression: topf_zuordnen laeuft dabei erneut - eine bereits
+        verknuepfte Buchung darf kein weiteres Vorkommen einsammeln."""
+        urlaub = app["Urlaub"]
+        for i in range(2):
+            db.add(
+                ForecastVorkommen(
+                    topf_id=urlaub.id,
+                    bezeichnung=f"Hotel {i}",
+                    erwarteter_betrag=Decimal("-800.00"),
+                    erwartetes_datum=dt.date(2026, 7, 20 + i),
+                )
+            )
+        db.commit()
+        b = zuordnen(db, verwendungszweck="Urlaub Hotel", betrag="-800.00",
+                     datum=dt.date(2026, 7, 20))
+        markiere_als_umbuchung(db, b)
+        entmarkiere_umbuchung(db, b)
+
+        treffer = (
+            db.query(ForecastVorkommen)
+            .filter(ForecastVorkommen.verknuepfte_buchung_id == b.id)
+            .all()
+        )
+        assert len(treffer) == 1
+
     def test_endgueltig_verbuchen_bringt_die_buchung_in_den_saldo(self, db, app):
         b = zuordnen(db, betrag="-500.00")
         markiere_als_umbuchung(db, b)
 
         endgueltig_verbuchen(db, b, app["Urlaub"].id)
 
-        from app.calculations import saldo_topf
+        from app.calculations import kontostand_gesamt, prognose_topf, saldo_topf
 
         assert b.umbuchung_final is True
         assert saldo_topf(db, app["Urlaub"]) == Decimal("-500.00")

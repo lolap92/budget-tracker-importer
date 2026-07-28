@@ -8,10 +8,33 @@ fliesst nicht in den Topf-Saldo ein.
 from sqlalchemy.orm import Session
 
 from app.config import UMBUCHUNG_DATUM_TOLERANZ_TAGE
+from app.matching import verknuepftes_vorkommen
 from app.models import Buchung
 
 
 def markiere_als_umbuchung(db: Session, buchung: Buchung) -> None:
+    """Erklaert eine reale Buchung zur (Bank-)Umbuchung: sie verlaesst den Topf
+    und schwebt, bis sie abgeglichen oder endgueltig verbucht wird.
+
+    Hat bisher ein FORECAST_VORKOMMEN diese Buchung als seine Erfuellung
+    betrachtet, wird es dabei wieder freigegeben. Die Markierung sagt ja
+    gerade aus, dass es sich nicht um die erwartete Ausgabe handelte, sondern
+    um eine Verschiebung, die sich mit ihrer Gegenbuchung ausgleicht - die
+    Erwartung steht also weiter aus und gehoert zurueck in die Prognose.
+    Ohne diese Freigabe verschwaende der Betrag vollstaendig: die Buchung
+    zaehlt nicht mehr im Topf-Saldo, das Vorkommen gilt weiter als gebucht.
+
+    Erwarteter Betrag und Datum des Vorkommens bleiben auf den Werten der
+    Buchung stehen - der urspruenglich geplante Termin ist beim Verknuepfen
+    ueberschrieben worden. Beim automatischen Abgleich ist der Betrag ohnehin
+    identisch (FORECAST_BETRAG_TOLERANZ = 0) und das Datum hoechstens um die
+    Datumstoleranz verschoben; bei Bedarf laesst sich das Vorkommen auf der
+    Forecast-Seite bearbeiten.
+    """
+    vorkommen = verknuepftes_vorkommen(db, buchung)
+    if vorkommen is not None:
+        vorkommen.verknuepfte_buchung_id = None
+
     buchung.ist_umbuchung = True
     buchung.umbuchung_richtung = "eingehend" if float(buchung.betrag) >= 0 else "ausgehend"
     buchung.topf_id = None

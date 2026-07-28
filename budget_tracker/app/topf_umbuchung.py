@@ -7,7 +7,8 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.manual_entry import ist_zu_umbuchung_konvertierbar
-from app.models import Buchung, ForecastVorkommen, TopfUmbuchung
+from app.matching import verknuepftes_vorkommen
+from app.models import Buchung, TopfUmbuchung
 
 
 def erstelle_topf_umbuchung(
@@ -65,13 +66,9 @@ def buchung_zu_topf_umbuchung(db: Session, buchung: Buchung, gegen_topf_id: int)
     )
     db.add(umbuchung)
 
-    verknuepftes_vorkommen = (
-        db.query(ForecastVorkommen)
-        .filter(ForecastVorkommen.verknuepfte_buchung_id == buchung.id)
-        .first()
-    )
-    if verknuepftes_vorkommen is not None:
-        verknuepftes_vorkommen.verknuepfte_buchung_id = None
+    vorkommen = verknuepftes_vorkommen(db, buchung)
+    if vorkommen is not None:
+        vorkommen.verknuepfte_buchung_id = None
 
     db.delete(buchung)
     db.commit()

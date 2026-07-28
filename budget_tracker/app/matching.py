@@ -8,6 +8,21 @@ from app.config import FORECAST_BETRAG_TOLERANZ, FORECAST_DATUM_TOLERANZ_TAGE
 from app.models import Buchung, ForecastVorkommen
 
 
+def verknuepftes_vorkommen(db: Session, buchung: Buchung) -> ForecastVorkommen | None:
+    """Das FORECAST_VORKOMMEN, das diese Buchung als erledigt betrachtet.
+
+    Invariante: eine Buchung gehoert zu hoechstens einem Vorkommen. Hier
+    zentral, weil mehrere Stellen die Verknuepfung wieder loesen muessen
+    (Buchung loeschen, in eine Topf-Umbuchung umwandeln, als Bank-Umbuchung
+    markieren) und eine weitere sie gegen Doppelvergabe absichern muss.
+    """
+    return (
+        db.query(ForecastVorkommen)
+        .filter(ForecastVorkommen.verknuepfte_buchung_id == buchung.id)
+        .first()
+    )
+
+
 def offene_vorkommen_query(db: Session, topf_id: int | None = None):
     q = db.query(ForecastVorkommen).filter(
         ForecastVorkommen.verknuepfte_buchung_id.is_(None),

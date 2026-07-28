@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.14.4 - 2026-07-28
+
+- **Fehlerbehebung (Betrag verschwand):** Wurde eine bereits einem Topf zugeordnete Buchung nachträglich „als Umbuchung markiert", blieb ein damit verknüpftes Forecast-Vorkommen weiterhin als erledigt verbucht. Die Buchung zählte danach nicht mehr im Topf-Saldo und die Erwartung nicht mehr in der Prognose – der Betrag war aus beiden Sichten verschwunden. Das Vorkommen wird jetzt wieder freigegeben: Die Markierung sagt ja gerade aus, dass es sich nicht um die erwartete Ausgabe handelte, sondern um eine Verschiebung, die sich mit ihrer Gegenbuchung ausgleicht – die Erwartung steht also weiter aus und gehört zurück in die Prognose. Eine Umbuchung ist damit über ihren gesamten Lebenszyklus spurlos: 800 € raus und wieder rein lassen Kontostand, Topf-Saldo und Prognose exakt so stehen wie vorher.
+- **Fehlerbehebung (doppelte Verknüpfung):** „Ist doch keine Umbuchung – automatisch neu zuordnen" ließ die automatische Zuordnung erneut laufen und hängte dabei ein *zweites* Forecast-Vorkommen an dieselbe Buchung. Beide galten dann als gebucht und fielen aus der Prognose, obwohl es nur eine reale Zahlung gab. Eine Buchung gehört jetzt garantiert zu höchstens einem Vorkommen.
+- Die Übersicht weist unter dem Kontostand aus, welcher Teil davon noch keinem Topf zugeordnet ist („davon -1.250,00 € noch keinem Topf zugeordnet"). Der Kontostand enthält bewusst auch offene und schwebende Buchungen und bleibt damit deckungsgleich mit dem echten Kontoauszug; die Differenz zur Summe der vier Töpfe stand bisher unkommentiert zwischen zwei direkt untereinander liegenden Zahlen.
+- Test-Suite auf 123 Tests erweitert, darunter Rendering-Smoke-Tests für alle Seiten (fangen Template-Fehler, die vorher erst im Betrieb als 500er aufgefallen wären).
+
 ## 1.14.3 - 2026-07-28
 
 - **Fehlerbehebung (Datenverlust beim Import):** Scheiterte eine einzelne CSV-Zeile an einem Datenbank-Integritätsfehler, nahm der Import mit `rollback()` die komplette offene Transaktion zurück und verwarf damit alle bereits gelesenen Zeilen derselben Datei. Die Statistik meldete sie trotzdem als importiert, und der Watcher merkte sich die Datei als verarbeitet – die Buchungen waren endgültig weg. Jede Zeile läuft jetzt in einem eigenen SAVEPOINT; ein Fehler verwirft ausschließlich die betroffene Zeile.
