@@ -1,0 +1,4 @@
+# Nur fuer die Test-Suite - bewusst nicht in app/requirements.txt, damit das
+# Add-on-Image (Alpine, aarch64) nichts davon mitschleppt.
+-r app/requirements.txt
+pytest==9.1.1

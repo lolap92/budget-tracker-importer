@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.assignment import topf_zuordnen
-from app.models import Buchung
+from app.models import Buchung, Konfiguration
 
 logger = logging.getLogger("budget_tracker.csv_import")
 
@@ -70,7 +70,14 @@ def _sniff_dialect(sample: str) -> csv.Dialect:
 
 def import_csv_datei(db: Session, pfad: Path) -> dict:
     """Importiert eine einzelne CSV-Datei. Gibt eine kleine Statistik zurueck."""
-    stats = {"datei": str(pfad), "gelesen": 0, "neu": 0, "duplikate": 0, "fehler": 0}
+    stats = {
+        "datei": str(pfad),
+        "gelesen": 0,
+        "neu": 0,
+        "duplikate": 0,
+        "vor_startdatum": 0,
+        "fehler": 0,
+    }
 
     try:
         rohtext = pfad.read_text(encoding="utf-8-sig")
@@ -90,6 +97,12 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
         return stats
 
     vorhandene_ids = {row[0] for row in db.query(Buchung.transaction_id).all()}
+
+    # Bewegungen vor dem Startdatum stecken bereits in den Topf-Startsalden.
+    # Wuerden sie zusaetzlich importiert, zaehlt die App sie ein zweites Mal -
+    # der Trade-Republic-Export liefert regelmaessig den kompletten Verlauf.
+    konfiguration = db.query(Konfiguration).first()
+    start_datum = konfiguration.start_datum if konfiguration is not None else None
 
     for row in reader:
         stats["gelesen"] += 1
@@ -115,6 +128,10 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
             stats["fehler"] += 1
             continue
 
+        if start_datum is not None and datum < start_datum:
+            stats["vor_startdatum"] += 1
+            continue
+
         buchung = Buchung(
             transaction_id=transaction_id,
             datum=datum,
@@ -126,12 +143,17 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
             beschreibung=row.get("description") or None,
             importiert_am=dt.datetime.utcnow(),
         )
-        db.add(buchung)
+        # SAVEPOINT je Zeile: ein Integritaetsfehler darf ausschliesslich diese
+        # eine Zeile verwerfen. Ein db.rollback() wuerde die gesamte offene
+        # Transaktion und damit alle bereits gelesenen Zeilen dieser Datei
+        # zuruecknehmen - der Watcher merkt sich die Datei danach trotzdem als
+        # verarbeitet und liest sie nie wieder, die Buchungen waeren endgueltig weg.
         try:
-            db.flush()
+            with db.begin_nested():
+                db.add(buchung)
+                db.flush()
         except IntegrityError:
             # Race/erneuter Import derselben transaction_id -> Wert ignorieren, warnen.
-            db.rollback()
             logger.warning("transaction_id %s bereits vorhanden (Integritaetsfehler), ignoriert.", transaction_id)
             stats["duplikate"] += 1
             continue
@@ -141,4 +163,13 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
         stats["neu"] += 1
 
     db.commit()
+    logger.info(
+        "%s: %d gelesen, %d neu, %d Duplikate, %d vor Startdatum, %d fehlerhaft.",
+        pfad.name,
+        stats["gelesen"],
+        stats["neu"],
+        stats["duplikate"],
+        stats["vor_startdatum"],
+        stats["fehler"],
+    )
     return stats

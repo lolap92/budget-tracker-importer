@@ -32,6 +32,16 @@ UMBUCHUNG_DATUM_TOLERANZ_TAGE = 10
 DIRECTORY_SCAN_INTERVAL_SECONDS = int(os.environ.get("SCAN_INTERVAL_SECONDS", "30"))
 FORECAST_HORIZON_MONATE = 12
 
+# Wie weit vor dem aktuellen Monat noch Vorkommen erzeugt werden. Ohne diese
+# Untergrenze legt eine Regel mit weit zurueckliegendem Startdatum (der
+# Normalfall bei seed-data.json) fuer jeden vergangenen Monat ein Vorkommen an.
+# Diese finden nie eine reale Buchung, bleiben dauerhaft offen und werden von
+# prognose_topf() in jedem Prognosemonat mitsummiert - die Prognose liegt dann
+# um ein Vielfaches der Rate daneben. Ein Monat Rueckgriff bleibt, damit eine
+# Buchung, die knapp in den Vormonat gehoerte, ihr Vorkommen noch findet
+# (siehe FORECAST_DATUM_TOLERANZ_TAGE).
+FORECAST_RUECKWIRKEND_MONATE = 1
+
 
 def read_addon_options() -> dict:
     """Liest optionale Add-on-Optionen aus /data/options.json (Supervisor-Konvention)."""
