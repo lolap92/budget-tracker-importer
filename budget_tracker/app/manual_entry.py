@@ -18,7 +18,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.models import Buchung, ForecastVorkommen
+from app.models import Buchung, ForecastVorkommen, Konfiguration
 
 MANUAL_PREFIX = "manual-"
 
@@ -54,6 +54,15 @@ def erstelle_manuelle_buchung(
 ) -> Buchung:
     if datum > dt.date.today():
         raise ValueError("Eine vergangene Buchung kann kein Datum in der Zukunft haben.")
+
+    # Gleiche Begruendung wie beim CSV-Import: vor dem Startdatum ist der
+    # Topf-Startsaldo die Wahrheit, eine zusaetzliche Buchung zaehlt doppelt.
+    konfiguration = db.query(Konfiguration).first()
+    if konfiguration is not None and datum < konfiguration.start_datum:
+        raise ValueError(
+            f"Datum liegt vor dem Startdatum ({konfiguration.start_datum.strftime('%d.%m.%Y')}) - "
+            "Bewegungen davor stecken bereits im Topf-Startsaldo."
+        )
 
     buchung = Buchung(
         transaction_id=f"{MANUAL_PREFIX}{uuid.uuid4()}",

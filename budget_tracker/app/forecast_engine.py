@@ -4,32 +4,79 @@ import datetime as dt
 
 from sqlalchemy.orm import Session
 
-from app.config import FORECAST_HORIZON_MONATE, SONDERAUSGABEN_TOPF
-from app.dateutils import add_months, safe_date
-from app.models import Buchung, ForecastRegel, ForecastVorkommen, Topf, TopfUmbuchung
+from app.config import (
+    FORECAST_HORIZON_MONATE,
+    FORECAST_RUECKWIRKEND_MONATE,
+    SONDERAUSGABEN_TOPF,
+)
+from app.dateutils import add_months, month_start, safe_date
+from app.models import (
+    Buchung,
+    ForecastRegel,
+    ForecastVorkommen,
+    Konfiguration,
+    Topf,
+    TopfUmbuchung,
+)
 
 
-def _occurrence_dates(regel: ForecastRegel, horizon_end: dt.date) -> list[dt.date]:
+def _occurrence_dates(
+    regel: ForecastRegel, horizon_end: dt.date, untergrenze: dt.date
+) -> list[dt.date]:
+    """Alle Faelligkeiten einer Regel zwischen untergrenze und horizon_end.
+
+    Die Untergrenze ist bewusst Teil der Signatur: eine Regel darf ein
+    Startdatum weit in der Vergangenheit haben (Kreditrate seit 2024), ohne
+    dass dafuer rueckwirkend Vorkommen entstehen, die nie eine reale Buchung
+    finden koennen.
+    """
     dates: list[dt.date] = []
     if regel.rhythmus in ("monatlich", "befristet"):
-        d = safe_date(regel.start_datum.year, regel.start_datum.month, regel.anker_tag)
-        if d < regel.start_datum:
-            d = add_months(d, 1)
-        while d <= horizon_end:
+        erster = safe_date(regel.start_datum.year, regel.start_datum.month, regel.anker_tag)
+        if erster < regel.start_datum:
+            erster = add_months(erster, 1)
+        # Der Anker-Tag wird fuer jeden Monat neu aus dem Monatsanfang
+        # abgeleitet, nicht durch Weiterzaehlen des Vormonatsdatums: sonst
+        # kappt der Februar einen Anker-Tag 29-31 dauerhaft und die Regel
+        # faellt fuer den Rest des Jahres auf den 28. zurueck.
+        monat = month_start(erster)
+        while True:
+            d = safe_date(monat.year, monat.month, regel.anker_tag)
+            if d > horizon_end:
+                break
             if regel.end_datum and d > regel.end_datum:
                 break
-            dates.append(d)
-            d = add_months(d, 1)
+            if d >= untergrenze:
+                dates.append(d)
+            monat = add_months(monat, 1)
     elif regel.rhythmus == "jaehrlich":
         year = regel.start_datum.year
         while True:
             d = safe_date(year, regel.start_datum.month, regel.anker_tag)
             if d > horizon_end:
                 break
-            if d >= regel.start_datum and (not regel.end_datum or d <= regel.end_datum):
+            if (
+                d >= regel.start_datum
+                and d >= untergrenze
+                and (not regel.end_datum or d <= regel.end_datum)
+            ):
                 dates.append(d)
             year += 1
     return dates
+
+
+def forecast_untergrenze(db: Session, heute: dt.date) -> dt.date:
+    """Fruehestes Datum, fuer das ueberhaupt noch Vorkommen erzeugt werden.
+
+    Rueckwirkend nur bis FORECAST_RUECKWIRKEND_MONATE vor dem aktuellen Monat
+    und nie vor dem Startdatum der Konfiguration: davor liegende Bewegungen
+    stecken bereits in den Topf-Startsalden.
+    """
+    grenze = add_months(month_start(heute), -FORECAST_RUECKWIRKEND_MONATE)
+    konfiguration = db.query(Konfiguration).first()
+    if konfiguration is not None and konfiguration.start_datum > grenze:
+        grenze = konfiguration.start_datum
+    return grenze
 
 
 def ensure_forecast_vorkommen(
@@ -43,11 +90,12 @@ def ensure_forecast_vorkommen(
     """
     heute = heute or dt.date.today()
     horizon_end = add_months(heute, horizon_monate)
+    untergrenze = forecast_untergrenze(db, heute)
     erzeugt = 0
 
     for regel in db.query(ForecastRegel).all():
         vorhandene = db.query(ForecastVorkommen).filter(ForecastVorkommen.regel_id == regel.id).all()
-        for d in _occurrence_dates(regel, horizon_end):
+        for d in _occurrence_dates(regel, horizon_end, untergrenze):
             fenster_start = d - dt.timedelta(days=20)
             fenster_ende = add_months(d, 1) + dt.timedelta(days=10)
             bereits_vorhanden = any(

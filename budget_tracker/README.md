@@ -9,7 +9,7 @@ alles andere wird berechnet.
 
 ## Funktionen
 
-- Automatischer CSV-Import aus `/homeassistant/budget_tracker/imports`, dedupliziert über `transaction_id`.
+- Automatischer CSV-Import aus `/homeassistant/budget_tracker/imports`, dedupliziert über `transaction_id`. Zeilen mit einem Datum vor dem Startdatum werden übersprungen – sie stecken bereits in den Topf-Startsalden.
 - Automatische Topf-Zuordnung: Zins → Verwendungszweck → Forecast-Regel → offen zur manuellen Zuordnung.
 - Bank-Umbuchungen als bidirektionaler, schwebender Zustand mit Abgleich-Vorschlägen.
 - Topf-Umbuchung: sofort wirksame, rein virtuelle Verschiebung zwischen zwei Töpfen.
@@ -78,6 +78,21 @@ sich danach direkt in der App unter „Forecast“ anlegen.
 Details zum Datenmodell und zur abgeleiteten Logik (Saldo-, Prognose- und
 Zuordnungsberechnung) stehen als Kommentare direkt in `app/models.py`,
 `app/calculations.py`, `app/assignment.py` und `app/forecast_engine.py`.
+
+## Tests
+
+Die Berechnungs- und Importlogik ist durch eine Test-Suite abgedeckt (Salden,
+Kontostand, Prognose, Zielfortschritt, Zeitachse, CSV-Parsing und
+-Dedublizierung, Forecast-Generierung, automatische Zuordnung, Umbuchungs-
+Zustandsübergänge). Ausführen im Ordner `budget_tracker/`:
+
+```
+pip install -r requirements-dev.txt
+pytest
+```
+
+Die Tests laufen gegen eine temporäre SQLite-Datei und rechnen gegen ein
+festes Bezugsdatum, sind also unabhängig vom Kalendertag des Testlaufs.
 
 ## Fehlersuche
 
