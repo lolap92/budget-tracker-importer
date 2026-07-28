@@ -39,6 +39,14 @@
     <div class="goal" style="font-size:12px;margin-top:10px;">Ziel {{ daten.ziel.jahresziel | eur }} ({{ (daten.ziel.anteil * 100) | round(1) }} %){% if daten.ziel.sondertilgung_datum %} · Reset {{ daten.ziel.sondertilgung_datum | datum_kurz }}{% endif %}</div>
     <div class="progress-bar"><div style="width: {{ (daten.ziel.anteil * 100) | round(1) }}%"></div></div>
 
+    {% if daten.ziel.sondertilgung_datum %}
+      {% if daten.ziel.wird_erreicht %}
+        <div class="sc-status ok">{{ icons.check() }}Ziel wird bis {{ daten.ziel.sondertilgung_datum | datum_de }} voraussichtlich erreicht</div>
+      {% else %}
+        <div class="sc-status bad">{{ icons.warn_triangle() }}Ziel wird bis {{ daten.ziel.sondertilgung_datum | datum_de }} voraussichtlich NICHT erreicht · es fehlen noch {{ daten.ziel.fehlbetrag | eur }}</div>
+      {% endif %}
+    {% endif %}
+
     <details style="margin-top:10px;">
       <summary>Ziel &amp; Reset bearbeiten</summary>
       <form method="post" action="{{ base }}/topf/{{ topf.id }}/einstellungen" class="form-grid">
@@ -148,7 +156,7 @@
   <div class="card-label">Forecast-Regeln</div>
   {% for r in daten.regeln %}
     <details style="margin-top:8px;">
-      <summary class="b-ref" style="font-style:normal;">{{ r.bezeichnung }} · {{ r.betrag | eur }} · {{ r.rhythmus }} · Tag {{ r.anker_tag }}{% if r.end_datum %} bis {{ r.end_datum | datum_de }}{% endif %}</summary>
+      <summary class="b-ref" style="font-style:normal;">{{ r.bezeichnung }} · {{ r.betrag | eur }} · {{ r.rhythmus }}{% if r.erste_buchung %} · erste Buchung {{ r.erste_buchung | datum_de }}{% if r.letzte_buchung and r.letzte_buchung != r.erste_buchung %} · letzte Buchung {{ r.letzte_buchung | datum_de }}{% endif %}{% endif %}{% if r.end_datum %} bis {{ r.end_datum | datum_de }}{% endif %}</summary>
       <form method="post" action="{{ base }}/forecast/regel/{{ r.id }}/bearbeiten" class="form-grid" style="margin-top:8px;">
         <label>Topf
           <select name="topf_id" required>

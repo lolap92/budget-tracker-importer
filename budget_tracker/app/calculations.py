@@ -102,11 +102,28 @@ def ziel_fortschritt_haus_kredit(db: Session, topf: Topf) -> dict | None:
     saldo = saldo_topf(db, topf)
     ziel = Decimal(topf.jahresziel)
     anteil = float(saldo / ziel) if ziel else 0.0
+
+    projizierter_saldo = None
+    wird_erreicht = None
+    fehlbetrag = None
+    if topf.sondertilgung_datum:
+        offene_bis_reset = (
+            offene_vorkommen_query(db, topf.id)
+            .filter(ForecastVorkommen.erwartetes_datum <= topf.sondertilgung_datum)
+            .all()
+        )
+        projizierter_saldo = saldo + sum(Decimal(v.erwarteter_betrag) for v in offene_bis_reset)
+        wird_erreicht = projizierter_saldo >= ziel
+        fehlbetrag = max(Decimal(0), ziel - projizierter_saldo)
+
     return {
         "saldo": saldo,
         "jahresziel": ziel,
         "anteil": max(0.0, min(1.0, anteil)),
         "sondertilgung_datum": topf.sondertilgung_datum,
+        "projizierter_saldo": projizierter_saldo,
+        "wird_erreicht": wird_erreicht,
+        "fehlbetrag": fehlbetrag,
     }
 
 
@@ -240,3 +257,20 @@ def unverknuepfte_buchungen(db: Session) -> list[Buchung]:
         .order_by(Buchung.datum.desc())
         .all()
     )
+
+
+def regel_buchungs_spanne(db: Session, regel_id: int) -> tuple[dt.date | None, dt.date | None]:
+    """Erstes und letztes tatsaechlich gebuchtes Datum einer Forecast-Regel -
+    fuer die Regel-Uebersicht auf der Forecast-Seite aussagekraeftiger als
+    der reine Anker-Tag, der nichts darueber sagt, ob und wann die Regel
+    bisher tatsaechlich getroffen hat."""
+    daten = (
+        db.query(Buchung.datum)
+        .join(ForecastVorkommen, ForecastVorkommen.verknuepfte_buchung_id == Buchung.id)
+        .filter(ForecastVorkommen.regel_id == regel_id)
+        .all()
+    )
+    if not daten:
+        return None, None
+    daten_liste = [d for (d,) in daten]
+    return min(daten_liste), max(daten_liste)
