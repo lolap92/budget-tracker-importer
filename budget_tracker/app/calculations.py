@@ -227,15 +227,16 @@ def vorhandene_buchungstitel(db: Session) -> list[str]:
 
 
 def unverknuepfte_buchungen(db: Session) -> list[Buchung]:
-    """Reale Buchungen, die noch mit keinem FORECAST_VORKOMMEN verknuepft sind -
-    Kandidaten fuer die manuelle Verknuepfung eines offenen Vorkommens."""
-    verknuepfte_ids = {
-        v
-        for (v,) in db.query(ForecastVorkommen.verknuepfte_buchung_id).filter(
-            ForecastVorkommen.verknuepfte_buchung_id.isnot(None)
-        )
-    }
-    query = db.query(Buchung).filter(Buchung.ist_umbuchung.is_(False))
-    if verknuepfte_ids:
-        query = query.filter(~Buchung.id.in_(verknuepfte_ids))
-    return query.order_by(Buchung.datum.desc()).all()
+    """Reale, noch unzugeordnete CSV-Buchungen (Review-Liste) - Kandidaten fuer
+    die manuelle Verknuepfung eines offenen Forecast-Vorkommens. Buchungen mit
+    bereits gesetztem topf_id sind ausgeschlossen, egal ob automatisch (Zins,
+    Verwendungszweck, Regel) oder manuell zugeordnet: sie sind bereits
+    aufgeloest, eine Verknuepfung wuerde sie sonst stillschweigend per
+    vorkommen_manuell_verknuepfen umtopfen. Manuell erfasste Buchungen haben
+    immer sofort einen Topf und tauchen damit hier nie auf."""
+    return (
+        db.query(Buchung)
+        .filter(Buchung.ist_umbuchung.is_(False), Buchung.topf_id.is_(None))
+        .order_by(Buchung.datum.desc())
+        .all()
+    )
