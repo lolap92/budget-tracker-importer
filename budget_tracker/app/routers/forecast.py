@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.calculations import (
     prognose_topf,
-    regel_buchungs_spanne,
+    regel_erste_faelligkeit,
     unverknuepfte_buchungen,
     vorhandene_buchungstitel,
     zeitachse_topf,
@@ -54,7 +54,7 @@ def uebersicht(request: Request, topf: int | None = None, db: Session = Depends(
             .all()
         )
         for r in regeln:
-            r.erste_buchung, r.letzte_buchung = regel_buchungs_spanne(db, r.id)
+            r.erste_faelligkeit = regel_erste_faelligkeit(db, r.id)
         daten = {
             "topf": gewaehlter_topf,
             "prognose": prognose,

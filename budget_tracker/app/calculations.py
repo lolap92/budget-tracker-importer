@@ -263,18 +263,23 @@ def unverknuepfte_buchungen(db: Session) -> list[Buchung]:
     )
 
 
-def regel_buchungs_spanne(db: Session, regel_id: int) -> tuple[dt.date | None, dt.date | None]:
-    """Erstes und letztes tatsaechlich gebuchtes Datum einer Forecast-Regel -
-    fuer die Regel-Uebersicht auf der Forecast-Seite aussagekraeftiger als
-    der reine Anker-Tag, der nichts darueber sagt, ob und wann die Regel
-    bisher tatsaechlich getroffen hat."""
-    daten = (
-        db.query(Buchung.datum)
-        .join(ForecastVorkommen, ForecastVorkommen.verknuepfte_buchung_id == Buchung.id)
-        .filter(ForecastVorkommen.regel_id == regel_id)
-        .all()
+def regel_erste_faelligkeit(db: Session, regel_id: int) -> dt.date | None:
+    """Fruehestes Datum (real gebucht oder noch geplant) einer Forecast-Regel -
+    fuer die Regel-Uebersicht auf der Forecast-Seite aussagekraeftiger als der
+    reine Anker-Tag, der nichts darueber sagt, ob und wann die Regel bisher
+    tatsaechlich getroffen hat bzw. zum ersten Mal faellig wird. Sobald ein
+    Vorkommen mit einer realen Buchung verknuepft wird, uebernimmt es deren
+    Datum (siehe assignment.py/forecast_engine.py), das fruehste Vorkommen
+    liefert also automatisch das reale Datum, falls schon gebucht, sonst das
+    geplante. Verworfene (ignorierte) Vorkommen zaehlen nicht mit. Bewusst
+    kein "letztes Datum": bei unbefristeten Regeln gibt es keins, bei
+    befristeten steht das tatsaechliche Ende bereits separat (Regel-Enddatum)
+    - ein aus den bisher generierten Vorkommen abgeleitetes "letztes Datum"
+    waere nur der aktuelle 12-Monats-Horizont-Stand, nicht das echte Ende."""
+    datum = (
+        db.query(ForecastVorkommen.erwartetes_datum)
+        .filter(ForecastVorkommen.regel_id == regel_id, ForecastVorkommen.ignoriert.is_(False))
+        .order_by(ForecastVorkommen.erwartetes_datum.asc())
+        .first()
     )
-    if not daten:
-        return None, None
-    daten_liste = [d for (d,) in daten]
-    return min(daten_liste), max(daten_liste)
+    return datum[0] if datum else None
