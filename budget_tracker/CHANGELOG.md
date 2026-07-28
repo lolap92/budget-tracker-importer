@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.11.0 - 2026-07-28
+
+- Die Forecast-Seite ist jetzt deutlich kürzer: die Regel-Karten und die Anlegen-Formulare ("Neue Regel anlegen" / "Einmalige geplante Buchung anlegen") sind von der Hauptseite auf eine eigene, fokussierte Unterseite umgezogen. Direkt unter dem Prognose-Chart führt ein kompakter Button "Forecast-Regeln (n) →" dorthin; der "+"-Button im Header springt jetzt direkt zum Anlegen-Formular auf dieser Unterseite.
+
 ## 1.10.0 - 2026-07-28
 
 - Die Forecast-Regeln-Übersicht ganz unten auf der Forecast-Seite ist jetzt übersichtlicher: jede Regel steht als eigene Karte (Name, Betrag, Rhythmus als Chip, erste Buchung/Enddatum) statt als gedrängte Textzeile, mit einem deutlichen "✎ Bearbeiten"-Link, der das vorbefüllte Bearbeiten-Formular direkt darunter aufklappt.
