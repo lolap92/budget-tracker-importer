@@ -78,6 +78,37 @@ def uebersicht(request: Request, topf: int | None = None, db: Session = Depends(
     )
 
 
+@router.get("/forecast/regeln")
+def regeln_uebersicht(request: Request, topf: int | None = None, db: Session = Depends(get_db)):
+    toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
+    gewaehlter_topf = db.get(Topf, topf) if topf else None
+    if gewaehlter_topf is None and toepfe:
+        gewaehlter_topf = toepfe[0]
+
+    regeln = []
+    if gewaehlter_topf is not None:
+        regeln = (
+            db.query(ForecastRegel)
+            .filter(ForecastRegel.topf_id == gewaehlter_topf.id)
+            .order_by(ForecastRegel.bezeichnung)
+            .all()
+        )
+        for r in regeln:
+            r.erste_faelligkeit = regel_erste_faelligkeit(db, r.id)
+
+    return templates.TemplateResponse(
+        "forecast_regeln.html",
+        ctx(
+            request,
+            toepfe=toepfe,
+            gewaehlter_topf_id=gewaehlter_topf.id if gewaehlter_topf else None,
+            topf=gewaehlter_topf,
+            regeln=regeln,
+            vorhandene_titel=vorhandene_buchungstitel(db),
+        ),
+    )
+
+
 @router.get("/regeln/neu")
 def regel_formular(request: Request, db: Session = Depends(get_db)):
     toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()

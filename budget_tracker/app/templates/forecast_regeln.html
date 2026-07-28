@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Forecast-Regeln – Budget-Tracker{% endblock %}
+{% block header_title %}Forecast-Regeln{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<a class="back-link" href="{{ base }}/forecast?topf={{ gewaehlter_topf_id }}">{{ icons.back() }}Forecast</a>
+
+<div class="topf-filter">
+  {% for t in toepfe %}
+    <a class="tf-btn {{ t.name | topfklasse }} {{ 'on' if gewaehlter_topf_id == t.id else '' }}" href="{{ base }}/forecast/regeln?topf={{ t.id }}">{{ t.name }}</a>
+  {% endfor %}
+</div>
+
+{% include "_datalist.html" %}
+
+{% if topf %}
+
+<div class="sec-t">Forecast-Regeln · {{ topf.name }}</div>
+
+{% for r in regeln %}
+  <div class="forecast-item">
+    <div class="f-top">
+      <div>
+        <div class="f-name">{{ r.bezeichnung }}</div>
+        <div class="f-date">{% if r.erste_faelligkeit %}erste Buchung {{ r.erste_faelligkeit | datum_de }}{% endif %}{% if r.end_datum %}{% if r.erste_faelligkeit %} · {% endif %}bis {{ r.end_datum | datum_de }}{% endif %}</div>
+      </div>
+      <div class="f-amt">{{ r.betrag | eur }}</div>
+    </div>
+    <div class="f-foot">
+      <span class="chip offen">{{ r.rhythmus }}</span>
+    </div>
+    <details style="margin-top:10px;">
+      <summary class="link-btn">{{ icons.edit() }}bearbeiten</summary>
+      <form method="post" action="{{ base }}/forecast/regel/{{ r.id }}/bearbeiten" class="form-grid" style="margin-top:10px;">
+        <label>Topf
+          <select name="topf_id" required>
+            {% for t in toepfe %}<option value="{{ t.id }}" {{ 'selected' if t.id == r.topf_id else '' }}>{{ t.name }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Bezeichnung <input type="text" name="bezeichnung" value="{{ r.bezeichnung }}" list="buchungstitel-vorschlaege" required></label>
+        <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="betrag" value="{{ r.betrag }}" required></label>
+        <label>Rhythmus
+          <select name="rhythmus">
+            <option value="monatlich" {{ 'selected' if r.rhythmus == 'monatlich' else '' }}>monatlich</option>
+            <option value="jaehrlich" {{ 'selected' if r.rhythmus == 'jaehrlich' else '' }}>jährlich</option>
+            <option value="befristet" {{ 'selected' if r.rhythmus == 'befristet' else '' }}>befristet (monatlich, mit Enddatum)</option>
+          </select>
+        </label>
+        <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" value="{{ r.anker_tag }}" required></label>
+        <label>Start <input type="date" name="start_datum" value="{{ r.start_datum.isoformat() }}" required></label>
+        <label>Ende (optional) <input type="date" name="end_datum" value="{{ r.end_datum.isoformat() if r.end_datum else '' }}"></label>
+        <button class="btn secondary" type="submit">Speichern</button>
+      </form>
+    </details>
+  </div>
+{% else %}
+  <p class="empty-state">Keine Regeln für diesen Topf.</p>
+{% endfor %}
+
+<div class="card" id="neu-anlegen">
+
+  <details style="margin-top:12px;">
+    <summary>Neue Regel anlegen</summary>
+    <form method="post" action="{{ base }}/forecast/regel/neu" class="form-grid">
+      <input type="hidden" name="topf_id" value="{{ topf.id }}">
+      <input type="hidden" name="zurueck" value="/forecast/regeln?topf={{ topf.id }}">
+      <label>Bezeichnung <input type="text" name="bezeichnung" list="buchungstitel-vorschlaege" required></label>
+      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="betrag" required></label>
+      <label>Rhythmus
+        <select name="rhythmus">
+          <option value="monatlich">monatlich</option>
+          <option value="jaehrlich">jährlich</option>
+          <option value="befristet">befristet (monatlich, mit Enddatum)</option>
+        </select>
+      </label>
+      <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" required></label>
+      <label>Start <input type="date" name="start_datum" required></label>
+      <label>Ende (optional) <input type="date" name="end_datum"></label>
+      <button class="btn secondary" type="submit">Regel anlegen</button>
+    </form>
+  </details>
+
+  <details style="margin-top:10px;">
+    <summary>Einmalige geplante Buchung anlegen</summary>
+    <form method="post" action="{{ base }}/forecast/vorkommen/neu" class="form-grid">
+      <input type="hidden" name="topf_id" value="{{ topf.id }}">
+      <label>Bezeichnung <input type="text" name="bezeichnung" list="buchungstitel-vorschlaege" required placeholder="z.B. Öltank-Füllung"></label>
+      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="erwarteter_betrag" required></label>
+      <label>Erwartetes Datum <input type="date" name="erwartetes_datum" required></label>
+      <button class="btn secondary" type="submit">Anlegen</button>
+    </form>
+  </details>
+</div>
+
+{% endif %}
+
+{% endblock %}
