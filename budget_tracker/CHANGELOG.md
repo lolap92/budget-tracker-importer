@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.12.0 - 2026-07-28
+
+- "Buchung anlegen" / "Regel anlegen" auf der Buchungen-Seite sowie die Anlegen-Buttons auf der neuen Forecast-Regeln-Unterseite haben jetzt einen festen, akzentfarbenen Rahmen statt des gestrichelten. Die beiden Formulare der Regeln-Unterseite ("Neue Regel anlegen" / "Einmalige geplante Buchung anlegen") stehen dafür jetzt oben statt als reiner Textlink am Seitenende.
+
 ## 1.11.0 - 2026-07-28
 
 - Die Forecast-Seite ist jetzt deutlich kürzer: die Regel-Karten und die Anlegen-Formulare ("Neue Regel anlegen" / "Einmalige geplante Buchung anlegen") sind von der Hauptseite auf eine eigene, fokussierte Unterseite umgezogen. Direkt unter dem Prognose-Chart führt ein kompakter Button "Forecast-Regeln (n) →" dorthin; der "+"-Button im Header springt jetzt direkt zum Anlegen-Formular auf dieser Unterseite.
