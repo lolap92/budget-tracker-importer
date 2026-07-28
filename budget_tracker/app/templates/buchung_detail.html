@@ -60,6 +60,24 @@
     <button class="btn-outline" type="submit" style="flex:none;">Als Umbuchung markieren</button>
   </form>
 </div>
+
+{% if b | ist_konvertierbar %}
+<div class="card">
+  <div class="card-label">Zu Topf-Umbuchung machen</div>
+  <p class="b-ref" style="font-style:normal;margin-bottom:10px;">Für manuell erfasste Buchungen, die sich im Nachhinein als reine Verschiebung zwischen zwei Töpfen herausstellen, statt als reale Kontobewegung. Ersetzt diese Buchung durch eine gleichwertige Topf-Umbuchung.</p>
+  <form method="post" action="{{ base }}/buchungen/{{ b.id }}/zu-topf-umbuchung" class="form-grid" onsubmit="return confirm('Diese Buchung durch eine Topf-Umbuchung ersetzen?');">
+    <label>Gegen-Topf
+      <select name="gegen_topf_id" required>
+        <option value="" disabled selected>Topf wählen …</option>
+        {% for t in toepfe if t.id != b.topf_id %}
+          <option value="{{ t.id }}">{{ t.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn-outline" type="submit" style="flex:none;">Umwandeln</button>
+  </form>
+</div>
+{% endif %}
 {% else %}
 <div class="card">
   <div class="card-label">Umbuchung <span class="dir-tag {{ 'in' if b.umbuchung_richtung == 'eingehend' else 'out' }}">{{ b.umbuchung_richtung }}</span></div>

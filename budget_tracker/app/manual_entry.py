@@ -37,6 +37,18 @@ def ist_loeschbar(buchung: Buchung) -> bool:
     )
 
 
+def ist_zu_umbuchung_konvertierbar(buchung: Buchung) -> bool:
+    """Nur manuell erfasste, einem Topf zugewiesene Buchungen lassen sich
+    nachtraeglich in eine Topf-Umbuchung umwandeln - reale CSV-Buchungen
+    sind unveraenderliches Bankfaktum und muessten sonst als real
+    verbuchtes Geld aus dem Kontostand verschwinden."""
+    return (
+        ist_manuelle_buchung(buchung)
+        and buchung.topf_id is not None
+        and not buchung.ist_umbuchung
+    )
+
+
 def erstelle_manuelle_buchung(
     db: Session, topf_id: int, bezeichnung: str, betrag: Decimal, datum: dt.date
 ) -> Buchung:

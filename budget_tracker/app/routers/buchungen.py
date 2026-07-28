@@ -10,6 +10,7 @@ from app.database import get_db
 from app.forecast_engine import erstelle_manuelles_vorkommen
 from app.manual_entry import erstelle_manuelle_buchung, loesche_buchung
 from app.models import Buchung, Topf, TopfUmbuchung
+from app.topf_umbuchung import buchung_zu_topf_umbuchung
 from app.umbuchung import (
     entmarkiere_umbuchung,
     markiere_als_umbuchung,
@@ -167,6 +168,20 @@ async def topf_setzen(buchung_id: int, request: Request, db: Session = Depends(g
     db.commit()
     ziel = form.get("zurueck") or f"/buchungen/{buchung_id}"
     return redirect(request, ziel)
+
+
+@router.post("/buchungen/{buchung_id}/zu-topf-umbuchung")
+async def buchung_zu_umbuchung_route(buchung_id: int, request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    b = db.get(Buchung, buchung_id)
+    if b is None:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+    try:
+        gegen_topf_id = int(form["gegen_topf_id"])
+        buchung_zu_topf_umbuchung(db, b, gegen_topf_id)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return redirect(request, "/buchungen")
 
 
 @router.post("/buchungen/{buchung_id}/als-umbuchung")

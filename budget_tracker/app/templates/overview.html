@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% import "_icons.html" as icons %}
 {% block title %}Übersicht – Budget-Tracker{% endblock %}
 {% block header_title %}Budget-Tracker{% endblock %}
 {% block content %}
@@ -47,7 +46,5 @@
   {% endif %}
 </div>
 {% endif %}
-
-<a href="{{ base }}/topf-umbuchung/neu" class="cta-btn">{{ icons.swap() }}Topf-Umbuchung anlegen</a>
 
 {% endblock %}

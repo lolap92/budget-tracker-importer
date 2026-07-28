@@ -2,10 +2,12 @@
 Toepfen ohne reale Bankbuchung (Konzept Abschnitt 6). Zu unterscheiden
 von der (Bank-)Umbuchung in app/umbuchung.py."""
 import datetime as dt
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.models import TopfUmbuchung
+from app.manual_entry import ist_zu_umbuchung_konvertierbar
+from app.models import Buchung, ForecastVorkommen, TopfUmbuchung
 
 
 def erstelle_topf_umbuchung(
@@ -29,5 +31,48 @@ def erstelle_topf_umbuchung(
         kommentar=kommentar or None,
     )
     db.add(umbuchung)
+    db.commit()
+    return umbuchung
+
+
+def buchung_zu_topf_umbuchung(db: Session, buchung: Buchung, gegen_topf_id: int) -> TopfUmbuchung:
+    """Wandelt eine manuell erfasste Buchung nachtraeglich in eine Topf-
+    Umbuchung um - fuer den Fall, dass sich zeigt, dass eine als reale
+    Bewegung erfasste Buchung eigentlich nur eine virtuelle Verschiebung
+    zwischen zwei Toepfen war. Ersetzt die Buchung 1:1 durch eine
+    gleichwertige Topf-Umbuchung; Richtung wird aus dem Vorzeichen des
+    bisherigen Topfs abgeleitet."""
+    if not ist_zu_umbuchung_konvertierbar(buchung):
+        raise ValueError(
+            "Nur manuell erfasste, einem Topf zugewiesene Buchungen lassen sich "
+            "in eine Topf-Umbuchung umwandeln."
+        )
+    if gegen_topf_id == buchung.topf_id:
+        raise ValueError("Quell- und Zieltopf muessen unterschiedlich sein.")
+
+    betrag = abs(Decimal(buchung.betrag))
+    if float(buchung.betrag) >= 0:
+        von_topf_id, nach_topf_id = gegen_topf_id, buchung.topf_id
+    else:
+        von_topf_id, nach_topf_id = buchung.topf_id, gegen_topf_id
+
+    umbuchung = TopfUmbuchung(
+        von_topf_id=von_topf_id,
+        nach_topf_id=nach_topf_id,
+        betrag=betrag,
+        datum=buchung.datum,
+        kommentar=buchung.titel or buchung.verwendungszweck or buchung.beschreibung,
+    )
+    db.add(umbuchung)
+
+    verknuepftes_vorkommen = (
+        db.query(ForecastVorkommen)
+        .filter(ForecastVorkommen.verknuepfte_buchung_id == buchung.id)
+        .first()
+    )
+    if verknuepftes_vorkommen is not None:
+        verknuepftes_vorkommen.verknuepfte_buchung_id = None
+
+    db.delete(buchung)
     db.commit()
     return umbuchung
