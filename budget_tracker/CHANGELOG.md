@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.10.0 - 2026-07-28
+
+- Die Forecast-Regeln-Übersicht ganz unten auf der Forecast-Seite ist jetzt übersichtlicher: jede Regel steht als eigene Karte (Name, Betrag, Rhythmus als Chip, erste Buchung/Enddatum) statt als gedrängte Textzeile, mit einem deutlichen "✎ Bearbeiten"-Link, der das vorbefüllte Bearbeiten-Formular direkt darunter aufklappt.
+
 ## 1.9.2 - 2026-07-28
 
 - Fehlerbehebung: In der Forecast-Regeln-Übersicht fehlte "erste Buchung" bei Regeln, die noch nie real getroffen haben (nur zukünftige geplante Vorkommen) – jetzt wird stattdessen das früheste geplante Datum angezeigt. Bei unbefristeten Regeln (kein Enddatum) fiel "letzte Buchung" außerdem fälschlich wie ein Ende der Regel aus, obwohl sie einfach nur bisher noch nicht weiter real getroffen hat – "letzte Buchung" wird jetzt generell nicht mehr angezeigt, das tatsächliche Ende einer befristeten Regel steht bereits separat ("bis ...").
