@@ -17,6 +17,40 @@
 
 {% if topf %}
 
+<div id="neu-anlegen" style="display:flex;flex-direction:column;gap:10px;">
+  <details>
+    <summary class="cta-btn">{{ icons.plus() }}Neue Regel anlegen</summary>
+    <form method="post" action="{{ base }}/forecast/regel/neu" class="form-grid" style="margin-top:10px;">
+      <input type="hidden" name="topf_id" value="{{ topf.id }}">
+      <input type="hidden" name="zurueck" value="/forecast/regeln?topf={{ topf.id }}">
+      <label>Bezeichnung <input type="text" name="bezeichnung" list="buchungstitel-vorschlaege" required></label>
+      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="betrag" required></label>
+      <label>Rhythmus
+        <select name="rhythmus">
+          <option value="monatlich">monatlich</option>
+          <option value="jaehrlich">jährlich</option>
+          <option value="befristet">befristet (monatlich, mit Enddatum)</option>
+        </select>
+      </label>
+      <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" required></label>
+      <label>Start <input type="date" name="start_datum" required></label>
+      <label>Ende (optional) <input type="date" name="end_datum"></label>
+      <button class="btn secondary" type="submit">Regel anlegen</button>
+    </form>
+  </details>
+
+  <details>
+    <summary class="cta-btn">{{ icons.plus() }}Einmalige geplante Buchung anlegen</summary>
+    <form method="post" action="{{ base }}/forecast/vorkommen/neu" class="form-grid" style="margin-top:10px;">
+      <input type="hidden" name="topf_id" value="{{ topf.id }}">
+      <label>Bezeichnung <input type="text" name="bezeichnung" list="buchungstitel-vorschlaege" required placeholder="z.B. Öltank-Füllung"></label>
+      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="erwarteter_betrag" required></label>
+      <label>Erwartetes Datum <input type="date" name="erwartetes_datum" required></label>
+      <button class="btn secondary" type="submit">Anlegen</button>
+    </form>
+  </details>
+</div>
+
 <div class="sec-t">Forecast-Regeln · {{ topf.name }}</div>
 
 {% for r in regeln %}
@@ -58,41 +92,6 @@
 {% else %}
   <p class="empty-state">Keine Regeln für diesen Topf.</p>
 {% endfor %}
-
-<div class="card" id="neu-anlegen">
-
-  <details style="margin-top:12px;">
-    <summary>Neue Regel anlegen</summary>
-    <form method="post" action="{{ base }}/forecast/regel/neu" class="form-grid">
-      <input type="hidden" name="topf_id" value="{{ topf.id }}">
-      <input type="hidden" name="zurueck" value="/forecast/regeln?topf={{ topf.id }}">
-      <label>Bezeichnung <input type="text" name="bezeichnung" list="buchungstitel-vorschlaege" required></label>
-      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="betrag" required></label>
-      <label>Rhythmus
-        <select name="rhythmus">
-          <option value="monatlich">monatlich</option>
-          <option value="jaehrlich">jährlich</option>
-          <option value="befristet">befristet (monatlich, mit Enddatum)</option>
-        </select>
-      </label>
-      <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" required></label>
-      <label>Start <input type="date" name="start_datum" required></label>
-      <label>Ende (optional) <input type="date" name="end_datum"></label>
-      <button class="btn secondary" type="submit">Regel anlegen</button>
-    </form>
-  </details>
-
-  <details style="margin-top:10px;">
-    <summary>Einmalige geplante Buchung anlegen</summary>
-    <form method="post" action="{{ base }}/forecast/vorkommen/neu" class="form-grid">
-      <input type="hidden" name="topf_id" value="{{ topf.id }}">
-      <label>Bezeichnung <input type="text" name="bezeichnung" list="buchungstitel-vorschlaege" required placeholder="z.B. Öltank-Füllung"></label>
-      <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="erwarteter_betrag" required></label>
-      <label>Erwartetes Datum <input type="date" name="erwartetes_datum" required></label>
-      <button class="btn secondary" type="submit">Anlegen</button>
-    </form>
-  </details>
-</div>
 
 {% endif %}
 
