@@ -103,24 +103,28 @@ def ziel_fortschritt_haus_kredit(db: Session, topf: Topf) -> dict | None:
     ziel = Decimal(topf.jahresziel)
     anteil = float(saldo / ziel) if ziel else 0.0
 
-    projizierter_saldo = None
-    wird_erreicht = None
-    fehlbetrag = None
-    if topf.sondertilgung_datum:
-        offene_bis_reset = (
-            offene_vorkommen_query(db, topf.id)
-            .filter(ForecastVorkommen.erwartetes_datum <= topf.sondertilgung_datum)
-            .all()
-        )
-        projizierter_saldo = saldo + sum(Decimal(v.erwarteter_betrag) for v in offene_bis_reset)
-        wird_erreicht = projizierter_saldo >= ziel
-        fehlbetrag = max(Decimal(0), ziel - projizierter_saldo)
+    # Ohne gesetztes Reset-Datum (Sondertilgung) wird gegen das Ende des
+    # sichtbaren 12-Monats-Prognosezeitraums projiziert, damit die
+    # Ziel-erreicht-Aussage nicht erst nach Eintragen eines Reset-Datums
+    # erscheint - ein Ziel ohne jede Aussage dazu ist wenig hilfreich.
+    ziel_datum = topf.sondertilgung_datum or month_end(
+        add_months(dt.date.today().replace(day=1), FORECAST_HORIZON_MONATE - 1)
+    )
+    offene_bis_ziel = (
+        offene_vorkommen_query(db, topf.id)
+        .filter(ForecastVorkommen.erwartetes_datum <= ziel_datum)
+        .all()
+    )
+    projizierter_saldo = saldo + sum(Decimal(v.erwarteter_betrag) for v in offene_bis_ziel)
+    wird_erreicht = projizierter_saldo >= ziel
+    fehlbetrag = max(Decimal(0), ziel - projizierter_saldo)
 
     return {
         "saldo": saldo,
         "jahresziel": ziel,
         "anteil": max(0.0, min(1.0, anteil)),
         "sondertilgung_datum": topf.sondertilgung_datum,
+        "ziel_datum": ziel_datum,
         "projizierter_saldo": projizierter_saldo,
         "wird_erreicht": wird_erreicht,
         "fehlbetrag": fehlbetrag,

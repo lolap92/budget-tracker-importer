@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.1 - 2026-07-28
+
+- Fehlerbehebung: Die "Ziel wird voraussichtlich (nicht) erreicht"-Anzeige bei Haus Kredit erschien nur, wenn unter "Ziel & Reset bearbeiten" ein Reset-Datum (Sondertilgung) gesetzt war - ohne Reset-Datum fehlte der Text komplett. Die Prognose greift jetzt ohne Reset-Datum auf das Ende des sichtbaren 12-Monats-Zeitraums zurück ("Ziel wird in den nächsten 12 Monaten voraussichtlich erreicht/nicht erreicht"), sodass die Aussage immer sichtbar ist.
+
 ## 1.9.0 - 2026-07-28
 
 - Neu: Auf der Forecast-Seite ist jetzt für jeden Monat genau erkennbar, welchen Stand ein Topf voraussichtlich haben wird. Ein horizontal scrollbarer Monats-Streifen unter dem Kontostand zeigt für alle 12 Monate der Prognose Monat und exakten Saldo als Kachel (aktueller Monat hervorgehoben, Minus-Monate rot) – für jeden Topf, auch für Haus Kredit, das bisher gar keine Monats-für-Monats-Ansicht hatte. Zusätzlich ist der Prognose-Chart (bei den anderen Töpfen) jetzt interaktiv: ein Tipp auf einen Punkt zeigt Monat und genauen Betrag über dem Chart an, statt nur den reinen Tiefpunkt auslesen zu können.

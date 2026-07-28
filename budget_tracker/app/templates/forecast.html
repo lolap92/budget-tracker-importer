@@ -60,12 +60,10 @@
     <div class="goal" style="font-size:12px;margin-top:10px;">Ziel {{ daten.ziel.jahresziel | eur }} ({{ (daten.ziel.anteil * 100) | round(1) }} %){% if daten.ziel.sondertilgung_datum %} · Reset {{ daten.ziel.sondertilgung_datum | datum_kurz }}{% endif %}</div>
     <div class="progress-bar"><div style="width: {{ (daten.ziel.anteil * 100) | round(1) }}%"></div></div>
 
-    {% if daten.ziel.sondertilgung_datum %}
-      {% if daten.ziel.wird_erreicht %}
-        <div class="sc-status ok">{{ icons.check() }}Ziel wird bis {{ daten.ziel.sondertilgung_datum | datum_de }} voraussichtlich erreicht</div>
-      {% else %}
-        <div class="sc-status bad">{{ icons.warn_triangle() }}Ziel wird bis {{ daten.ziel.sondertilgung_datum | datum_de }} voraussichtlich NICHT erreicht · es fehlen noch {{ daten.ziel.fehlbetrag | eur }}</div>
-      {% endif %}
+    {% if daten.ziel.wird_erreicht %}
+      <div class="sc-status ok">{{ icons.check() }}Ziel wird{% if daten.ziel.sondertilgung_datum %} bis {{ daten.ziel.sondertilgung_datum | datum_de }}{% else %} in den nächsten 12 Monaten{% endif %} voraussichtlich erreicht</div>
+    {% else %}
+      <div class="sc-status bad">{{ icons.warn_triangle() }}Ziel wird{% if daten.ziel.sondertilgung_datum %} bis {{ daten.ziel.sondertilgung_datum | datum_de }}{% else %} in den nächsten 12 Monaten{% endif %} voraussichtlich NICHT erreicht · es fehlen noch {{ daten.ziel.fehlbetrag | eur }}</div>
     {% endif %}
 
     <details style="margin-top:10px;">
