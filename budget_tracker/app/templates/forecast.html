@@ -26,13 +26,34 @@
     </div>
 
     {% if not daten.ziel %}
+      <div class="chart-readout">Tippe auf einen Punkt für den Stand in diesem Monat</div>
       {{ daten.chart_svg | safe }}
+      <script>
+        (function() {
+          var svg = document.currentScript.previousElementSibling;
+          var readout = svg.previousElementSibling;
+          svg.querySelectorAll('.chart-pt').forEach(function(pt) {
+            pt.addEventListener('click', function() {
+              readout.textContent = pt.dataset.monat + ': ' + pt.dataset.wert;
+            });
+          });
+        })();
+      </script>
       {% if prognose.minus_warnung %}
         <div class="sc-status bad">{{ icons.warn_triangle() }}Tiefpunkt {{ prognose.tiefpunkt | eur }}{% if prognose.tiefpunkt_monat %} · voraussichtlich {{ prognose.tiefpunkt_monat | monat_de }}{% endif %} · rutscht ins Minus</div>
       {% else %}
         <div class="sc-status ok">{{ icons.check() }}Tiefpunkt {{ prognose.tiefpunkt | eur }}{% if prognose.tiefpunkt_monat %} · {{ prognose.tiefpunkt_monat | monat_de }}{% endif %} · bleibt im Plus</div>
       {% endif %}
     {% endif %}
+  </div>
+
+  <div class="month-strip">
+    {% for m in prognose.monatswerte %}
+      <div class="month-chip {{ 'now' if loop.first else '' }} {{ 'neg' if m.saldo < 0 else '' }}">
+        <div class="mc-label">{{ m.monat | monat_kurz }}</div>
+        <div class="mc-val">{{ m.saldo | eur }}</div>
+      </div>
+    {% endfor %}
   </div>
 
   {% if daten.ziel %}

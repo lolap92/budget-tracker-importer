@@ -140,10 +140,19 @@
   .stand-card .sc-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;}
   .stand-card .sc-amt{font-family:var(--font-mono);font-size:24px;font-weight:600;}
   .sc-spark{display:block;width:100%;height:auto;margin-top:4px;}
+  .chart-pt{cursor:pointer;}
+  .chart-readout{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);text-align:center;min-height:14px;}
   .sc-status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-soft);margin-top:9px;}
   .sc-status svg{width:13px;height:13px;flex-shrink:0;}
   .sc-status.ok{color:var(--received);}
   .sc-status.bad{color:var(--warn);}
+
+  .month-strip{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;margin-top:2px;border-top:1px solid var(--line);}
+  .month-chip{flex-shrink:0;min-width:62px;text-align:center;padding:6px 4px;border-radius:10px;background:var(--surface-2);}
+  .month-chip.now{background:rgba(45,122,111,.12);border:1px solid var(--accent);}
+  .month-chip .mc-label{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;}
+  .month-chip .mc-val{font-family:var(--font-mono);font-size:11.5px;font-weight:600;margin-top:2px;color:var(--ink);}
+  .month-chip.neg .mc-val{color:var(--warn);}
 
   .dir-tag{font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--surface-2);color:var(--ink-faint);border:1px solid var(--line);}
   .dir-tag.in{color:var(--received);}

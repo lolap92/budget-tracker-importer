@@ -42,6 +42,13 @@ def monat_de(value) -> str:
     return f"{monate[value.month - 1]} {value.year}"
 
 
+def monat_kurz(value) -> str:
+    if value is None:
+        return "-"
+    monate = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
+    return f"{monate[value.month - 1]} {value.strftime('%y')}"
+
+
 def datum_kurz(value) -> str:
     if value is None:
         return "-"
@@ -65,6 +72,7 @@ def topfklasse(name) -> str:
 templates.env.filters["eur"] = eur
 templates.env.filters["datum_de"] = datum_de
 templates.env.filters["datum_kurz"] = datum_kurz
+templates.env.filters["monat_kurz"] = monat_kurz
 templates.env.filters["monat_de"] = monat_de
 templates.env.filters["topfklasse"] = topfklasse
 templates.env.filters["ist_manuell"] = ist_manuelle_buchung

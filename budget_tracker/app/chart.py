@@ -15,6 +15,12 @@ def _monat_kurz(d) -> str:
     return f"{_MONATE_KURZ[d.month - 1]} {d.strftime('%y')}"
 
 
+def _eur(v: float) -> str:
+    negativ = v < 0
+    formatiert = f"{abs(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{'-' if negativ else ''}{formatiert} €"
+
+
 def render_prognose_chart(monatswerte, topf_klasse: str = "sonder", breite: int = 300, hoehe: int = 108) -> str:
     if not monatswerte:
         return ""
@@ -59,6 +65,14 @@ def render_prognose_chart(monatswerte, topf_klasse: str = "sonder", breite: int 
             f"{_monat_kurz(monatswerte[i].monat)}</text>"
         )
 
+    punkte_tags = ""
+    for i, (px, py) in enumerate(punkte):
+        punkte_tags += (
+            f'<circle class="chart-pt" cx="{px:.1f}" cy="{py:.1f}" r="9" fill="transparent" '
+            f'data-monat="{_monat_kurz(monatswerte[i].monat)}" data-wert="{_eur(werte[i])}"/>'
+            f'<circle cx="{px:.1f}" cy="{py:.1f}" r="2.2" fill="{farbe}" pointer-events="none"/>'
+        )
+
     return (
         f'<svg class="sc-spark" viewBox="0 0 {breite} {hoehe}" preserveAspectRatio="none" '
         f'role="img" aria-label="12-Monats-Prognose">'
@@ -67,7 +81,8 @@ def render_prognose_chart(monatswerte, topf_klasse: str = "sonder", breite: int 
         f'stroke="var(--line-strong)" stroke-width="1" stroke-dasharray="3 3"/>'
         f'<polyline points="{punkte_str}" fill="none" stroke="{farbe}" stroke-width="2" '
         f'stroke-linecap="round" stroke-linejoin="round"/>'
-        f'<circle cx="{tx:.1f}" cy="{ty:.1f}" r="3.5" fill="#fff" stroke="{farbe}" stroke-width="2"/>'
+        f"{punkte_tags}"
+        f'<circle cx="{tx:.1f}" cy="{ty:.1f}" r="3.5" fill="#fff" stroke="{farbe}" stroke-width="2" pointer-events="none"/>'
         f"{beschriftungen}"
         f"</svg>"
     )
