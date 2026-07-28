@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.16.1 - 2026-07-28
+
+- **Fehlerbehebung: Topf-Umbuchungen mit Datum in der Zukunft werden abgelehnt.** Eine Topf-Umbuchung wirkt sofort – der Saldo summiert sie ohne Datumsbedingung, das Datum ist reine Dokumentation. Ein Datum in der Zukunft verschob deshalb Geld, das laut Anzeige erst später umziehen sollte, und der Eintrag landete in der Zeitachse unterhalb des „Aktueller Monat"-Trenners, obwohl er in der Zukunft datiert war. Das Datumsfeld ist jetzt auf heute begrenzt, der Server lehnt spätere Daten mit einer verständlichen Meldung ab. Bereits angelegte Umbuchungen mit Zukunftsdatum bleiben unverändert bestehen.
+
 ## 1.16.0 - 2026-07-28
 
 - **Neu: Die Buchungsliste blättert.** Statt aller Einträge auf einer Seite werden 50 gezeigt, darunter „← neuere / ältere →" mit Seitenzahl und Gesamtanzahl. Der Topf-Filter bleibt beim Blättern erhalten. Nach ein paar Jahren CSV-Import wurde die Seite sonst mehrere tausend Einträge lang. Nebenbei behoben: bei mehreren Buchungen mit demselben Datum war die Reihenfolge nicht festgelegt – beim Blättern hätte ein Eintrag dadurch doppelt oder gar nicht erscheinen können.

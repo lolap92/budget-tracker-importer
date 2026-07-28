@@ -24,6 +24,16 @@ def erstelle_topf_umbuchung(
     if float(betrag) <= 0:
         raise ValueError("Betrag muss groesser als 0 sein.")
 
+    # Eine Topf-Umbuchung wirkt sofort: saldo_topf() summiert sie ohne
+    # Datumsbedingung, das Datum ist reine Dokumentation. Ein Datum in der
+    # Zukunft wuerde deshalb Geld verschieben, das laut Anzeige erst spaeter
+    # umzieht - und der Eintrag laege in der Zeitachse unterhalb des
+    # "Aktueller Monat"-Trenners, obwohl er in der Zukunft datiert ist.
+    if datum is not None and datum > dt.date.today():
+        raise ValueError(
+            "Eine Topf-Umbuchung wirkt sofort und kann kein Datum in der Zukunft haben."
+        )
+
     umbuchung = TopfUmbuchung(
         von_topf_id=von_topf_id,
         nach_topf_id=nach_topf_id,

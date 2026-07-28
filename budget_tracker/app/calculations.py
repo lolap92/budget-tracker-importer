@@ -177,6 +177,12 @@ def zeitachse_topf(
     Vergangenheit (reale Buchungen + Topf-Umbuchungen) absteigend unterhalb
     des Ankers, offene Forecast-Vorkommen aufsteigend oberhalb (gestrichelt).
 
+    Die Aufteilung laeuft nach Art, nicht nach Datum: alles Reale gehoert in
+    die Vergangenheit, jede offene Erwartung in die Zukunft. Das traegt, weil
+    keine der drei Quellen ein Zukunftsdatum haben kann - CSV-Buchungen sind
+    naturgemaess vergangen, erstelle_manuelle_buchung() und
+    erstelle_topf_umbuchung() lehnen Zukunftsdaten ab.
+
     Die Vergangenheit wird auf die juengsten vergangenheit_max Eintraege
     gekuerzt - die Zeitachse ist eine Uebersicht, die vollstaendige Liste
     steht unter /buchungen. vergangenheit_gekuerzt sagt der Vorlage, ob sie

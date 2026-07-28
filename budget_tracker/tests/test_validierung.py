@@ -293,3 +293,60 @@ class TestGeplanteBuchung:
         )
 
         assert antwort.status_code == 400
+
+
+class TestTopfUmbuchungDatum:
+    """B9: Eine Topf-Umbuchung wirkt sofort - saldo_topf() summiert sie ohne
+    Datumsbedingung. Ein Zukunftsdatum haette Geld verschoben, das laut
+    Anzeige erst spaeter umzieht."""
+
+    @pytest.fixture
+    def client(self, db, app):
+        return TestClient(fastapi_app)
+
+    def test_zukunftsdatum_wird_abgelehnt(self, db, app):
+        from app.topf_umbuchung import erstelle_topf_umbuchung
+
+        morgen = dt.date.today() + dt.timedelta(days=1)
+        with pytest.raises(ValueError, match="Datum in der Zukunft"):
+            erstelle_topf_umbuchung(
+                db, app["Urlaub"].id, app["Sonderausgaben"].id, Decimal("300.00"), datum=morgen
+            )
+
+    def test_heute_und_vergangenheit_erlaubt(self, db, app):
+        from app.topf_umbuchung import erstelle_topf_umbuchung
+
+        for datum in (dt.date.today(), dt.date(2026, 3, 1)):
+            u = erstelle_topf_umbuchung(
+                db, app["Urlaub"].id, app["Sonderausgaben"].id, Decimal("10.00"), datum=datum
+            )
+            assert u.datum == datum
+
+    def test_ohne_datum_gilt_heute(self, db, app):
+        from app.topf_umbuchung import erstelle_topf_umbuchung
+
+        u = erstelle_topf_umbuchung(
+            db, app["Urlaub"].id, app["Sonderausgaben"].id, Decimal("10.00")
+        )
+
+        assert u.datum == dt.date.today()
+
+    def test_formular_meldet_den_fehler_verstaendlich(self, client, app):
+        morgen = (dt.date.today() + dt.timedelta(days=1)).isoformat()
+        antwort = client.post(
+            "/topf-umbuchung/neu",
+            data={
+                "von_topf_id": str(app["Urlaub"].id),
+                "nach_topf_id": str(app["Sonderausgaben"].id),
+                "betrag": "300",
+                "datum": morgen,
+            },
+        )
+
+        assert antwort.status_code == 400
+        assert "Datum in der Zukunft" in antwort.text
+
+    def test_formular_begrenzt_das_datumsfeld(self, client):
+        text = client.get("/topf-umbuchung/neu").text
+
+        assert f'max="{dt.date.today().isoformat()}"' in text
