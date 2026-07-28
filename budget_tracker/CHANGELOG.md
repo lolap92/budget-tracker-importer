@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.14.1 - 2026-07-28
+
+- Fehlerbehebung: Das Fälligkeitsdatum in der Haus-Kredit-Statuszeile auf der Startseite ("Wird (nicht) erreicht (X € zum TT.MM.)") wurde rein arithmetisch aus Anker-Tag und Startdatum der Sondertilgung-Regel neu berechnet und konnte dadurch vom tatsächlich auf der Forecast-Seite geplanten Vorkommen abweichen (z.B. nach einer manuellen Verschiebung). Das Datum stammt jetzt aus dem nächsten offenen Forecast-Vorkommen dieser Regel, konsistent mit der Forecast-Seite.
+- Die Topf-Filter-Buttons auf der Buchungen-Seite stehen jetzt untereinander statt in einer horizontal scrollbaren Reihe – alle Töpfe sind ohne Scrollen nach rechts sichtbar.
+
 ## 1.14.0 - 2026-07-28
 
 - Die Forecast-Seite startet jetzt standardmäßig auf dem Topf Sonderausgaben statt auf dem ersten Topf in der Reihenfolge (Haus Kredit).

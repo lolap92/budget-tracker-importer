@@ -10,7 +10,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.config import FORECAST_HORIZON_MONATE, HAUS_KREDIT_TOPF
-from app.dateutils import add_months, month_end, safe_date
+from app.dateutils import add_months, month_end
 from app.matching import offene_vorkommen_query
 from app.models import Buchung, ForecastRegel, ForecastVorkommen, Topf, TopfUmbuchung
 
@@ -137,10 +137,12 @@ def ziel_fortschritt_haus_kredit(db: Session, topf: Topf) -> dict | None:
 
 def sondertilgung_status(db: Session, topf: Topf) -> dict | None:
     """Fuer den Haus-Kredit-Topf auf der Startseite: ob die naechste faellige
-    jaehrliche Sondertilgungs-Regel laut Prognose gedeckt sein wird. Betrag
-    und Faelligkeitsdatum stammen direkt aus der hinterlegten Forecast-Regel
-    (nicht aus separat gepflegten Ziel-Feldern auf dem Topf), damit beide
-    Werte automatisch mit der Regel in Sync bleiben."""
+    jaehrliche Sondertilgungs-Regel laut Prognose gedeckt sein wird. Der Betrag
+    stammt aus der hinterlegten Forecast-Regel, das Faelligkeitsdatum aus dem
+    naechsten offenen Forecast-Vorkommen dieser Regel (nicht arithmetisch aus
+    Anker-Tag/Startdatum neu berechnet) - so bleibt die Aussage konsistent mit
+    dem, was auf der Forecast-Seite tatsaechlich als naechste Buchung geplant
+    ist, inklusive manueller Verschiebungen einzelner Vorkommen."""
     if topf.name != HAUS_KREDIT_TOPF:
         return None
 
@@ -157,11 +159,15 @@ def sondertilgung_status(db: Session, topf: Topf) -> dict | None:
         return None
 
     heute = dt.date.today()
-    faelligkeit = safe_date(heute.year, regel.start_datum.month, regel.anker_tag)
-    if faelligkeit < heute:
-        faelligkeit = safe_date(heute.year + 1, regel.start_datum.month, regel.anker_tag)
-    if regel.end_datum and faelligkeit > regel.end_datum:
+    naechstes_vorkommen = (
+        offene_vorkommen_query(db, topf.id)
+        .filter(ForecastVorkommen.regel_id == regel.id, ForecastVorkommen.erwartetes_datum >= heute)
+        .order_by(ForecastVorkommen.erwartetes_datum.asc())
+        .first()
+    )
+    if naechstes_vorkommen is None:
         return None
+    faelligkeit = naechstes_vorkommen.erwartetes_datum
 
     betrag = abs(Decimal(regel.betrag))
     saldo = saldo_topf(db, topf)
