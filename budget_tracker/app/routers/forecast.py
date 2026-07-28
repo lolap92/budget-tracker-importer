@@ -17,7 +17,9 @@ from app.database import get_db
 from app.forecast_engine import (
     ensure_forecast_vorkommen,
     erstelle_manuelles_vorkommen,
+    regel_bearbeiten,
     vorkommen_auf_sonderausgaben_buchen,
+    vorkommen_bearbeiten,
     vorkommen_loeschen,
     vorkommen_manuell_verknuepfen,
     vorkommen_verschieben,
@@ -129,6 +131,32 @@ async def regel_anlegen(request: Request, db: Session = Depends(get_db)):
     return redirect(request, zurueck)
 
 
+@router.post("/forecast/regel/{regel_id}/bearbeiten")
+async def regel_bearbeiten_route(regel_id: int, request: Request, db: Session = Depends(get_db)):
+    regel = db.get(ForecastRegel, regel_id)
+    if regel is None:
+        raise HTTPException(status_code=404, detail="Regel nicht gefunden")
+    form = await request.form()
+    topf_id = int(form.get("topf_id") or regel.topf_id)
+    try:
+        regel_bearbeiten(
+            db,
+            regel,
+            topf_id=topf_id,
+            bezeichnung=form["bezeichnung"],
+            betrag=Decimal((form.get("betrag") or "0").replace(",", ".")),
+            rhythmus=form["rhythmus"],
+            anker_tag=int(form["anker_tag"]),
+            start_datum=dt.date.fromisoformat(form["start_datum"]),
+            end_datum=dt.date.fromisoformat(form["end_datum"]) if form.get("end_datum") else None,
+        )
+        db.commit()
+    except (ValueError, KeyError, InvalidOperation) as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return redirect(request, f"/forecast?topf={topf_id}")
+
+
 @router.post("/forecast/vorkommen/neu")
 async def vorkommen_anlegen(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
@@ -151,6 +179,28 @@ def verschieben_route(vorkommen_id: int, request: Request, db: Session = Depends
     vorkommen_verschieben(v)
     db.commit()
     return redirect(request, f"/forecast?topf={v.topf_id}")
+
+
+@router.post("/forecast/vorkommen/{vorkommen_id}/bearbeiten")
+async def vorkommen_bearbeiten_route(vorkommen_id: int, request: Request, db: Session = Depends(get_db)):
+    v = db.get(ForecastVorkommen, vorkommen_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vorkommen nicht gefunden")
+    form = await request.form()
+    topf_id = v.topf_id
+    try:
+        vorkommen_bearbeiten(
+            db,
+            v,
+            bezeichnung=form["bezeichnung"],
+            erwarteter_betrag=Decimal((form.get("erwarteter_betrag") or "0").replace(",", ".")),
+            erwartetes_datum=dt.date.fromisoformat(form["erwartetes_datum"]),
+        )
+        db.commit()
+    except (ValueError, KeyError, InvalidOperation) as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return redirect(request, f"/forecast?topf={topf_id}")
 
 
 @router.post("/forecast/vorkommen/{vorkommen_id}/verknuepfen")

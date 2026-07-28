@@ -76,6 +76,66 @@ def vorkommen_verschieben(vorkommen: ForecastVorkommen) -> None:
     vorkommen.erwartetes_datum = add_months(vorkommen.erwartetes_datum, 1)
 
 
+def vorkommen_bearbeiten(
+    db: Session, vorkommen: ForecastVorkommen, bezeichnung: str, erwarteter_betrag, erwartetes_datum: dt.date
+) -> None:
+    """Direktes Bearbeiten eines noch offenen Vorkommens - fuer Korrekturen,
+    die ueber das reine Verschieben um einen Monat hinausgehen (Regel-basiert
+    oder frei angelegt, macht hier keinen Unterschied: das Vorkommen selbst
+    wird korrigiert, die erzeugende Regel bleibt unangetastet)."""
+    if (
+        vorkommen.verknuepfte_buchung_id is not None
+        or vorkommen.verknuepfte_topf_umbuchung_id is not None
+        or vorkommen.ignoriert
+    ):
+        raise ValueError("Nur noch offene Vorkommen koennen bearbeitet werden.")
+    vorkommen.bezeichnung = bezeichnung
+    vorkommen.erwarteter_betrag = erwarteter_betrag
+    vorkommen.erwartetes_datum = erwartetes_datum
+
+
+def regel_bearbeiten(
+    db: Session,
+    regel: ForecastRegel,
+    topf_id: int,
+    bezeichnung: str,
+    betrag,
+    rhythmus: str,
+    anker_tag: int,
+    start_datum: dt.date,
+    end_datum: dt.date | None,
+) -> None:
+    """Bearbeitet eine bestehende Regel und erzeugt ihre noch offenen (nicht
+    gebuchten, nicht verworfenen) Vorkommen mit den neuen Parametern neu -
+    bereits gebuchte/verknuepfte Vorkommen sind reales Faktum und bleiben
+    unangetastet, bewusst verworfene (ignoriert) bleiben es auch."""
+    if float(betrag) == 0:
+        raise ValueError("Betrag darf nicht 0 sein.")
+
+    regel.topf_id = topf_id
+    regel.bezeichnung = bezeichnung
+    regel.betrag = betrag
+    regel.rhythmus = rhythmus
+    regel.anker_tag = anker_tag
+    regel.start_datum = start_datum
+    regel.end_datum = end_datum
+
+    offene = (
+        db.query(ForecastVorkommen)
+        .filter(
+            ForecastVorkommen.regel_id == regel.id,
+            ForecastVorkommen.verknuepfte_buchung_id.is_(None),
+            ForecastVorkommen.verknuepfte_topf_umbuchung_id.is_(None),
+            ForecastVorkommen.ignoriert.is_(False),
+        )
+        .all()
+    )
+    for v in offene:
+        db.delete(v)
+    db.flush()
+    ensure_forecast_vorkommen(db)
+
+
 def erstelle_manuelles_vorkommen(db: Session, topf_id: int, bezeichnung: str, betrag, datum: dt.date) -> ForecastVorkommen:
     """Freie, einmalige geplante Buchung ohne Regel - wird spaeter automatisch
     mit einer realen CSV-Buchung abgeglichen (Konzept Abschnitt 6)."""

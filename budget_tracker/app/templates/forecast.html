@@ -81,6 +81,16 @@
         </form>
       </div>
     </div>
+    <details style="margin-top:10px;">
+      <summary class="link-btn">{{ icons.edit() }}bearbeiten</summary>
+      <form method="post" action="{{ base }}/forecast/vorkommen/{{ e.objekt.id }}/bearbeiten" class="form-grid" style="margin-top:8px;">
+        <label>Bezeichnung <input type="text" name="bezeichnung" value="{{ e.objekt.bezeichnung }}" list="buchungstitel-vorschlaege" required></label>
+        <label>Erwarteter Betrag (€) <input type="text" inputmode="decimal" name="erwarteter_betrag" value="{{ e.objekt.erwarteter_betrag }}" required></label>
+        <label>Erwartetes Datum <input type="date" name="erwartetes_datum" value="{{ e.objekt.erwartetes_datum.isoformat() }}" required></label>
+        <button class="btn secondary" type="submit">Speichern</button>
+      </form>
+    </details>
+
     {% if daten.kandidaten_buchungen %}
     <details style="margin-top:10px;">
       <summary class="link-btn">{{ icons.link() }}mit CSV-Buchung verknüpfen</summary>
@@ -137,7 +147,29 @@
 <div id="neu-anlegen" class="card">
   <div class="card-label">Forecast-Regeln</div>
   {% for r in daten.regeln %}
-    <div class="b-ref" style="font-style:normal;padding:5px 0;">{{ r.bezeichnung }} · {{ r.betrag | eur }} · {{ r.rhythmus }} · Tag {{ r.anker_tag }}{% if r.end_datum %} bis {{ r.end_datum | datum_de }}{% endif %}</div>
+    <details style="margin-top:8px;">
+      <summary class="b-ref" style="font-style:normal;">{{ r.bezeichnung }} · {{ r.betrag | eur }} · {{ r.rhythmus }} · Tag {{ r.anker_tag }}{% if r.end_datum %} bis {{ r.end_datum | datum_de }}{% endif %}</summary>
+      <form method="post" action="{{ base }}/forecast/regel/{{ r.id }}/bearbeiten" class="form-grid" style="margin-top:8px;">
+        <label>Topf
+          <select name="topf_id" required>
+            {% for t in toepfe %}<option value="{{ t.id }}" {{ 'selected' if t.id == r.topf_id else '' }}>{{ t.name }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Bezeichnung <input type="text" name="bezeichnung" value="{{ r.bezeichnung }}" list="buchungstitel-vorschlaege" required></label>
+        <label>Betrag (€, negativ = Ausgang) <input type="text" inputmode="decimal" name="betrag" value="{{ r.betrag }}" required></label>
+        <label>Rhythmus
+          <select name="rhythmus">
+            <option value="monatlich" {{ 'selected' if r.rhythmus == 'monatlich' else '' }}>monatlich</option>
+            <option value="jaehrlich" {{ 'selected' if r.rhythmus == 'jaehrlich' else '' }}>jährlich</option>
+            <option value="befristet" {{ 'selected' if r.rhythmus == 'befristet' else '' }}>befristet (monatlich, mit Enddatum)</option>
+          </select>
+        </label>
+        <label>Anker-Tag (Kalendertag) <input type="number" name="anker_tag" min="1" max="31" value="{{ r.anker_tag }}" required></label>
+        <label>Start <input type="date" name="start_datum" value="{{ r.start_datum.isoformat() }}" required></label>
+        <label>Ende (optional) <input type="date" name="end_datum" value="{{ r.end_datum.isoformat() if r.end_datum else '' }}"></label>
+        <button class="btn secondary" type="submit">Speichern</button>
+      </form>
+    </details>
   {% else %}
     <p class="empty-state">Keine Regeln für diesen Topf.</p>
   {% endfor %}

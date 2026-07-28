@@ -1,5 +1,5 @@
 name: "Budget-Tracker"
-version: "1.6.1"
+version: "1.7.0"
 slug: "budget_tracker"
 description: "Privater Budget-Tracker mit vier virtuellen Spartoepfen, automatischem CSV-Import und 12-Monats-Prognose"
 url: "https://github.com/lolap92/budget-tracker-importer"
