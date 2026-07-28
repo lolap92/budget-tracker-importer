@@ -10,7 +10,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.config import FORECAST_HORIZON_MONATE, HAUS_KREDIT_TOPF
-from app.dateutils import add_months, month_end
+from app.dateutils import add_months, month_end, safe_date
 from app.matching import offene_vorkommen_query
 from app.models import Buchung, ForecastRegel, ForecastVorkommen, Topf, TopfUmbuchung
 
@@ -128,6 +128,52 @@ def ziel_fortschritt_haus_kredit(db: Session, topf: Topf) -> dict | None:
         "projizierter_saldo": projizierter_saldo,
         "wird_erreicht": wird_erreicht,
         "fehlbetrag": fehlbetrag,
+    }
+
+
+def sondertilgung_status(db: Session, topf: Topf) -> dict | None:
+    """Fuer den Haus-Kredit-Topf auf der Startseite: ob die naechste faellige
+    jaehrliche Sondertilgungs-Regel laut Prognose gedeckt sein wird. Betrag
+    und Faelligkeitsdatum stammen direkt aus der hinterlegten Forecast-Regel
+    (nicht aus separat gepflegten Ziel-Feldern auf dem Topf), damit beide
+    Werte automatisch mit der Regel in Sync bleiben."""
+    if topf.name != HAUS_KREDIT_TOPF:
+        return None
+
+    regel = (
+        db.query(ForecastRegel)
+        .filter(
+            ForecastRegel.topf_id == topf.id,
+            ForecastRegel.rhythmus == "jaehrlich",
+            ForecastRegel.bezeichnung.ilike("%sondertilgung%"),
+        )
+        .first()
+    )
+    if regel is None:
+        return None
+
+    heute = dt.date.today()
+    faelligkeit = safe_date(heute.year, regel.start_datum.month, regel.anker_tag)
+    if faelligkeit < heute:
+        faelligkeit = safe_date(heute.year + 1, regel.start_datum.month, regel.anker_tag)
+    if regel.end_datum and faelligkeit > regel.end_datum:
+        return None
+
+    betrag = abs(Decimal(regel.betrag))
+    saldo = saldo_topf(db, topf)
+    offene_bis = [
+        v
+        for v in offene_vorkommen_query(db, topf.id)
+        .filter(ForecastVorkommen.erwartetes_datum <= faelligkeit)
+        .all()
+        if v.regel_id != regel.id
+    ]
+    projizierter_saldo = saldo + sum(Decimal(v.erwarteter_betrag) for v in offene_bis)
+
+    return {
+        "betrag": betrag,
+        "faelligkeit": faelligkeit,
+        "wird_erreicht": projizierter_saldo >= betrag,
     }
 
 

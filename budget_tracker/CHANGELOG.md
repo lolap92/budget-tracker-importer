@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.0 - 2026-07-28
+
+- Auf der Startseite zeigt der Haus-Kredit-Topf jetzt statt der bisherigen Ziel/Reset-Zeile eine direkte Aussage zur jährlichen Sondertilgung: "Wird erreicht (X € zum TT.MM.)" bzw. "Wird nicht erreicht (X € zum TT.MM.)", grün bzw. rot. Betrag und Fälligkeitsdatum stammen automatisch aus der hinterlegten "Sondertilgung"-Forecast-Regel (jährlicher Rhythmus, Anker-Tag), nicht mehr aus separat zu pflegenden Ziel-Feldern – beide Werte bleiben damit immer mit der Regel in Sync. Geprüft wird, ob Saldo plus alle bis zum Fälligkeitstermin erwarteten Buchungen (ohne die Sondertilgung selbst) den Betrag decken.
+
 ## 1.12.0 - 2026-07-28
 
 - "Buchung anlegen" / "Regel anlegen" auf der Buchungen-Seite sowie die Anlegen-Buttons auf der neuen Forecast-Regeln-Unterseite haben jetzt einen festen, akzentfarbenen Rahmen statt des gestrichelten. Die beiden Formulare der Regeln-Unterseite ("Neue Regel anlegen" / "Einmalige geplante Buchung anlegen") stehen dafür jetzt oben statt als reiner Textlink am Seitenende.
