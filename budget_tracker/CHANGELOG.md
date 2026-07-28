@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.14.0 - 2026-07-28
+
+- Die Forecast-Seite startet jetzt standardmäßig auf dem Topf Sonderausgaben statt auf dem ersten Topf in der Reihenfolge (Haus Kredit).
+- Neu: Im Topf-Filter der Forecast-Seite gibt es jetzt "Alle Töpfe" – zeigt die kombinierte 12-Monats-Prognose über das gesamte Konto (aktueller Gesamtsaldo, Chart, Monats-Streifen, Tiefpunkt-Status). Da Forecast-Regeln und die Buchungen-Liste inhärent an einen einzelnen Topf gebunden sind, bleiben sie in dieser Ansicht ausgeblendet.
+
 ## 1.13.0 - 2026-07-28
 
 - Auf der Startseite zeigt der Haus-Kredit-Topf jetzt statt der bisherigen Ziel/Reset-Zeile eine direkte Aussage zur jährlichen Sondertilgung: "Wird erreicht (X € zum TT.MM.)" bzw. "Wird nicht erreicht (X € zum TT.MM.)", grün bzw. rot. Betrag und Fälligkeitsdatum stammen automatisch aus der hinterlegten "Sondertilgung"-Forecast-Regel (jährlicher Rhythmus, Anker-Tag), nicht mehr aus separat zu pflegenden Ziel-Feldern – beide Werte bleiben damit immer mit der Regel in Sync. Geprüft wird, ob Saldo plus alle bis zum Fälligkeitstermin erwarteten Buchungen (ohne die Sondertilgung selbst) den Betrag decken.

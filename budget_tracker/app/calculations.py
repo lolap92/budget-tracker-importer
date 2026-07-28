@@ -67,13 +67,17 @@ class PrognoseErgebnis:
 
 
 def prognose_topf(
-    db: Session, topf: Topf, heute: dt.date | None = None, monate: int = FORECAST_HORIZON_MONATE
+    db: Session, topf: Topf | None, heute: dt.date | None = None, monate: int = FORECAST_HORIZON_MONATE
 ) -> PrognoseErgebnis:
-    """Prognose(Topf, Monat i) = aktueller Saldo + Summe offener FORECAST_VORKOMMEN bis Monat i."""
-    heute = heute or dt.date.today()
-    aktueller_saldo = saldo_topf(db, topf)
+    """Prognose(Topf, Monat i) = aktueller Saldo + Summe offener FORECAST_VORKOMMEN bis Monat i.
 
-    offene_vorkommen = offene_vorkommen_query(db, topf.id).all()
+    topf=None liefert die Prognose ueber alle Toepfe hinweg (gesamtes Konto):
+    Topf-Umbuchungen zwischen den eigenen Toepfen heben sich dabei automatisch
+    auf, da kontostand_gesamt sie wie saldo_topf ignoriert."""
+    heute = heute or dt.date.today()
+    aktueller_saldo = saldo_topf(db, topf) if topf is not None else kontostand_gesamt(db)
+
+    offene_vorkommen = offene_vorkommen_query(db, topf.id if topf is not None else None).all()
 
     monatswerte = []
     for i in range(monate):
