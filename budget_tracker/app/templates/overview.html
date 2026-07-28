@@ -17,8 +17,12 @@
       <span class="tdot {{ k.topf.name | topfklasse }}"></span>
       <div>
         <div class="nm"><a href="{{ base }}/forecast?topf={{ k.topf.id }}">{{ k.topf.name }}</a></div>
-        {% if k.ziel %}
-          <div class="goal">Ziel {{ k.ziel.jahresziel | eur }}{% if k.ziel.sondertilgung_datum %} · Reset {{ k.ziel.sondertilgung_datum.strftime('%d.%m.') }}{% endif %}</div>
+        {% if k.sondertilgung %}
+          {% if k.sondertilgung.wird_erreicht %}
+            <div class="goal" style="color:var(--received);">Wird erreicht ({{ k.sondertilgung.betrag | eur }} zum {{ k.sondertilgung.faelligkeit.strftime('%d.%m.') }})</div>
+          {% else %}
+            <div class="goal" style="color:var(--warn);">Wird nicht erreicht ({{ k.sondertilgung.betrag | eur }} zum {{ k.sondertilgung.faelligkeit.strftime('%d.%m.') }})</div>
+          {% endif %}
         {% elif k.minus_warnung %}
           <div class="goal" style="color:var(--warn);">rutscht lt. Prognose ins Minus</div>
         {% endif %}

@@ -67,13 +67,17 @@ class PrognoseErgebnis:
 
 
 def prognose_topf(
-    db: Session, topf: Topf, heute: dt.date | None = None, monate: int = FORECAST_HORIZON_MONATE
+    db: Session, topf: Topf | None, heute: dt.date | None = None, monate: int = FORECAST_HORIZON_MONATE
 ) -> PrognoseErgebnis:
-    """Prognose(Topf, Monat i) = aktueller Saldo + Summe offener FORECAST_VORKOMMEN bis Monat i."""
-    heute = heute or dt.date.today()
-    aktueller_saldo = saldo_topf(db, topf)
+    """Prognose(Topf, Monat i) = aktueller Saldo + Summe offener FORECAST_VORKOMMEN bis Monat i.
 
-    offene_vorkommen = offene_vorkommen_query(db, topf.id).all()
+    topf=None liefert die Prognose ueber alle Toepfe hinweg (gesamtes Konto):
+    Topf-Umbuchungen zwischen den eigenen Toepfen heben sich dabei automatisch
+    auf, da kontostand_gesamt sie wie saldo_topf ignoriert."""
+    heute = heute or dt.date.today()
+    aktueller_saldo = saldo_topf(db, topf) if topf is not None else kontostand_gesamt(db)
+
+    offene_vorkommen = offene_vorkommen_query(db, topf.id if topf is not None else None).all()
 
     monatswerte = []
     for i in range(monate):
@@ -128,6 +132,58 @@ def ziel_fortschritt_haus_kredit(db: Session, topf: Topf) -> dict | None:
         "projizierter_saldo": projizierter_saldo,
         "wird_erreicht": wird_erreicht,
         "fehlbetrag": fehlbetrag,
+    }
+
+
+def sondertilgung_status(db: Session, topf: Topf) -> dict | None:
+    """Fuer den Haus-Kredit-Topf auf der Startseite: ob die naechste faellige
+    jaehrliche Sondertilgungs-Regel laut Prognose gedeckt sein wird. Der Betrag
+    stammt aus der hinterlegten Forecast-Regel, das Faelligkeitsdatum aus dem
+    naechsten offenen Forecast-Vorkommen dieser Regel (nicht arithmetisch aus
+    Anker-Tag/Startdatum neu berechnet) - so bleibt die Aussage konsistent mit
+    dem, was auf der Forecast-Seite tatsaechlich als naechste Buchung geplant
+    ist, inklusive manueller Verschiebungen einzelner Vorkommen."""
+    if topf.name != HAUS_KREDIT_TOPF:
+        return None
+
+    regel = (
+        db.query(ForecastRegel)
+        .filter(
+            ForecastRegel.topf_id == topf.id,
+            ForecastRegel.rhythmus == "jaehrlich",
+            ForecastRegel.bezeichnung.ilike("%sondertilgung%"),
+        )
+        .first()
+    )
+    if regel is None:
+        return None
+
+    heute = dt.date.today()
+    naechstes_vorkommen = (
+        offene_vorkommen_query(db, topf.id)
+        .filter(ForecastVorkommen.regel_id == regel.id, ForecastVorkommen.erwartetes_datum >= heute)
+        .order_by(ForecastVorkommen.erwartetes_datum.asc())
+        .first()
+    )
+    if naechstes_vorkommen is None:
+        return None
+    faelligkeit = naechstes_vorkommen.erwartetes_datum
+
+    betrag = abs(Decimal(regel.betrag))
+    saldo = saldo_topf(db, topf)
+    offene_bis = [
+        v
+        for v in offene_vorkommen_query(db, topf.id)
+        .filter(ForecastVorkommen.erwartetes_datum <= faelligkeit)
+        .all()
+        if v.regel_id != regel.id
+    ]
+    projizierter_saldo = saldo + sum(Decimal(v.erwarteter_betrag) for v in offene_bis)
+
+    return {
+        "betrag": betrag,
+        "faelligkeit": faelligkeit,
+        "wird_erreicht": projizierter_saldo >= betrag,
     }
 
 

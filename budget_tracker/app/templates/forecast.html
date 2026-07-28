@@ -2,10 +2,11 @@
 {% import "_icons.html" as icons %}
 {% block title %}Forecast – Budget-Tracker{% endblock %}
 {% block header_title %}Forecast{% endblock %}
-{% block header_action %}<a class="icon-btn accent" href="{{ base }}/forecast/regeln?topf={{ gewaehlter_topf_id }}#neu-anlegen" aria-label="Neu anlegen">{{ icons.plus() }}</a>{% endblock %}
+{% block header_action %}{% if gewaehlter_topf_id %}<a class="icon-btn accent" href="{{ base }}/forecast/regeln?topf={{ gewaehlter_topf_id }}#neu-anlegen" aria-label="Neu anlegen">{{ icons.plus() }}</a>{% endif %}{% endblock %}
 {% block content %}
 
 <div class="topf-filter">
+  <a class="tf-btn alle {{ 'on' if alle_gewaehlt else '' }}" href="{{ base }}/forecast?topf=alle">Alle Töpfe</a>
   {% for t in toepfe %}
     <a class="tf-btn {{ t.name | topfklasse }} {{ 'on' if gewaehlter_topf_id == t.id else '' }}" href="{{ base }}/forecast?topf={{ t.id }}">{{ t.name }}</a>
   {% endfor %}
@@ -18,7 +19,7 @@
 {% set prognose = daten.prognose %}
 
 <div class="card">
-  <div class="card-label">{{ topf.name }} · 12 Monate</div>
+  <div class="card-label">{{ topf.name if topf else 'Alle Töpfe' }} · 12 Monate</div>
   <div class="stand-card" style="padding:0;">
     <div class="sc-top">
       <div class="sc-amt">{{ prognose.aktueller_saldo | eur }}</div>
@@ -80,6 +81,8 @@
     </details>
   {% endif %}
 </div>
+
+{% if topf %}
 
 <a class="rules-nav" href="{{ base }}/forecast/regeln?topf={{ topf.id }}">
   <span class="rn-left">{{ icons.list() }}Forecast-Regeln ({{ daten.regeln | length }})</span>
@@ -175,6 +178,8 @@
 {% else %}
   {% if not daten.zeitachse.zukunft %}<p class="empty-state">Noch keine Buchungen in diesem Topf.</p>{% endif %}
 {% endfor %}
+
+{% endif %}
 
 {% endif %}
 

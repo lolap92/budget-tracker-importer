@@ -10,7 +10,7 @@
   <a class="fchip {{ 'warn-chip' if offene_anzahl else '' }}" href="{{ base }}/zuordnen">Offen{% if offene_anzahl %} ({{ offene_anzahl }}){% endif %}</a>
   <a class="fchip" href="{{ base }}/umbuchungen">Umbuchungen{% if umbuchungen_anzahl %} ({{ umbuchungen_anzahl }}){% endif %}</a>
 </div>
-<div class="filters">
+<div class="filters-wrap">
   <a class="fchip {{ 'on' if not gewaehlter_topf else '' }}" href="{{ base }}/buchungen">Alle Töpfe</a>
   {% for t in toepfe %}
     <a class="fchip {{ 'on' if gewaehlter_topf == t.id else '' }}" href="{{ base }}/buchungen?topf={{ t.id }}">{{ t.name }}</a>

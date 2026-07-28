@@ -7,10 +7,11 @@ from app.calculations import (
     prognose_topf,
     review_liste,
     saldo_topf,
+    sondertilgung_status,
     zeitachse_topf,
     ziel_fortschritt_haus_kredit,
 )
-from app.models import Buchung, ForecastVorkommen, TopfUmbuchung
+from app.models import Buchung, ForecastRegel, ForecastVorkommen, TopfUmbuchung
 from tests.conftest import HEUTE
 
 
@@ -178,6 +179,149 @@ class TestPrognose:
 
         assert p.minus_warnung is False
         assert p.tiefpunkt == Decimal("400.00")
+
+
+class TestGesamtprognose:
+    """prognose_topf(db, None) - kombinierte Prognose ueber das ganze Konto."""
+
+    def test_basis_ist_der_kontostand_nicht_die_summe_der_toepfe(self, db, app):
+        app["Urlaub"].startsaldo = Decimal("1000.00")
+        db.commit()
+        # Noch nicht zugeordnet: zaehlt in keinen Topf, aber ins Konto.
+        buchung(db, None, "-400.00")
+
+        gesamt = prognose_topf(db, None, heute=HEUTE)
+
+        assert gesamt.aktueller_saldo == kontostand_gesamt(db) == Decimal("600.00")
+
+    def test_vorkommen_aller_toepfe_zaehlen_mit(self, db, app):
+        app["Urlaub"].startsaldo = Decimal("1000.00")
+        db.commit()
+        vorkommen(db, app["Urlaub"], "-200.00", dt.date(2026, 8, 15))
+        vorkommen(db, app["Sonderausgaben"], "-300.00", dt.date(2026, 8, 20))
+
+        gesamt = prognose_topf(db, None, heute=HEUTE)
+
+        assert gesamt.monatswerte[0].saldo == Decimal("1000.00")
+        assert gesamt.monatswerte[1].saldo == Decimal("500.00")
+
+    def test_topf_umbuchung_hebt_sich_in_der_gesamtsicht_auf(self, db, app):
+        app["Urlaub"].startsaldo = Decimal("1000.00")
+        db.commit()
+        db.add(
+            TopfUmbuchung(
+                von_topf_id=app["Urlaub"].id,
+                nach_topf_id=app["Sonderausgaben"].id,
+                betrag=Decimal("300.00"),
+                datum=dt.date(2026, 7, 5),
+            )
+        )
+        db.commit()
+
+        assert prognose_topf(db, None, heute=HEUTE).aktueller_saldo == Decimal("1000.00")
+
+
+class TestSondertilgungStatus:
+    """Startseiten-Aussage fuer Haus Kredit.
+
+    Betrag stammt aus der jaehrlichen 'Sondertilgung'-Regel, das
+    Faelligkeitsdatum aus deren naechstem offenen Vorkommen - bewusst nicht
+    arithmetisch aus Anker-Tag/Startdatum, damit manuelle Verschiebungen
+    einzelner Vorkommen mitgehen.
+
+    sondertilgung_status() liest dt.date.today() selbst, deshalb sind alle
+    Datumsangaben hier relativ zu heute aufgebaut.
+    """
+
+    @staticmethod
+    def _regel_mit_vorkommen(db, topf, betrag="-5000.00", in_tagen=120, bezeichnung="Sondertilgung"):
+        faellig = dt.date.today() + dt.timedelta(days=in_tagen)
+        regel = ForecastRegel(
+            topf_id=topf.id,
+            bezeichnung=bezeichnung,
+            betrag=Decimal(betrag),
+            rhythmus="jaehrlich",
+            anker_tag=faellig.day,
+            start_datum=faellig,
+        )
+        db.add(regel)
+        db.flush()
+        v = ForecastVorkommen(
+            regel_id=regel.id,
+            topf_id=topf.id,
+            bezeichnung=bezeichnung,
+            erwarteter_betrag=Decimal(betrag),
+            erwartetes_datum=faellig,
+        )
+        db.add(v)
+        db.commit()
+        return regel, v
+
+    def test_nur_fuer_haus_kredit(self, db, app):
+        self._regel_mit_vorkommen(db, app["Urlaub"])
+
+        assert sondertilgung_status(db, app["Urlaub"]) is None
+
+    def test_ohne_passende_regel_kein_ergebnis(self, db, app):
+        self._regel_mit_vorkommen(db, app["Haus Kredit"], bezeichnung="Jahresbeitrag")
+
+        assert sondertilgung_status(db, app["Haus Kredit"]) is None
+
+    def test_ohne_offenes_zukuenftiges_vorkommen_kein_ergebnis(self, db, app):
+        _, v = self._regel_mit_vorkommen(db, app["Haus Kredit"])
+        v.ignoriert = True
+        db.commit()
+
+        assert sondertilgung_status(db, app["Haus Kredit"]) is None
+
+    def test_betrag_aus_regel_faelligkeit_aus_vorkommen(self, db, app):
+        """Regression zu 1.14.1: das Datum darf nicht neu berechnet werden."""
+        kredit = app["Haus Kredit"]
+        _, v = self._regel_mit_vorkommen(db, kredit)
+        verschoben = v.erwartetes_datum + dt.timedelta(days=17)
+        v.erwartetes_datum = verschoben
+        db.commit()
+
+        status = sondertilgung_status(db, kredit)
+
+        assert status["betrag"] == Decimal("5000.00")
+        assert status["faelligkeit"] == verschoben
+
+    def test_wird_erreicht_wenn_saldo_und_zufluesse_decken(self, db, app):
+        kredit = app["Haus Kredit"]
+        kredit.startsaldo = Decimal("3000.00")
+        db.commit()
+        self._regel_mit_vorkommen(db, kredit, in_tagen=120)
+        vorkommen(db, kredit, "2000.00", dt.date.today() + dt.timedelta(days=30))
+
+        assert sondertilgung_status(db, kredit)["wird_erreicht"] is True
+
+    def test_wird_nicht_erreicht_bei_luecke(self, db, app):
+        kredit = app["Haus Kredit"]
+        kredit.startsaldo = Decimal("3000.00")
+        db.commit()
+        self._regel_mit_vorkommen(db, kredit, in_tagen=120)
+        vorkommen(db, kredit, "1000.00", dt.date.today() + dt.timedelta(days=30))
+
+        assert sondertilgung_status(db, kredit)["wird_erreicht"] is False
+
+    def test_zufluesse_nach_der_faelligkeit_zaehlen_nicht(self, db, app):
+        kredit = app["Haus Kredit"]
+        kredit.startsaldo = Decimal("3000.00")
+        db.commit()
+        self._regel_mit_vorkommen(db, kredit, in_tagen=120)
+        vorkommen(db, kredit, "9000.00", dt.date.today() + dt.timedelta(days=200))
+
+        assert sondertilgung_status(db, kredit)["wird_erreicht"] is False
+
+    def test_die_sondertilgung_selbst_mindert_die_deckung_nicht(self, db, app):
+        """Sonst wuerde die Regel sich selbst aus dem Saldo rechnen."""
+        kredit = app["Haus Kredit"]
+        kredit.startsaldo = Decimal("5000.00")
+        db.commit()
+        self._regel_mit_vorkommen(db, kredit, in_tagen=120)
+
+        assert sondertilgung_status(db, kredit)["wird_erreicht"] is True
 
 
 class TestZielFortschritt:

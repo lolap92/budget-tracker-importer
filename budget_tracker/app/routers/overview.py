@@ -8,7 +8,7 @@ from app.calculations import (
     offene_umbuchungen,
     prognose_topf,
     review_liste,
-    ziel_fortschritt_haus_kredit,
+    sondertilgung_status,
 )
 from app.database import get_db
 from app.models import Topf
@@ -30,7 +30,7 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
                 "tiefpunkt": prognose.tiefpunkt,
                 "tiefpunkt_monat": prognose.tiefpunkt_monat,
                 "minus_warnung": prognose.minus_warnung,
-                "ziel": ziel_fortschritt_haus_kredit(db, topf),
+                "sondertilgung": sondertilgung_status(db, topf),
             }
         )
     return templates.TemplateResponse(

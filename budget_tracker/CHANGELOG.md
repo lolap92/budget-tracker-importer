@@ -1,12 +1,30 @@
 # Changelog
 
-## 1.13.0 - 2026-07-28
+## 1.14.3 - 2026-07-28
 
 - **Fehlerbehebung (Datenverlust beim Import):** Scheiterte eine einzelne CSV-Zeile an einem Datenbank-Integritätsfehler, nahm der Import mit `rollback()` die komplette offene Transaktion zurück und verwarf damit alle bereits gelesenen Zeilen derselben Datei. Die Statistik meldete sie trotzdem als importiert, und der Watcher merkte sich die Datei als verarbeitet – die Buchungen waren endgültig weg. Jede Zeile läuft jetzt in einem eigenen SAVEPOINT; ein Fehler verwirft ausschließlich die betroffene Zeile.
 - **Fehlerbehebung (falsche Prognose):** Forecast-Regeln erzeugten ihre Vorkommen rückwirkend ab dem Regel-Startdatum, ohne Untergrenze. Eine Regel mit Startdatum in der Vergangenheit – der Normalfall bei `seed-data.json` – legte für jeden vergangenen Monat ein Vorkommen an. Diese konnten nie eine reale Buchung finden, blieben dauerhaft offen und wurden in jedem Prognosemonat mitsummiert; bei einer Kreditrate lag die Prognose dadurch um ein Vielfaches daneben. Vorkommen entstehen jetzt frühestens ab dem Vormonat und nie vor dem Startdatum der Konfiguration. Bereits entstandene Karteileichen räumt Migration `0004` beim Update weg (nur offene, aus Regeln erzeugte Vorkommen – gebuchte, verworfene und frei angelegte bleiben unangetastet).
 - **Fehlerbehebung (doppelte Zählung):** `start_datum` aus der Ersteinrichtung wurde nach dem Bootstrap nirgends mehr ausgewertet. Da der Trade-Republic-Export regelmäßig den kompletten Verlauf liefert, wurden Bewegungen von vor dem Startdatum zusätzlich zu den Topf-Startsalden verbucht – Kontostand und Topf-Salden waren dauerhaft falsch. Der Import überspringt solche Zeilen jetzt und weist sie in der Import-Statistik als `vor_startdatum` aus; die manuelle Erfassung lehnt sie mit einer Meldung ab.
 - **Fehlerbehebung (Anker-Tag):** Bei einer monatlichen Regel mit Anker-Tag 29–31 wurde das nächste Fälligkeitsdatum aus dem bereits gekappten Vormonatsdatum weitergezählt. Nach dem Februar fiel die Regel dadurch für den Rest des Jahres dauerhaft auf den 28. zurück (31.01 → 28.02 → 28.03 → 28.04). Der Anker-Tag wird jetzt für jeden Monat neu abgeleitet (31.01 → 28.02 → 31.03 → 30.04).
-- Neu: Test-Suite (`pytest`) für die Berechnungs- und Importlogik – Salden, Kontostand, Prognose, Zielfortschritt, Zeitachse, CSV-Parsing und -Dedublizierung, Forecast-Generierung, automatische Zuordnung und die Zustandsübergänge der Bank-Umbuchung. Ausführen mit `pip install -r requirements-dev.txt && pytest` im Ordner `budget_tracker/`.
+- Neu: Test-Suite (`pytest`, 106 Tests) für die Berechnungs- und Importlogik – Salden, Kontostand, Einzel- und Gesamtprognose, Sondertilgungs-Status, Zielfortschritt, Zeitachse, CSV-Parsing und -Dedublizierung, Forecast-Generierung, automatische Zuordnung und die Zustandsübergänge der Bank-Umbuchung. Ausführen mit `pip install -r requirements-dev.txt && pytest` im Ordner `budget_tracker/`.
+
+## 1.14.2 - 2026-07-28
+
+- Die Topf-Filter-Buttons auf der Buchungen-Seite sind wieder so kompakt wie zuvor (statt auf volle Breite gestreckt), umbrechen aber jetzt in zwei Reihen statt horizontal zu scrollen.
+
+## 1.14.1 - 2026-07-28
+
+- Fehlerbehebung: Das Fälligkeitsdatum in der Haus-Kredit-Statuszeile auf der Startseite ("Wird (nicht) erreicht (X € zum TT.MM.)") wurde rein arithmetisch aus Anker-Tag und Startdatum der Sondertilgung-Regel neu berechnet und konnte dadurch vom tatsächlich auf der Forecast-Seite geplanten Vorkommen abweichen (z.B. nach einer manuellen Verschiebung). Das Datum stammt jetzt aus dem nächsten offenen Forecast-Vorkommen dieser Regel, konsistent mit der Forecast-Seite.
+- Die Topf-Filter-Buttons auf der Buchungen-Seite stehen jetzt untereinander statt in einer horizontal scrollbaren Reihe – alle Töpfe sind ohne Scrollen nach rechts sichtbar.
+
+## 1.14.0 - 2026-07-28
+
+- Die Forecast-Seite startet jetzt standardmäßig auf dem Topf Sonderausgaben statt auf dem ersten Topf in der Reihenfolge (Haus Kredit).
+- Neu: Im Topf-Filter der Forecast-Seite gibt es jetzt "Alle Töpfe" – zeigt die kombinierte 12-Monats-Prognose über das gesamte Konto (aktueller Gesamtsaldo, Chart, Monats-Streifen, Tiefpunkt-Status). Da Forecast-Regeln und die Buchungen-Liste inhärent an einen einzelnen Topf gebunden sind, bleiben sie in dieser Ansicht ausgeblendet.
+
+## 1.13.0 - 2026-07-28
+
+- Auf der Startseite zeigt der Haus-Kredit-Topf jetzt statt der bisherigen Ziel/Reset-Zeile eine direkte Aussage zur jährlichen Sondertilgung: "Wird erreicht (X € zum TT.MM.)" bzw. "Wird nicht erreicht (X € zum TT.MM.)", grün bzw. rot. Betrag und Fälligkeitsdatum stammen automatisch aus der hinterlegten "Sondertilgung"-Forecast-Regel (jährlicher Rhythmus, Anker-Tag), nicht mehr aus separat zu pflegenden Ziel-Feldern – beide Werte bleiben damit immer mit der Regel in Sync. Geprüft wird, ob Saldo plus alle bis zum Fälligkeitstermin erwarteten Buchungen (ohne die Sondertilgung selbst) den Betrag decken.
 
 ## 1.12.0 - 2026-07-28
 

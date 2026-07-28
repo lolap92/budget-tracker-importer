@@ -37,14 +37,34 @@ def _sonderausgaben_id(db: Session) -> int | None:
 
 
 @router.get("/forecast")
-def uebersicht(request: Request, topf: int | None = None, db: Session = Depends(get_db)):
+def uebersicht(request: Request, topf: str | None = None, db: Session = Depends(get_db)):
     toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
-    gewaehlter_topf = db.get(Topf, topf) if topf else None
-    if gewaehlter_topf is None and toepfe:
-        gewaehlter_topf = toepfe[0]
+
+    alle_gewaehlt = topf == "alle"
+    gewaehlter_topf: Topf | None = None
+    if not alle_gewaehlt and topf:
+        try:
+            gewaehlter_topf = db.get(Topf, int(topf))
+        except ValueError:
+            gewaehlter_topf = None
+
+    # Ohne (oder mit ungueltigem) Topf-Parameter startet die Seite auf
+    # Sonderausgaben statt auf dem ersten Topf in der Reihenfolge.
+    if not alle_gewaehlt and gewaehlter_topf is None:
+        gewaehlter_topf = next(
+            (t for t in toepfe if t.name == SONDERAUSGABEN_TOPF), toepfe[0] if toepfe else None
+        )
 
     daten = None
-    if gewaehlter_topf is not None:
+    if alle_gewaehlt:
+        prognose = prognose_topf(db, None)
+        daten = {
+            "topf": None,
+            "prognose": prognose,
+            "chart_svg": render_prognose_chart(prognose.monatswerte, "alle"),
+            "ziel": None,
+        }
+    elif gewaehlter_topf is not None:
         prognose = prognose_topf(db, gewaehlter_topf)
         zeitachse = zeitachse_topf(db, gewaehlter_topf)
         regeln = (
@@ -71,6 +91,7 @@ def uebersicht(request: Request, topf: int | None = None, db: Session = Depends(
         ctx(
             request,
             toepfe=toepfe,
+            alle_gewaehlt=alle_gewaehlt,
             gewaehlter_topf_id=gewaehlter_topf.id if gewaehlter_topf else None,
             daten=daten,
             vorhandene_titel=vorhandene_buchungstitel(db),
