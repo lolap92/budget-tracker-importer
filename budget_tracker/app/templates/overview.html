@@ -26,7 +26,8 @@
           {% else %}
             <div class="goal" style="color:var(--warn);">Wird nicht erreicht ({{ k.sondertilgung.betrag | eur }} zum {{ k.sondertilgung.faelligkeit.strftime('%d.%m.') }})</div>
           {% endif %}
-        {% elif k.minus_warnung %}
+        {% endif %}
+        {% if k.minus_warnung %}
           <div class="goal" style="color:var(--warn);">rutscht lt. Prognose ins Minus</div>
         {% endif %}
       </div>
@@ -36,9 +37,15 @@
   {% endfor %}
 </div>
 
-{% if offene_anzahl or umbuchungen_anzahl %}
+{% if offene_anzahl or umbuchungen_anzahl or import_warnung %}
 <div class="sec-t">Zu tun</div>
 <div class="card" style="padding:4px 16px;">
+  {% if import_warnung %}
+  <a href="{{ base }}/mehr" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot warn"></span><div class="nm">{{ import_warnung }}</div></div>
+    <div class="todo-amt" style="color:var(--warn);">ansehen</div>
+  </a>
+  {% endif %}
   {% if offene_anzahl %}
   <a href="{{ base }}/zuordnen" class="topf-row" style="color:inherit;">
     <div class="who"><span class="tdot warn"></span><div class="nm">{{ offene_anzahl }} Buchung{{ 'en' if offene_anzahl != 1 else '' }} offen</div></div>

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.14.5 - 2026-07-28
+
+Sammelrelease für Darstellung, Fehlerverhalten und Eingabeprüfung – an keiner Berechnung ändert sich etwas.
+
+- **Neu: CSV-Import ist jetzt einsehbar.** Unter „Mehr" zeigt eine Import-Karte das überwachte Verzeichnis, ob es gefunden wird, den letzten Scan, den letzten tatsächlichen Import und die Bilanz des letzten Laufs (gelesen / neu / schon bekannt / vor Startdatum übersprungen / nicht verarbeitet), inklusive Klartext-Meldungen wie „kein passendes Spaltenformat". Die Übersicht meldet sich nur, wenn etwas klemmt – fehlendes Import-Verzeichnis oder nicht verarbeitete Zeilen erscheinen als Zeile unter „Zu tun". Bewusst keine Dauer-Statusanzeige: der Watcher scannt alle 30 Sekunden, „letzter Scan vor 12 Sekunden" wäre nur Rauschen. Der Zeitpunkt des letzten Imports kommt aus der Datenbank und übersteht damit einen Neustart des Add-ons.
+- **Fehler erscheinen im gewohnten Layout** statt als nacktes `{"detail": ...}` ohne Navigation. Betraf rund acht Routen (Zuordnen, Forecast-Vorkommen, Regel bearbeiten, Buchung löschen). „Einmalige geplante Buchung anlegen" hatte gar keine Fehlerbehandlung und quittierte einen Tippfehler im Betrag mit einem 500er – jetzt eine verständliche Meldung.
+- **Eingabeprüfungen nachgezogen:** Ein Betrag von 0 war nur beim Bearbeiten einer Regel verboten, beim Anlegen ging er durch; der Rhythmus wurde gar nicht geprüft, ein unbekannter Wert erzeugte stillschweigend nie ein Vorkommen. Anlegen und Bearbeiten teilen sich jetzt dieselben Prüfungen. „Endgültig verbuchen" lehnt bereits abgeglichene oder zugeordnete Umbuchungen ab.
+- Forecast-Vorkommen zeigen das vollständige Datum („erwartet 01.09.2026") statt nur den Monat – zwei Vorkommen im selben Monat waren vorher nicht unterscheidbar, obwohl der Tag fürs Matching zählt.
+- Die Buchungen-Tabelle am Desktop kennzeichnet schwebende Umbuchungen als solche statt als schlichtes „offen" – am Desktop suchte man sie danach vergeblich unter „Zuordnen".
+- Die Chip-Reihe über der Buchungsliste mischte Filter und Navigation: „Alle" war ein totes Element ohne Funktion, „Offen"/„Umbuchungen" sahen wie Filter aus, führten aber auf andere Seiten. Sie ist jetzt eine reine Sprungleiste zu den offenen Fällen und entfällt, wenn es nichts zu tun gibt. Gefiltert wird ausschließlich in der Topf-Reihe darunter.
+- Bei Haus Kredit unterdrückte die Sondertilgungs-Zeile die Minus-Warnung – die Zeile war rot markiert, der Grund stand nirgends. Beide Angaben erscheinen jetzt nebeneinander.
+- Die Zuordnen-Seite erklärt „als Umbuchung markieren" und „löschen", statt beide Schaltflächen unkommentiert nebeneinander zu stellen.
+- „Maerz" heißt jetzt „März".
+- Intern: `review_liste`/`unverknuepfte_buchungen` und `offene_umbuchungen`/`offene_umbuchungen_query` waren jeweils dieselbe Abfrage in zwei Fassungen – zusammengeführt. Test-Suite auf 155 Tests.
+
 ## 1.14.4 - 2026-07-28
 
 - **Fehlerbehebung (Betrag verschwand):** Wurde eine bereits einem Topf zugeordnete Buchung nachträglich „als Umbuchung markiert", blieb ein damit verknüpftes Forecast-Vorkommen weiterhin als erledigt verbucht. Die Buchung zählte danach nicht mehr im Topf-Saldo und die Erwartung nicht mehr in der Prognose – der Betrag war aus beiden Sichten verschwunden. Das Vorkommen wird jetzt wieder freigegeben: Die Markierung sagt ja gerade aus, dass es sich nicht um die erwartete Ausgabe handelte, sondern um eine Verschiebung, die sich mit ihrer Gegenbuchung ausgleicht – die Erwartung steht also weiter aus und gehört zurück in die Prognose. Eine Umbuchung ist damit über ihren gesamten Lebenszyklus spurlos: 800 € raus und wieder rein lassen Kontostand, Topf-Saldo und Prognose exakt so stehen wie vorher.

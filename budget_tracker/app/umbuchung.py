@@ -118,6 +118,13 @@ def abgleichen(db: Session, buchung_a: Buchung, buchung_b: Buchung, topf_id: int
 def endgueltig_verbuchen(db: Session, buchung: Buchung, topf_id: int) -> None:
     if not buchung.ist_umbuchung:
         raise ValueError("Buchung ist nicht als Umbuchung markiert.")
+    if buchung.gegenbuchung_id is not None:
+        raise ValueError(
+            "Diese Umbuchung ist bereits mit einer Gegenbuchung abgeglichen. "
+            "Dafuer zuerst die Markierung zuruecksetzen."
+        )
+    if buchung.topf_id is not None:
+        raise ValueError("Diese Umbuchung ist bereits einem Topf zugeordnet.")
     buchung.topf_id = topf_id
     buchung.umbuchung_final = True
     buchung.zuordnung_quelle = "manuell"

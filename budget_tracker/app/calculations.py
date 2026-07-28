@@ -7,12 +7,14 @@ import datetime as dt
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import FORECAST_HORIZON_MONATE, HAUS_KREDIT_TOPF
 from app.dateutils import add_months, month_end
 from app.matching import offene_vorkommen_query
 from app.models import Buchung, ForecastRegel, ForecastVorkommen, Topf, TopfUmbuchung
+from app.umbuchung import offene_umbuchungen_query
 
 
 def _umbuchung_zaehlt_fuer_saldo(b: Buchung) -> bool:
@@ -267,7 +269,17 @@ def zeitachse_topf(db: Session, topf: Topf) -> dict:
 
 
 def review_liste(db: Session) -> list[Buchung]:
-    """WHERE topf_id IS NULL AND ist_umbuchung = false."""
+    """WHERE topf_id IS NULL AND ist_umbuchung = false.
+
+    Dieselbe Liste dient zwei Zwecken: den offenen Faellen unter "Zuordnen"
+    und den Kandidaten fuer die manuelle Verknuepfung eines Forecast-
+    Vorkommens. Buchungen mit bereits gesetztem topf_id sind bewusst
+    ausgeschlossen, egal ob automatisch (Zins, Verwendungszweck, Regel) oder
+    manuell zugeordnet: sie sind aufgeloest, eine Verknuepfung wuerde sie
+    sonst stillschweigend per vorkommen_manuell_verknuepfen umtopfen.
+    Manuell erfasste Buchungen haben immer sofort einen Topf und tauchen
+    damit hier nie auf.
+    """
     return (
         db.query(Buchung)
         .filter(Buchung.topf_id.is_(None), Buchung.ist_umbuchung.is_(False))
@@ -277,13 +289,12 @@ def review_liste(db: Session) -> list[Buchung]:
 
 
 def offene_umbuchungen(db: Session) -> list[Buchung]:
-    """WHERE ist_umbuchung = true AND topf_id IS NULL (noch nicht final zugeordnet)."""
-    return (
-        db.query(Buchung)
-        .filter(Buchung.ist_umbuchung.is_(True), Buchung.topf_id.is_(None))
-        .order_by(Buchung.datum.desc())
-        .all()
-    )
+    """Schwebende Bank-Umbuchungen, juengste zuerst.
+
+    Was "offen" heisst, definiert offene_umbuchungen_query() in app/umbuchung.py
+    - dort braucht vorschlaege_fuer_abgleich() dieselbe Menge als Query.
+    """
+    return offene_umbuchungen_query(db).order_by(Buchung.datum.desc()).all()
 
 
 def neuestes_buchungsdatum(db: Session) -> dt.date | None:
@@ -294,6 +305,17 @@ def neuestes_buchungsdatum(db: Session) -> dt.date | None:
     return buchung.datum if buchung else None
 
 
+def letzter_import_zeitpunkt(db: Session) -> dt.datetime | None:
+    """Wann zuletzt eine Buchung angelegt wurde (UTC).
+
+    Bewusst aus der Datenbank statt aus dem Watcher-Speicher: die Angabe
+    ueberlebt damit einen Neustart des Add-ons. Sie beantwortet die Frage
+    "ist mein letzter Export angekommen?", waehrend der Zeitpunkt des letzten
+    Scans nur sagt, dass der Watcher ueberhaupt laeuft.
+    """
+    return db.query(func.max(Buchung.importiert_am)).scalar()
+
+
 def vorhandene_buchungstitel(db: Session) -> list[str]:
     """Alle bereits verwendeten sprechenden Namen - fuer Vorschlaege bei der
     manuellen Titelvergabe (Buchungs-Titel, Regel- und Vorkommen-Bezeichnungen)."""
@@ -302,21 +324,6 @@ def vorhandene_buchungstitel(db: Session) -> list[str]:
     vorkommen = {b for (b,) in db.query(ForecastVorkommen.bezeichnung).distinct()}
     return sorted(titel | regeln | vorkommen, key=str.lower)
 
-
-def unverknuepfte_buchungen(db: Session) -> list[Buchung]:
-    """Reale, noch unzugeordnete CSV-Buchungen (Review-Liste) - Kandidaten fuer
-    die manuelle Verknuepfung eines offenen Forecast-Vorkommens. Buchungen mit
-    bereits gesetztem topf_id sind ausgeschlossen, egal ob automatisch (Zins,
-    Verwendungszweck, Regel) oder manuell zugeordnet: sie sind bereits
-    aufgeloest, eine Verknuepfung wuerde sie sonst stillschweigend per
-    vorkommen_manuell_verknuepfen umtopfen. Manuell erfasste Buchungen haben
-    immer sofort einen Topf und tauchen damit hier nie auf."""
-    return (
-        db.query(Buchung)
-        .filter(Buchung.ist_umbuchung.is_(False), Buchung.topf_id.is_(None))
-        .order_by(Buchung.datum.desc())
-        .all()
-    )
 
 
 def regel_erste_faelligkeit(db: Session, regel_id: int) -> dt.date | None:

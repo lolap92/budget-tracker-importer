@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app import watcher
 from app.calculations import (
     kontostand_gesamt,
+    letzter_import_zeitpunkt,
     neuestes_buchungsdatum,
     offene_umbuchungen,
     prognose_topf,
@@ -17,6 +18,23 @@ from app.models import Topf
 from app.webutils import ctx, templates
 
 router = APIRouter()
+
+
+def _import_warnung(status: dict) -> str | None:
+    """Kurztext fuer die "Zu tun"-Karte - nur, wenn der Import wirklich klemmt.
+
+    Der Watcher scannt alle 30 Sekunden; "letzter Scan vor 12 Sekunden" waere
+    als Dauereinblendung reines Rauschen. Gemeldet wird deshalb nur, was ein
+    Eingreifen erfordert: ein fehlendes Import-Verzeichnis (CSV liegt am
+    falschen Ort) oder Zeilen bzw. Dateien, die der letzte Import nicht
+    verarbeiten konnte.
+    """
+    if status.get("verzeichnis_gefunden") is False:
+        return "Import-Verzeichnis nicht gefunden"
+    zahlen = status.get("letzte_zahlen") or {}
+    if zahlen.get("fehler"):
+        return f"Letzter Import: {zahlen['fehler']} Zeile(n) nicht verarbeitet"
+    return None
 
 
 @router.get("/")
@@ -51,7 +69,7 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             kontostand=kontostand,
             nicht_zugeordnet=nicht_zugeordnet,
             karten=karten,
-            watcher_status=watcher.status(),
+            import_warnung=_import_warnung(watcher.status()),
             offene_anzahl=len(review_liste(db)),
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
             stand_datum=neuestes_buchungsdatum(db),
@@ -67,5 +85,7 @@ def mehr(request: Request, db: Session = Depends(get_db)):
             request,
             offene_anzahl=len(review_liste(db)),
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
+            import_status=watcher.status(),
+            letzter_import=letzter_import_zeitpunkt(db),
         ),
     )

@@ -77,6 +77,7 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
         "duplikate": 0,
         "vor_startdatum": 0,
         "fehler": 0,
+        "meldung": None,  # Klartext fuer die Import-Anzeige, sonst nur im Log
     }
 
     try:
@@ -94,6 +95,7 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
     ):
         logger.error("Datei %s hat kein passendes Spaltenformat, wird uebersprungen.", pfad)
         stats["fehler"] += 1
+        stats["meldung"] = "kein passendes Spaltenformat"
         return stats
 
     vorhandene_ids = {row[0] for row in db.query(Buchung.transaction_id).all()}

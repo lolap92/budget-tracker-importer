@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.calculations import (
     prognose_topf,
     regel_erste_faelligkeit,
-    unverknuepfte_buchungen,
+    review_liste,
     vorhandene_buchungstitel,
     zeitachse_topf,
     ziel_fortschritt_haus_kredit,
@@ -19,6 +19,7 @@ from app.forecast_engine import (
     ensure_forecast_vorkommen,
     erstelle_manuelles_vorkommen,
     regel_bearbeiten,
+    regel_erstellen,
     vorkommen_auf_sonderausgaben_buchen,
     vorkommen_bearbeiten,
     vorkommen_loeschen,
@@ -83,7 +84,7 @@ def uebersicht(request: Request, topf: str | None = None, db: Session = Depends(
             "chart_svg": render_prognose_chart(prognose.monatswerte, topfklasse(gewaehlter_topf.name)),
             "ziel": ziel_fortschritt_haus_kredit(db, gewaehlter_topf),
             "sonderausgaben_topf_id": _sonderausgaben_id(db),
-            "kandidaten_buchungen": unverknuepfte_buchungen(db),
+            "kandidaten_buchungen": review_liste(db),
         }
 
     return templates.TemplateResponse(
@@ -152,7 +153,8 @@ async def regel_anlegen(request: Request, db: Session = Depends(get_db)):
     topf_id = None
     try:
         topf_id = int(form["topf_id"])
-        regel = ForecastRegel(
+        regel_erstellen(
+            db,
             topf_id=topf_id,
             bezeichnung=form["bezeichnung"],
             betrag=Decimal((form.get("betrag") or "0").replace(",", ".")),
@@ -161,9 +163,6 @@ async def regel_anlegen(request: Request, db: Session = Depends(get_db)):
             start_datum=dt.date.fromisoformat(form["start_datum"]),
             end_datum=dt.date.fromisoformat(form["end_datum"]) if form.get("end_datum") else None,
         )
-        db.add(regel)
-        db.flush()
-        ensure_forecast_vorkommen(db)
         db.commit()
     except (ValueError, KeyError, InvalidOperation) as exc:
         db.rollback()
@@ -215,14 +214,18 @@ async def regel_bearbeiten_route(regel_id: int, request: Request, db: Session = 
 @router.post("/forecast/vorkommen/neu")
 async def vorkommen_anlegen(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-    topf_id = int(form["topf_id"])
-    erstelle_manuelles_vorkommen(
-        db,
-        topf_id,
-        form["bezeichnung"],
-        Decimal((form.get("erwarteter_betrag") or "0").replace(",", ".")),
-        dt.date.fromisoformat(form["erwartetes_datum"]),
-    )
+    try:
+        topf_id = int(form["topf_id"])
+        erstelle_manuelles_vorkommen(
+            db,
+            topf_id,
+            form["bezeichnung"],
+            Decimal((form.get("erwarteter_betrag") or "0").replace(",", ".")),
+            dt.date.fromisoformat(form["erwartetes_datum"]),
+        )
+    except (ValueError, KeyError, InvalidOperation) as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return redirect(request, f"/forecast?topf={topf_id}")
 
 

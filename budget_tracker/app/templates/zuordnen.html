@@ -28,6 +28,12 @@
         {% endfor %}
       </div>
     </form>
+    <p class="b-ref" style="font-style:normal;margin-top:10px;">
+      „Als Umbuchung markieren" für reale Bewegungen zwischen eigenen Konten, die auf eine
+      Gegenbuchung warten. „Löschen" nur für Karteileichen – taucht dieselbe
+      <code>transaction_id</code> in einem späteren CSV-Import erneut auf, wird die Buchung
+      wieder angelegt.
+    </p>
     <div class="pair-actions">
       <form method="post" action="{{ base }}/buchungen/{{ b.id }}/als-umbuchung">
         <input type="hidden" name="zurueck" value="/zuordnen">

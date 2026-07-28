@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.config import (
     FORECAST_HORIZON_MONATE,
     FORECAST_RUECKWIRKEND_MONATE,
+    RHYTHMEN,
     SONDERAUSGABEN_TOPF,
 )
 from app.dateutils import add_months, month_start, safe_date
@@ -142,6 +143,51 @@ def vorkommen_bearbeiten(
     vorkommen.erwartetes_datum = erwartetes_datum
 
 
+def _pruefe_regel_eingaben(betrag, rhythmus: str, anker_tag: int) -> None:
+    """Gemeinsame Pruefungen fuer Anlegen und Bearbeiten einer Regel."""
+    if float(betrag) == 0:
+        raise ValueError("Betrag darf nicht 0 sein.")
+    if rhythmus not in RHYTHMEN:
+        raise ValueError(
+            f"Unbekannter Rhythmus '{rhythmus}' - erlaubt sind: {', '.join(RHYTHMEN)}."
+        )
+    if not 1 <= int(anker_tag) <= 31:
+        raise ValueError("Anker-Tag muss zwischen 1 und 31 liegen.")
+
+
+def regel_erstellen(
+    db: Session,
+    topf_id: int,
+    bezeichnung: str,
+    betrag,
+    rhythmus: str,
+    anker_tag: int,
+    start_datum: dt.date,
+    end_datum: dt.date | None,
+) -> ForecastRegel:
+    """Legt eine Regel an und erzeugt ihre Vorkommen bis zum Horizont.
+
+    Bewusst hier statt im Router, damit Anlegen und Bearbeiten dieselben
+    Pruefungen durchlaufen - vorher war ein Betrag von 0 nur beim Bearbeiten
+    verboten, beim Anlegen ging er durch.
+    """
+    _pruefe_regel_eingaben(betrag, rhythmus, anker_tag)
+
+    regel = ForecastRegel(
+        topf_id=topf_id,
+        bezeichnung=bezeichnung,
+        betrag=betrag,
+        rhythmus=rhythmus,
+        anker_tag=anker_tag,
+        start_datum=start_datum,
+        end_datum=end_datum,
+    )
+    db.add(regel)
+    db.flush()
+    ensure_forecast_vorkommen(db)
+    return regel
+
+
 def regel_bearbeiten(
     db: Session,
     regel: ForecastRegel,
@@ -157,8 +203,7 @@ def regel_bearbeiten(
     gebuchten, nicht verworfenen) Vorkommen mit den neuen Parametern neu -
     bereits gebuchte/verknuepfte Vorkommen sind reales Faktum und bleiben
     unangetastet, bewusst verworfene (ignoriert) bleiben es auch."""
-    if float(betrag) == 0:
-        raise ValueError("Betrag darf nicht 0 sein.")
+    _pruefe_regel_eingaben(betrag, rhythmus, anker_tag)
 
     regel.topf_id = topf_id
     regel.bezeichnung = bezeichnung

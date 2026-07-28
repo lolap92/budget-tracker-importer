@@ -5,11 +5,20 @@
 {% block header_action %}{% endblock %}
 {% block content %}
 
+{# Sprungleiste zu den offenen Faellen - bewusst getrennt von der Topf-Filter-
+   Reihe darunter: diese Chips filtern die Liste nicht, sie fuehren auf eine
+   andere Seite. Ohne offene Faelle gibt es nichts zu springen, dann entfaellt
+   die Reihe ganz. #}
+{% if offene_anzahl or umbuchungen_anzahl %}
 <div class="filters">
-  <span class="fchip on">Alle</span>
-  <a class="fchip {{ 'warn-chip' if offene_anzahl else '' }}" href="{{ base }}/zuordnen">Offen{% if offene_anzahl %} ({{ offene_anzahl }}){% endif %}</a>
-  <a class="fchip" href="{{ base }}/umbuchungen">Umbuchungen{% if umbuchungen_anzahl %} ({{ umbuchungen_anzahl }}){% endif %}</a>
+  {% if offene_anzahl %}
+    <a class="fchip warn-chip" href="{{ base }}/zuordnen">{{ offene_anzahl }} offen zuordnen &rarr;</a>
+  {% endif %}
+  {% if umbuchungen_anzahl %}
+    <a class="fchip" href="{{ base }}/umbuchungen">{{ umbuchungen_anzahl }} Umbuchung{{ 'en' if umbuchungen_anzahl != 1 else '' }} abgleichen &rarr;</a>
+  {% endif %}
 </div>
+{% endif %}
 <div class="filters-wrap">
   <a class="fchip {{ 'on' if not gewaehlter_topf else '' }}" href="{{ base }}/buchungen">Alle Töpfe</a>
   {% for t in toepfe %}
@@ -86,7 +95,8 @@
             <td class="desc">{{ b.titel or b.verwendungszweck or b.beschreibung or b.typ }}</td>
             <td class="num {{ 'pos' if b.betrag >= 0 else '' }}">{{ b.betrag | eur }}</td>
             <td>
-              {% if b.topf_id is none %}<span class="chip offen">offen</span>
+              {% if b.ist_umbuchung and b.topf_id is none %}<span class="chip offen">Umbuchung schwebend</span>
+              {% elif b.topf_id is none %}<span class="chip offen">offen</span>
               {% else %}<span class="chip {{ b.topf.name | topfklasse }}">{{ b.topf.name }}</span>{% endif %}
             </td>
           </tr>

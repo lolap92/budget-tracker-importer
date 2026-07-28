@@ -36,7 +36,7 @@ def monat_de(value) -> str:
     if value is None:
         return "-"
     monate = [
-        "Januar", "Februar", "Maerz", "April", "Mai", "Juni",
+        "Januar", "Februar", "März", "April", "Mai", "Juni",
         "Juli", "August", "September", "Oktober", "November", "Dezember",
     ]
     return f"{monate[value.month - 1]} {value.year}"

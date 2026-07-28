@@ -6,6 +6,7 @@ um keine zusaetzliche Abhaengigkeit zu benoetigen - das Konzept nennt
 periodischen Scan explizit als gleichwertige Option.
 """
 import asyncio
+import datetime as dt
 import logging
 from pathlib import Path
 
@@ -22,16 +23,33 @@ logger = logging.getLogger("budget_tracker.watcher")
 # Re-Scan, Dedublizierung passiert ohnehin ueber transaction_id.
 _bekannte_dateien: dict[str, tuple[float, int]] = {}
 
-_letzter_scan_status = {"zeitpunkt": None, "verzeichnis": None, "importierte_dateien": 0}
+# Zustand des letzten Scans fuer die Import-Anzeige. Bewusst nur im Speicher:
+# nach einem Neustart ist er nach spaetestens einem Scan-Intervall wieder
+# gefuellt. Wann zuletzt real importiert wurde, kommt dagegen aus der
+# Datenbank (calculations.letzter_import_zeitpunkt) und ueberlebt Neustarts.
+_letzter_scan_status = {
+    "zeitpunkt": None,
+    "verzeichnis": None,
+    "verzeichnis_gefunden": None,
+    "letzte_zahlen": None,
+    "meldungen": [],
+}
 
 
 def status() -> dict:
     return dict(_letzter_scan_status)
 
 
-def scan_einmal() -> dict:
-    import datetime as dt
+def _zahlen_zusammenfassen(alle_stats: list[dict]) -> dict:
+    summe = {"dateien": len(alle_stats), "gelesen": 0, "neu": 0, "duplikate": 0,
+             "vor_startdatum": 0, "fehler": 0}
+    for s in alle_stats:
+        for schluessel in ("gelesen", "neu", "duplikate", "vor_startdatum", "fehler"):
+            summe[schluessel] += s.get(schluessel, 0)
+    return summe
 
+
+def scan_einmal() -> dict:
     db = SessionLocal()
     try:
         konfiguration = db.query(Konfiguration).first()
@@ -40,14 +58,16 @@ def scan_einmal() -> dict:
 
         verzeichnis = Path(konfiguration.import_verzeichnis)
         _letzter_scan_status["verzeichnis"] = str(verzeichnis)
-        _letzter_scan_status["zeitpunkt"] = dt.datetime.utcnow().isoformat()
+        _letzter_scan_status["zeitpunkt"] = dt.datetime.utcnow()
 
         if not verzeichnis.is_dir():
+            _letzter_scan_status["verzeichnis_gefunden"] = False
             logger.debug("Import-Verzeichnis %s existiert (noch) nicht.", verzeichnis)
             return {"uebersprungen": f"Verzeichnis {verzeichnis} nicht gefunden"}
+        _letzter_scan_status["verzeichnis_gefunden"] = True
 
-        importierte_dateien = 0
         gesamt_stats = []
+        meldungen = []
         for datei in sorted(verzeichnis.glob("*.csv")):
             try:
                 stat = datei.stat()
@@ -63,17 +83,27 @@ def scan_einmal() -> dict:
             except Exception:  # noqa: BLE001 - eine kaputte Datei darf andere nicht blockieren
                 logger.exception("Fehler beim Import von %s, wird beim naechsten Scan erneut versucht.", datei)
                 db.rollback()
+                meldungen.append(f"{datei.name}: Import abgebrochen")
                 continue
             gesamt_stats.append(stats)
+            if stats.get("meldung"):
+                meldungen.append(f"{datei.name}: {stats['meldung']}")
+            elif stats.get("fehler"):
+                meldungen.append(f"{datei.name}: {stats['fehler']} Zeile(n) fehlerhaft")
             _bekannte_dateien[str(datei)] = signatur
-            importierte_dateien += 1
+
+        # Zahlen nur ueberschreiben, wenn dieser Scan tatsaechlich Dateien
+        # verarbeitet hat - sonst wuerde die Anzeige bei jedem Leerlauf-Scan
+        # (alle 30 Sekunden) auf Null zurueckfallen.
+        if gesamt_stats:
+            _letzter_scan_status["letzte_zahlen"] = _zahlen_zusammenfassen(gesamt_stats)
+            _letzter_scan_status["meldungen"] = meldungen
 
         # Guenstige, idempotente Operation: haelt den 12-Monats-Horizont der
         # generierten Vorkommen unabhaengig von neuen CSV-Importen aktuell.
         ensure_forecast_vorkommen(db)
         db.commit()
 
-        _letzter_scan_status["importierte_dateien"] = importierte_dateien
         return {"dateien": gesamt_stats}
     finally:
         db.close()

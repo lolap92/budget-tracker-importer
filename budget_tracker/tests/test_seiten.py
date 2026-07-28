@@ -124,3 +124,69 @@ def test_ohne_konfiguration_leitet_der_bootstrap_gate_um(db, toepfe):
 
     assert antwort.status_code == 303
     assert antwort.headers["location"].endswith("/bootstrap")
+
+
+class TestAnzeigekorrekturen:
+    def test_monatsname_maerz(self):
+        """A1: monat_de schrieb 'Maerz', monat_kurz daneben 'Mär'."""
+        from app.webutils import monat_de, monat_kurz
+
+        assert monat_de(dt.date(2027, 3, 1)) == "März 2027"
+        assert monat_kurz(dt.date(2027, 3, 1)) == "Mär 27"
+
+    def test_forecast_vorkommen_zeigt_den_tag(self, client, bewegungen, app):
+        """A2: nur der Monat liess zwei Vorkommen im selben Monat gleich aussehen."""
+        text = client.get(f"/forecast?topf={app['Urlaub'].id}").text
+
+        assert "erwartet 01.09.2026" in text
+
+    def test_desktop_tabelle_kennzeichnet_schwebende_umbuchung(self, client, bewegungen):
+        """A3: stand vorher als schlichtes 'offen' in der Tabelle."""
+        text = client.get("/buchungen").text
+
+        assert text.count("Umbuchung schwebend") >= 2, "mobile Karte und Desktop-Tabelle"
+
+    def test_sprungleiste_entfaellt_ohne_offene_faelle(self, client, db, app):
+        """A4: die Chips fuehren auf andere Seiten - ohne offene Faelle gibt es
+        nichts zu springen."""
+        text = client.get("/buchungen").text
+
+        assert "offen zuordnen" not in text
+        assert "abgleichen" not in text
+
+    def test_sprungleiste_erscheint_mit_offenen_faellen(self, client, bewegungen):
+        text = client.get("/buchungen").text
+
+        assert "1 offen zuordnen" in text
+        assert "1 Umbuchung abgleichen" in text
+
+    def test_minus_warnung_auch_neben_der_sondertilgungszeile(self, client, db, app):
+        """A5: die Zeile war rot markiert, der Grund fehlte."""
+        from decimal import Decimal as D
+
+        from app.forecast_engine import regel_erstellen
+
+        kredit = app["Haus Kredit"]
+        kredit.startsaldo = D("100.00")
+        db.commit()
+        # Bei jaehrlichen Regeln stammt der Monat aus start_datum und der Tag
+        # aus anker_tag - beides muss zusammenpassen, sonst faellt die erste
+        # Faelligkeit ein Jahr weiter nach hinten.
+        faellig = dt.date.today() + dt.timedelta(days=60)
+        regel_erstellen(
+            db, topf_id=kredit.id, bezeichnung="Sondertilgung", betrag=D("-5000.00"),
+            rhythmus="jaehrlich", anker_tag=faellig.day,
+            start_datum=faellig, end_datum=None,
+        )
+        db.commit()
+
+        text = client.get("/").text
+        assert "Wird nicht erreicht" in text
+        assert "rutscht lt. Prognose ins Minus" in text
+
+    def test_zuordnen_erklaert_die_aktionen(self, client, bewegungen):
+        """A6: 'löschen' stand ohne jeden Hinweis neben 'als Umbuchung'."""
+        text = client.get("/zuordnen").text
+
+        assert "Karteileichen" in text
+        assert "wieder angelegt" in text

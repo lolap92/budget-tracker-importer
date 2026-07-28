@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.bootstrap import bootstrap_falls_noetig, ist_bootstrapped
 from app.database import SessionLocal
@@ -17,6 +18,7 @@ from app.routers import (
     zuordnen,
 )
 from app.watcher import scan_schleife
+from app.webutils import ctx, templates
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-5s %(name)s: %(message)s")
 logger = logging.getLogger("budget_tracker")
@@ -60,6 +62,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Budget-Tracker", lifespan=lifespan)
 app.add_middleware(IngressPathMiddleware)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def fehlerseite(request: Request, exc: StarletteHTTPException):
+    """Fehler im gewohnten Layout statt als rohes JSON.
+
+    Die Routen melden Eingabefehler ueber HTTPException mit sprechendem
+    detail-Text. Ohne diesen Handler landet der Nutzer auf einer nackten
+    {"detail": ...}-Seite ohne Navigation und ohne Weg zurueck.
+    """
+    return templates.TemplateResponse(
+        "fehler.html",
+        ctx(request, status=exc.status_code, meldung=exc.detail),
+        status_code=exc.status_code,
+    )
 
 
 @app.middleware("http")

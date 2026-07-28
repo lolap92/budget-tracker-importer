@@ -19,4 +19,57 @@
   </a>
 </div>
 
+<div class="sec-t">CSV-Import</div>
+<div class="card">
+  {% set z = import_status.letzte_zahlen %}
+  <div class="meta-row">
+    <span class="k">Verzeichnis</span>
+    <span class="v" style="font-family:var(--font-mono);font-size:11.5px;">{{ import_status.verzeichnis or '–' }}</span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Status</span>
+    <span class="v">
+      {%- if import_status.verzeichnis_gefunden is none %}<span class="chip offen">noch kein Scan</span>
+      {%- elif import_status.verzeichnis_gefunden %}<span class="chip urlaub">wird überwacht</span>
+      {%- else %}<span class="chip offen" style="color:var(--warn);">nicht gefunden</span>{% endif %}
+    </span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Letzter Scan</span>
+    <span class="v">{% if import_status.zeitpunkt %}{{ import_status.zeitpunkt.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}–{% endif %}</span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Zuletzt importiert</span>
+    <span class="v">{% if letzter_import %}{{ letzter_import.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}noch nichts{% endif %}</span>
+  </div>
+
+  {% if z %}
+  <div class="sec-t" style="margin-top:14px;">Letzter Import</div>
+  <div class="meta-row"><span class="k">Dateien</span><span class="v">{{ z.dateien }}, {{ z.gelesen }} Zeile(n) gelesen</span></div>
+  <div class="meta-row"><span class="k">Neu übernommen</span><span class="v">{{ z.neu }}</span></div>
+  <div class="meta-row"><span class="k">Schon bekannt</span><span class="v">{{ z.duplikate }}</span></div>
+  {% if z.vor_startdatum %}
+  <div class="meta-row">
+    <span class="k">Vor Startdatum</span>
+    <span class="v">{{ z.vor_startdatum }} übersprungen</span>
+  </div>
+  {% endif %}
+  {% if z.fehler %}
+  <div class="meta-row">
+    <span class="k">Nicht verarbeitet</span>
+    <span class="v" style="color:var(--warn);">{{ z.fehler }}</span>
+  </div>
+  {% endif %}
+  {% for m in import_status.meldungen %}
+    <p class="b-ref" style="font-style:normal;color:var(--warn);margin-top:6px;">{{ m }}</p>
+  {% endfor %}
+  {% endif %}
+
+  <p class="b-ref" style="font-style:normal;margin-top:12px;">
+    Der Ordner wird alle 30 Sekunden automatisch auf neue <code>*.csv</code>-Dateien geprüft.
+    Dedupliziert wird über die <code>transaction_id</code>, Zeilen vor dem Startdatum werden
+    übersprungen – sie stecken bereits in den Topf-Startsalden.
+  </p>
+</div>
+
 {% endblock %}

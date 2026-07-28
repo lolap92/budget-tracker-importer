@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from app.calculations import offene_umbuchungen
 from app.database import get_db
 from app.models import Buchung, Topf
 from app.umbuchung import (
     abgleichen,
     endgueltig_verbuchen,
-    offene_umbuchungen_query,
     vorschlaege_fuer_abgleich,
 )
 from app.webutils import ctx, redirect, templates
@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.get("/umbuchungen")
 def liste(request: Request, db: Session = Depends(get_db)):
-    offene = offene_umbuchungen_query(db).order_by(Buchung.datum.desc()).all()
+    offene = offene_umbuchungen(db)
     toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
     vorschlaege = {b.id: vorschlaege_fuer_abgleich(db, b) for b in offene}
     return templates.TemplateResponse(

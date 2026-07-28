@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Fehler – Budget-Tracker{% endblock %}
+{% block header_title %}{{ 'Nicht gefunden' if status == 404 else 'Das hat nicht geklappt' }}{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card-label">Fehler {{ status }}</div>
+  <p style="font-size:13.5px;">{{ meldung }}</p>
+</div>
+
+<a class="back-link" href="{{ base }}/">{{ icons.back() }}Zur Übersicht</a>
+
+{% endblock %}

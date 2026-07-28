@@ -16,6 +16,11 @@ SEED_FILE = BUDGET_TRACKER_DIR / "seed-data.json"
 
 # Die vier Toepfe sind laut Konzept fest vorgegeben.
 TOPF_NAMEN = ["Haus Kredit", "Haus Renovierung", "Urlaub", "Sonderausgaben"]
+
+# Erlaubte Rhythmen einer Forecast-Regel. Ein unbekannter Wert erzeugt in
+# _occurrence_dates() stillschweigend nie ein Vorkommen - die Regel waere
+# angelegt, wuerde aber nie greifen, ohne dass es irgendwo auffiele.
+RHYTHMEN = ("monatlich", "jaehrlich", "befristet")
 SONDERAUSGABEN_TOPF = "Sonderausgaben"
 HAUS_KREDIT_TOPF = "Haus Kredit"
 
