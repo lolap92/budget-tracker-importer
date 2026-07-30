@@ -8,3 +8,7 @@ Jinja2==3.1.5
 # aendert TR etwas, zieht pytr nach - ein ungeplantes Update koennte den Import
 # ebenso gut brechen. Faellt die Schnittstelle aus, bleibt der CSV-Import.
 pytr==0.4.9
+# HTTP-Aufrufe an GoCardless Bank Account Data (app/gocardless.py). Kommt
+# ohnehin mit pytr ins Image, steht hier aber ausdruecklich: die DKB-Anbindung
+# haengt daran, unabhaengig davon, was pytr kuenftig als Abhaengigkeit fuehrt.
+requests==2.32.3

@@ -11,6 +11,7 @@ from app.database import SessionLocal
 from app.routers import (
     bootstrap as bootstrap_router,
     buchungen,
+    dkb,
     forecast,
     overview,
     topf_umbuchung,
@@ -108,3 +109,4 @@ app.include_router(umbuchungen.router)
 app.include_router(topf_umbuchung.router)
 app.include_router(forecast.router)
 app.include_router(trade_republic.router)
+app.include_router(dkb.router)

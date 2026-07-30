@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app import tr_client, tr_sync, watcher
+from app import externkonto, tr_client, tr_sync, watcher
 from app.calculations import (
     kontostand_gesamt,
     letzter_import_zeitpunkt,
@@ -90,6 +90,20 @@ def _kontostand_hinweis(db: Session) -> str | None:
     return f"Kontostand: {eur(abs(abweichung))} Abweichung zu Trade Republic"
 
 
+def _externkonto_kachel(db: Session) -> dict | None:
+    """Der DKB-Stand fuer die Startseite - ohne Abruf.
+
+    Bewusst nur der gespeicherte Wert: die Startseite wird staendig geoeffnet,
+    ein Abruf je Aufruf brauchte das taegliche Kontingent des Kontoinformations-
+    dienstes auf und machte die Seite von einem fremden Server abhaengig.
+    Geholt wird auf der Gesamtvermoegen-Seite, auf die die Kachel fuehrt.
+    """
+    konto = externkonto.konto(db)
+    if konto is None:
+        return None
+    return {"konto": konto, "saldo": externkonto.neuester_saldo(db, konto.id)}
+
+
 @router.get("/")
 def uebersicht(request: Request, db: Session = Depends(get_db)):
     toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
@@ -114,6 +128,7 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
     # stehen zu lassen.
     kontostand = kontostand_gesamt(db)
     nicht_zugeordnet = kontostand - sum((k["saldo"] for k in karten), Decimal(0))
+    externkonto_kachel = _externkonto_kachel(db)
 
     return templates.TemplateResponse(
         "overview.html",
@@ -125,6 +140,13 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             import_warnung=_import_warnung(watcher.status()),
             tr_warnung=_tr_warnung(db),
             kontostand_hinweis=_kontostand_hinweis(db),
+            # Wie das Depot bewusst neben den Toepfen und nicht in ihrer Summe:
+            # der DKB-Saldo ist kein Guthaben auf dem Cashkonto und fliesst in
+            # keinen Topf-Saldo und in keine Prognose ein.
+            externkonto=externkonto_kachel,
+            externkonto_warnung=externkonto.warnung(
+                externkonto_kachel["konto"] if externkonto_kachel else None
+            ),
             # Bewusst neben den Toepfen und nicht in ihrer Summe: der Depotwert
             # ist kein Guthaben auf dem Cashkonto.
             depot=aktueller_snapshot(db),
@@ -137,6 +159,7 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/mehr")
 def mehr(request: Request, db: Session = Depends(get_db)):
+    kachel = _externkonto_kachel(db)
     return templates.TemplateResponse(
         "mehr.html",
         ctx(
@@ -150,6 +173,10 @@ def mehr(request: Request, db: Session = Depends(get_db)):
                 if (snapshot := aktueller_snapshot(db)) is not None
                 else None
             ),
+            dkb_saldo=(
+                kachel["saldo"].betrag if kachel and kachel["saldo"] else None
+            ),
+            dkb_verbunden=bool(kachel and kachel["konto"].gocardless_account_id),
             tr_angemeldet=tr_client.sitzung_vorhanden(),
             tr_verdacht=db.query(ImportVerdacht)
             .filter(ImportVerdacht.entscheidung.is_(None))

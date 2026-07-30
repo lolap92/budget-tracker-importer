@@ -1,7 +1,7 @@
 name: "Budget-Tracker"
-version: "1.29.0"
+version: "1.30.0"
 slug: "budget_tracker"
-description: "Privater Budget-Tracker mit vier virtuellen Spartoepfen, automatischem CSV-Import und 12-Monats-Prognose"
+description: "Privater Budget-Tracker mit vier virtuellen Spartoepfen, automatischem CSV-Import, DKB-Gesamtvermoegen und 12-Monats-Prognose"
 url: "https://github.com/lolap92/budget-tracker-importer"
 arch:
   - aarch64
@@ -18,7 +18,20 @@ map:
 options:
   log_level: info
   tr_sync_intervall_stunden: 6
+  gesamtvermoegen_cache_stunden: 6
 schema:
   log_level: list(debug|info|warning|error)
   # 0 = kein automatischer Abgleich, nur der Knopf in der App.
   tr_sync_intervall_stunden: int(0,168)
+  # Wie lange ein abgerufener DKB-Kontostand als aktuell genug gilt. Der
+  # kostenlose GoCardless-Tarif erlaubt nur wenige Kontoabrufe pro Tag
+  # (ueblicherweise vier) - sechs Stunden bleiben auch im ungeguenstigsten
+  # Fall darunter.
+  gesamtvermoegen_cache_stunden: int(1,168)
+  # Zugang zu GoCardless Bank Account Data (PSD2). Bewusst hier und nicht in
+  # der Datenbank: haushaltsbuch.db enthaelt Fachdaten, keine Zugaenge.
+  gocardless_secret_id: password?
+  gocardless_secret_key: password?
+  # Optional: feste Rueckleitung nach der Bankfreigabe. Leer lassen - der
+  # Einrichtungs-Weg kommt ohne aus (der Freigabe-Link wird von Hand geoeffnet).
+  gocardless_redirect_url: str?

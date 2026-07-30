@@ -56,7 +56,31 @@
 </p>
 {% endif %}
 
-{% if offene_anzahl or umbuchungen_anzahl or import_warnung or tr_warnung or kontostand_hinweis %}
+{% if externkonto %}
+<div class="sec-t">DKB</div>
+<div class="card" style="padding:4px 16px;">
+  <a href="{{ base }}/dkb" class="topf-row" style="color:inherit;">
+    <div class="who">
+      <span class="tdot faint"></span>
+      <div>
+        <div class="nm">{{ externkonto.konto.bezeichnung }}</div>
+        <div class="goal">
+          {%- if externkonto.saldo %}Stand {{ externkonto.saldo.abgerufen_am | zeit_de }}
+          {%- else %}noch kein Stand abgerufen{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="amt">
+      {%- if externkonto.saldo %}{{ externkonto.saldo.betrag | eur }}{% else %}–{% endif %}
+    </div>
+  </a>
+</div>
+<p class="b-ref" style="font-style:normal;margin:6px 2px 0;">
+  Reine Information – der Kontostand der DKB zählt nicht zum Cashkonto und in keinen Topf.
+</p>
+{% endif %}
+
+{% if offene_anzahl or umbuchungen_anzahl or import_warnung or tr_warnung or kontostand_hinweis or externkonto_warnung %}
 <div class="sec-t">Zu tun</div>
 <div class="card" style="padding:4px 16px;">
   {% if kontostand_hinweis %}
@@ -75,6 +99,18 @@
   <a href="{{ base }}/mehr" class="topf-row" style="color:inherit;">
     <div class="who"><span class="tdot warn"></span><div class="nm">{{ import_warnung }}</div></div>
     <div class="todo-amt" style="color:var(--warn);">ansehen</div>
+  </a>
+  {% endif %}
+  {% if externkonto_warnung %}
+  <a href="{{ base }}/dkb" class="topf-row" style="color:inherit;">
+    <div class="who">
+      <span class="tdot warn"></span>
+      <div>
+        <div class="nm">{{ externkonto_warnung }}</div>
+        <div class="goal">PSD2-Freigaben laufen nach spätestens 90 Tagen ab</div>
+      </div>
+    </div>
+    <div class="todo-amt" style="color:var(--warn);">erneuern</div>
   </a>
   {% endif %}
   {% if tr_warnung %}

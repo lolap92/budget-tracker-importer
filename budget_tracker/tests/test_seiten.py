@@ -94,6 +94,7 @@ def bewegungen(db, app):
         "/topf-umbuchung/neu",
         "/trade-republic",
         "/depot",
+        "/dkb",
     ],
 )
 def test_seite_rendert(client, bewegungen, pfad):
@@ -359,7 +360,7 @@ class TestLokaleZeit:
         db.commit()
         b = db.query(Buchung).filter(Buchung.transaction_id == "offen").one()
 
-        for pfad in ("/", "/mehr", "/depot", "/trade-republic", f"/buchungen/{b.id}"):
+        for pfad in ("/", "/mehr", "/depot", "/dkb", "/trade-republic", f"/buchungen/{b.id}"):
             assert "UTC" not in client.get(pfad).text, pfad
 
     def test_die_umgerechnete_zeit_steht_wirklich_da(self, client, db, bewegungen):

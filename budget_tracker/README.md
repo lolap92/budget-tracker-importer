@@ -10,6 +10,7 @@ alles andere wird berechnet.
 ## Funktionen
 
 - **Direkter Abgleich mit Trade Republic** (optional, unter „Mehr → Trade Republic"): holt die Kontobewegungen alle sechs Stunden selbst ab – **inklusive Verwendungszweck**, den der CSV-Export nicht mitliefert. Der Datei-Import bleibt unverändert bestehen und ist die Rückfallebene.
+- **DKB-Kontostand** (optional, unter „Mehr → DKB"): der Saldo des DKB-Gehaltskontos steht als eigener Abschnitt auf der Startseite, unterhalb des Depots. Reine Zusatzinformation, mit nichts verrechnet – wie der Depotwert.
 - **Depotstand** unter „Mehr → Depot“: Positionen, Kurse und Cash-Bestand als reine Information – und als Plausibilitätsprüfung, weil der echte Kontostand dem selbst berechneten gegenübergestellt wird.
 - Automatischer CSV-Import aus `/homeassistant/budget_tracker/imports`, dedupliziert über `transaction_id`. Zeilen mit einem Datum vor dem Startdatum werden übersprungen – sie stecken bereits in den Topf-Startsalden.
 - Automatische Topf-Zuordnung: Zins → Verwendungszweck → Forecast-Regel → offen zur manuellen Zuordnung.
@@ -110,6 +111,77 @@ Cash-Bestand daneben: die App rechnet ihren Kontostand aus Startsalden und
 Buchungen, Trade Republic kennt den echten. Weichen beide voneinander ab, fehlt
 eine Buchung, ist eine doppelt erfasst, oder ein Startsaldo stimmt nicht.
 Scheitert der Depot-Abruf, bleiben die Buchungen davon unberührt.
+
+## DKB-Konto anbinden (optional)
+
+Neben den vier virtuellen Töpfen auf dem Trade-Republic-Konto lässt sich der
+Kontostand des DKB-Gehaltskontos live anzeigen: auf der Startseite als eigener
+Abschnitt unterhalb des Depots, mit Detailseite unter **Mehr → DKB**.
+
+Der DKB-Saldo ist **reine Zusatzinformation** und wird mit nichts verrechnet –
+es ist Geld auf einem anderen Konto. Er fließt in keinen Topf-Saldo, in keinen
+Kontostand des Cashkontos, in keine Prognose und in keine Minus-Erkennung ein;
+es gibt bewusst auch keine Gesamtsumme über beide Konten.
+
+### Warum PSD2 und nicht FinTS
+
+Direktes FinTS/HBCI würde den echten Bank-PIN im System speichern – genau das
+Risiko, das die App bei Trade Republic vermeidet (dort wird die PIN nie
+gespeichert). Angebunden wird deshalb über
+[GoCardless Bank Account Data](https://developer.gocardless.com/bank-account-data/overview),
+einen lizenzierten PSD2-Kontoinformationsdienst: statt des Bankzugangs bleibt
+nur ein jederzeit widerrufbarer API-Zugang, und die Anmeldung selbst läuft bei
+der Bank.
+
+Der Preis dafür ist regulatorisch vorgegeben und nicht umgehbar: **eine
+PSD2-Freigabe gilt höchstens 90 Tage.** Danach ist eine einmalige neue Anmeldung
+bei der DKB nötig. Die Startseite erinnert sieben Tage vorher daran.
+
+### Einrichtung
+
+1. Bei [GoCardless Bank Account Data](https://bankaccountdata.gocardless.com/)
+   kostenlos registrieren und unter „Developers → User secrets" ein
+   Schlüsselpaar erzeugen.
+2. In den **Add-on-Optionen** eintragen:
+
+   | Option | Bedeutung |
+   |---|---|
+   | `gocardless_secret_id` | Secret-ID aus dem Portal |
+   | `gocardless_secret_key` | Secret-Key aus dem Portal |
+   | `gesamtvermoegen_cache_stunden` | wie lange ein abgerufener Stand als aktuell gilt (Standard 6) |
+   | `gocardless_redirect_url` | optional, siehe unten – normalerweise leer lassen |
+
+   Die Zugangsdaten stehen **ausschließlich** in den Add-on-Optionen und nie in
+   der Datenbank. Der daraus geholte Zugriffstoken lebt nur im Arbeitsspeicher.
+3. In der App unter **Mehr → DKB**: „Banken laden" → DKB auswählen → „Freigabe
+   starten" → den angezeigten Link öffnen und sich dort bei der DKB anmelden.
+   Die Seite erkennt den Abschluss selbst.
+
+**Ohne Rückleitung:** Ein PSD2-Freigabe-Ablauf verlangt normalerweise eine
+feste, von außen erreichbare Adresse, zu der die Bank zurückspringt. Die App
+läuft nur per Home-Assistant-Ingress und hat keine solche Adresse. Deshalb wird
+der Freigabe-Link von Hand geöffnet und der Abschluss über den Stand der
+Freigabe erkannt – ein Klick mehr beim Einrichten, dafür keine Abhängigkeit von
+der Erreichbarkeit des Heimnetzes. Wer eine feste Adresse hat (Nabu Casa oder
+die lokale HA-Adresse im selben Netz), kann sie als
+`gocardless_redirect_url` nachtragen.
+
+### Abrufe und Kontingent
+
+Der Kontostand wird **nur beim Aufruf der DKB-Seite** geholt und auch dann nur,
+wenn der gespeicherte Stand älter als `gesamtvermoegen_cache_stunden` ist; sonst
+erscheint der gespeicherte Wert mit sichtbarem Zeitstempel. Die Kachel auf der
+Startseite ruft nie selbst ab.
+
+Grund ist das Kontingent des kostenlosen Tarifs: pro Konto sind nur wenige
+Abrufe am Tag erlaubt (üblicherweise vier). Sechs Stunden decken genau vier
+Abrufe am Tag ab und bleiben damit auch dann im Rahmen, wenn die App über den
+ganzen Tag verteilt geöffnet wird. Wird das Kontingent doch einmal erschöpft,
+bleibt der zuletzt abgerufene Stand stehen und der Grund wird daneben genannt;
+es geht nichts verloren.
+
+Jeder Abruf wird als eigener, unveränderlicher Datensatz mit Zeitstempel
+gespeichert – der „aktuelle Stand" ist einfach der neueste Eintrag.
 
 ## Laufender Betrieb
 

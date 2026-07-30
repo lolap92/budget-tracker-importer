@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}DKB – Budget-Tracker{% endblock %}
+{% block header_title %}DKB{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<a class="back-link" href="{{ base }}/mehr">{{ icons.back() }}Mehr</a>
+
+{% if fehler %}<div class="fehler">{{ fehler }}</div>{% endif %}
+
+{% if stand.fehler and not fehler %}
+<div class="fehler">
+  {{ stand.fehler }}
+  {% if stand.saldo %}<br>Angezeigt wird der zuletzt abgerufene Stand.{% endif %}
+</div>
+{% endif %}
+
+{% if konto and konto.gocardless_account_id %}
+<div class="sec-t">
+  {%- if stand.saldo %}Stand {{ stand.saldo.abgerufen_am | zeit_de }}
+  {%- else %}Kontostand{% endif %}
+</div>
+<div class="card">
+  <div class="meta-row">
+    <span class="k">{{ konto.bezeichnung }}</span>
+    <span class="v" style="font-weight:600;">
+      {%- if stand.saldo %}{{ stand.saldo.betrag | eur }}{% else %}noch nicht abgerufen{% endif %}
+    </span>
+  </div>
+  <div class="actions" style="display:flex;gap:8px;margin-top:12px;">
+    <form method="post" action="{{ base }}/dkb/aktualisieren" style="flex:1;display:flex;">
+      <button class="btn-outline accent" type="submit">Jetzt aktualisieren</button>
+    </form>
+  </div>
+  <p class="b-ref" style="font-style:normal;margin-top:12px;">
+    Reine Information: der Kontostand der DKB fließt in keinen Topf-Saldo, in keinen
+    Kontostand des Cashkontos und in keine Prognose ein – er steht daneben und wird mit
+    nichts verrechnet.
+  </p>
+  <p class="b-ref" style="font-style:normal;margin-top:6px;">
+    Geholt wird er beim Aufruf dieser Seite, wenn der gespeicherte Stand älter als
+    {{ cache_stunden }} Stunde{{ 'n' if cache_stunden != 1 else '' }} ist – sonst steht der
+    gespeicherte Wert mit seinem Zeitstempel da (Add-on-Option
+    <code>gesamtvermoegen_cache_stunden</code>). Grund ist das Abruf-Kontingent des
+    Kontoinformationsdienstes: die Zahl der Kontoabrufe pro Tag ist begrenzt.
+  </p>
+</div>
+{% endif %}
+
+{% if not zugangsdaten_vorhanden %}
+<div class="fehler">
+  In den Add-on-Optionen fehlen <code>gocardless_secret_id</code> und
+  <code>gocardless_secret_key</code>. Beide gibt es kostenlos im Portal von
+  <a href="https://bankaccountdata.gocardless.com/" target="_blank" rel="noopener">GoCardless
+  Bank Account Data</a> unter „Developers → User secrets". Sie werden nur in den
+  Add-on-Optionen hinterlegt, <strong>nie in der Datenbank</strong>.
+</div>
+{% endif %}
+
+<div class="sec-t">Verbindung</div>
+<div class="card">
+  <div class="meta-row">
+    <span class="k">Status</span>
+    <span class="v">
+      {%- if not konto %}<span class="chip offen">keine Bank gewählt</span>
+      {%- elif konto.gocardless_account_id %}<span class="chip ok">verbunden</span>
+      {%- elif konto.gocardless_requisition_id %}<span class="chip offen">Freigabe ausstehend</span>
+      {%- else %}<span class="chip offen">noch nicht freigegeben</span>{% endif %}
+    </span>
+  </div>
+  {% if konto %}
+  <div class="meta-row">
+    <span class="k">Konto</span>
+    <span class="v">{{ konto.bezeichnung }}</span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Bank</span>
+    <span class="v" style="font-family:var(--font-mono);font-size:11.5px;">{{ konto.gocardless_institution_id }}</span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Zugriff bis</span>
+    <span class="v" {% if verbleibende_tage is not none %}style="color:var(--warn);font-weight:600;"{% endif %}>
+      {%- if konto.consent_gueltig_bis %}{{ konto.consent_gueltig_bis | datum_de }}{% else %}–{% endif %}
+    </span>
+  </div>
+  {% endif %}
+
+  {% if konto and konto.gocardless_account_id %}
+  <div class="actions" style="display:flex;gap:8px;margin-top:14px;">
+    <form method="post" action="{{ base }}/dkb/loesen" style="flex:1;display:flex;">
+      <button class="btn-outline" type="submit">Verbindung lösen</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{% if konten_auswahl %}
+<div class="sec-t">Welches Konto?</div>
+<div class="card">
+  <p class="b-ref" style="font-style:normal;margin-bottom:12px;">
+    Die Freigabe umfasst mehrere Konten. Gemeint ist das Gehaltskonto – hier wird nichts
+    geraten, sonst stünde womöglich ein Kreditkartenkonto auf der Startseite.
+  </p>
+  {% for k in konten_auswahl %}
+  <form method="post" action="{{ base }}/dkb/konto" class="topf-row" style="gap:12px;">
+    <div class="who">
+      <span class="tdot faint"></span>
+      <div>
+        <div class="nm">{{ k.kennzeichen or 'Konto' }}</div>
+        <div class="goal" style="font-family:var(--font-mono);">{{ k.id }}</div>
+      </div>
+    </div>
+    <input type="hidden" name="account_id" value="{{ k.id }}">
+    <button class="btn-outline accent" type="submit" style="max-width:140px;">Dieses</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if freigabe_link and konto and not konto.gocardless_account_id %}
+<div class="sec-t">Schritt 3: Freigabe bei der Bank abschließen</div>
+<div class="card">
+  <p class="b-ref" style="font-style:normal;">
+    Diesen Link öffnen und dort bei der Bank anmelden. Danach zurück auf diese Seite – sie
+    fragt den Stand der Freigabe alle fünf Sekunden selbst ab, eine Rückleitung ist nicht
+    nötig.
+  </p>
+  <p style="margin-top:10px;">
+    <a class="btn" href="{{ freigabe_link }}" target="_blank" rel="noopener">Freigabe bei der Bank öffnen</a>
+  </p>
+  <p style="font-family:var(--font-mono);font-size:10.5px;word-break:break-all;
+            background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+            padding:8px;margin-top:8px;color:var(--ink-soft);">{{ freigabe_link }}</p>
+  <p class="b-ref" style="font-style:normal;margin-top:8px;">
+    Falls sich der Link auf dem Handy nicht öffnen lässt: Text kopieren und im Browser
+    einfügen. Die Anmeldung läuft bei der Bank selbst – Zugangsdaten werden hier weder
+    eingegeben noch gespeichert.
+  </p>
+  <div class="actions" style="display:flex;gap:8px;margin-top:12px;">
+    <form method="post" action="{{ base }}/dkb/loesen" style="flex:1;display:flex;">
+      <button class="btn-outline" type="submit">Abbrechen</button>
+    </form>
+  </div>
+</div>
+<script>setTimeout(function(){ location.reload(); }, 5000);</script>
+{% endif %}
+
+{% if zugangsdaten_vorhanden and not (konto and konto.gocardless_account_id) %}
+<div class="sec-t">Schritt 1: Bank auswählen</div>
+<div class="card">
+  {% if not banken %}
+  <p class="b-ref" style="font-style:normal;">
+    Die Liste der deutschen Banken kommt von GoCardless. Die Kennung der DKB wird daraus
+    übernommen und nicht fest eingebaut – sie kann sich ändern.
+  </p>
+  <form method="post" action="{{ base }}/dkb/banken" style="margin-top:12px;">
+    <button class="btn" type="submit">Banken laden</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ base }}/dkb/institut" class="form-grid">
+    <label>
+      Bank
+      <select name="institution_id" required>
+        {% for b in banken %}
+        <option value="{{ b.id }}"
+          {%- if konto and konto.gocardless_institution_id == b.id %} selected
+          {%- elif not konto and 'DKB' in b.name|upper %} selected{% endif %}>
+          {{ b.name }}{% if b.bic %} ({{ b.bic }}){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Bezeichnung in der App
+      <input type="text" name="bezeichnung" required
+             value="{{ konto.bezeichnung if konto else 'DKB Gehaltskonto' }}">
+    </label>
+    <button class="btn" type="submit">Bank übernehmen</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if konto %}
+<div class="sec-t">Schritt 2: Freigabe starten</div>
+<div class="card">
+  <p class="b-ref" style="font-style:normal;">
+    Die Freigabe erlaubt ausschließlich das Lesen von Kontostand und Kontostammdaten –
+    keine Umsätze und keine Überweisungen. Sie gilt höchstens 90 Tage; das schreibt die
+    PSD2-Verordnung so vor und lässt sich nicht umgehen. Danach ist eine einmalige neue
+    Anmeldung bei der Bank nötig, die Startseite erinnert sieben Tage vorher daran.
+  </p>
+  <form method="post" action="{{ base }}/dkb/freigabe" style="margin-top:12px;">
+    <button class="btn" type="submit">Freigabe starten</button>
+  </form>
+</div>
+{% endif %}
+{% endif %}
+
+{% if konto and konto.gocardless_account_id %}
+<div class="sec-t">Zugriff erneuern</div>
+<div class="card">
+  <p class="b-ref" style="font-style:normal;">
+    Läuft die Freigabe ab, holt „Freigabe erneuern" eine neue – derselbe Weg wie bei der
+    Ersteinrichtung, einmal bei der Bank anmelden. Bis dahin bleibt der zuletzt abgerufene
+    Stand mit seinem Zeitstempel stehen.
+  </p>
+  <form method="post" action="{{ base }}/dkb/freigabe" style="margin-top:12px;">
+    <button class="btn-outline accent" type="submit" style="max-width:220px;">Freigabe erneuern</button>
+  </form>
+</div>
+{% endif %}
+
+<p class="b-ref" style="font-style:normal;margin-top:12px;">
+  Angebunden wird über <strong>GoCardless Bank Account Data</strong>, einen lizenzierten
+  PSD2-Kontoinformationsdienst. Bewusst nicht über FinTS/HBCI: dort müsste der echte
+  Bank-PIN im System liegen. Hier gibt es nur einen jederzeit widerrufbaren Zugang, und der
+  Zugriffstoken lebt ausschließlich im Arbeitsspeicher – weder Zugangsdaten noch Token
+  stehen in der Datenbank.
+  {% if redirect_url %}<br>Hinterlegte Rückleitung: <code>{{ redirect_url }}</code>{% endif %}
+</p>
+
+{% endblock %}

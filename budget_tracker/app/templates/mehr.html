@@ -23,6 +23,14 @@
       {%- if depot_gesamt is not none %}{{ depot_gesamt | eur }}{% else %}kein Stand{% endif %}
     </div>
   </a>
+  <a href="{{ base }}/dkb" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot {{ 'faint' if dkb_verbunden else 'warn' }}"></span><div class="nm">DKB</div></div>
+    <div class="todo-amt" style="color:var(--ink-soft);">
+      {%- if dkb_saldo is not none %}{{ dkb_saldo | eur }}
+      {%- elif dkb_verbunden %}kein Stand
+      {%- else %}nicht verbunden{% endif %}
+    </div>
+  </a>
   <a href="{{ base }}/trade-republic" class="topf-row" style="color:inherit;">
     <div class="who"><span class="tdot {{ 'faint' if tr_angemeldet else 'warn' }}"></span><div class="nm">Trade Republic</div></div>
     <div class="todo-amt" style="color:var(--ink-soft);">

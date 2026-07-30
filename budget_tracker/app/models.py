@@ -225,6 +225,65 @@ class DepotPosition(Base):
     )
 
 
+class Externkonto(Base):
+    """Ein reales, extern gefuehrtes Konto - hier das DKB-Gehaltskonto.
+
+    Bewusst eine eigene Tabelle statt eines Sonderfalls am Trade-Republic-Konto:
+    so laesst sich spaeter ein zweites externes Konto ergaenzen, ohne das Modell
+    zu aendern.
+
+    Bewusst *nicht* hier: die GoCardless-Zugangsdaten (Secret-ID/-Key) und die
+    daraus geholten Tokens. Die Zugangsdaten stehen in den Add-on-Optionen, der
+    Token lebt ausschliesslich im Speicher (siehe app/gocardless.py) - beides
+    gehoert nicht in die Fachdatenbank.
+
+    gocardless_institution_id wird beim Einrichten aus der Institutionsliste
+    ermittelt und hier hinterlegt statt im Quelltext hartkodiert: GoCardless
+    kann die Kennungen aendern.
+
+    gocardless_account_id und gocardless_agreement_id stehen nicht im Konzept,
+    sind aber noetig: der Saldo haengt an der Konto-Kennung aus der Freigabe
+    (nicht an der Requisition), und die Gueltigkeit der Freigabe steht an der
+    Zustimmung, nicht an der Requisition. Beide jedes Mal nachzuschlagen waere
+    ein zusaetzlicher Abruf pro Aktualisierung.
+    """
+
+    __tablename__ = "externkonto"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    bezeichnung: Mapped[str] = mapped_column(String, nullable=False)
+    gocardless_institution_id: Mapped[str] = mapped_column(String, nullable=False)
+    gocardless_requisition_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    gocardless_agreement_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    gocardless_account_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    consent_gueltig_bis: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+
+    salden: Mapped[list["ExternkontoSaldo"]] = relationship(
+        "ExternkontoSaldo", back_populates="konto", cascade="all, delete-orphan"
+    )
+
+
+class ExternkontoSaldo(Base):
+    """Ein abgerufener Kontostand - ein unveraenderlicher Fakt mit Zeitstempel.
+
+    Kein Update-in-Place: der "aktuelle Stand" ist schlicht der neueste Eintrag,
+    also eine berechnete Sicht statt einer gepflegten Spalte. Anders als beim
+    Depot-Snapshot bleibt die Historie erhalten - sie ist hier der Fakt selbst,
+    und ein Abruf entsteht hoechstens ein paar Mal am Tag.
+    """
+
+    __tablename__ = "externkonto_saldo"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    externkonto_id: Mapped[int] = mapped_column(
+        ForeignKey("externkonto.id"), nullable=False, index=True
+    )
+    betrag: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    abgerufen_am: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+
+    konto: Mapped["Externkonto"] = relationship("Externkonto", back_populates="salden")
+
+
 class ImportVerdacht(Base):
     """Eine Bewegung, die sehr wahrscheinlich schon als Buchung existiert - nur
     unter einer anderen transaction_id, weil sie ueber den anderen Weg kam.

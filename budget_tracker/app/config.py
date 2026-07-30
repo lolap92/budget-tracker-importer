@@ -68,6 +68,79 @@ def tr_sync_intervall_sekunden() -> int:
     return max(0, stunden) * 3600
 
 
+# GoCardless Bank Account Data - der PSD2-Zugang zum DKB-Kontostand.
+#
+# Die Zugangsdaten stehen in den Add-on-Optionen und *nicht* in der Datenbank:
+# haushaltsbuch.db enthaelt Fachdaten, keine Zugaenge. Gelesen werden sie ueber
+# read_addon_options() aus /data/options.json - derselbe Weg wie beim
+# Abgleich-Turnus. Die Umgebungsvariablen daneben existieren fuer den Betrieb
+# ausserhalb des Add-ons (lokale Entwicklung, Tests).
+GOCARDLESS_BASIS_URL = os.environ.get(
+    "GOCARDLESS_BASE_URL", "https://bankaccountdata.gocardless.com/api/v2"
+)
+
+# Wie lange eine Freigabe laufen soll. 90 Tage sind das regulatorische Maximum
+# ohne erneute Anmeldung bei der Bank (SCA) - kuerzer zu waehlen braechte nur
+# haeufigeres Erneuern.
+GOCARDLESS_FREIGABE_TAGE = 90
+
+# Wie kurz vor Ablauf der Freigabe die Startseite daran erinnert.
+EXTERNKONTO_WARNUNG_TAGE = 7
+
+
+def gocardless_zugangsdaten() -> tuple[str, str]:
+    """Secret-ID und Secret-Key. Leere Zeichenketten heissen: nicht hinterlegt."""
+    optionen = read_addon_options()
+    secret_id = os.environ.get("GOCARDLESS_SECRET_ID") or optionen.get(
+        "gocardless_secret_id", ""
+    )
+    secret_key = os.environ.get("GOCARDLESS_SECRET_KEY") or optionen.get(
+        "gocardless_secret_key", ""
+    )
+    return (secret_id or "").strip(), (secret_key or "").strip()
+
+
+def gocardless_redirect_url() -> str:
+    """Optionale feste Redirect-Adresse fuer den Freigabe-Abschluss.
+
+    Die App laeuft nur hinter dem Home-Assistant-Ingress und hat damit keine
+    feste, von aussen erreichbare Adresse. Der Einrichtungs-Weg kommt deshalb
+    ohne Rueckleitung aus (der Freigabe-Link wird von Hand geoeffnet, den Rest
+    erledigt eine Statusabfrage). Wer eine erreichbare Adresse hat - Nabu Casa
+    oder die lokale HA-Adresse im selben Netz - kann sie hier nachtragen; dann
+    springt die Bank am Ende dorthin zurueck.
+    """
+    aus_umgebung = os.environ.get("GOCARDLESS_REDIRECT_URL")
+    if aus_umgebung is not None:
+        return aus_umgebung.strip()
+    return str(read_addon_options().get("gocardless_redirect_url", "") or "").strip()
+
+
+def externkonto_cache_sekunden() -> int:
+    """Wie lange ein abgerufener Saldo als aktuell genug gilt.
+
+    Der kostenlose GoCardless-Tarif erlaubt nur wenige Kontoabrufe pro Tag
+    (ueblicherweise vier). Abgerufen wird ausschliesslich beim Aufruf der
+    Gesamtvermoegen-Seite und nur, wenn der letzte Abruf aelter ist als diese
+    Spanne - kein Hintergrundlauf, der auch dann zaehlt, wenn niemand hinsieht.
+
+    Sechs Stunden als Startwert, nicht vier: bei vier Stunden koennte ein Tag
+    mit ueber den ganzen Tag verteilten Aufrufen rechnerisch sechs Abrufe
+    ergeben und damit ueber dem Kontingent liegen. Sechs Stunden decken vier
+    Abrufe ab und passen damit auch im ungeguenstigsten Fall.
+    """
+    aus_umgebung = os.environ.get("EXTERNKONTO_CACHE_SECONDS")
+    if aus_umgebung is not None:
+        return max(0, int(aus_umgebung))
+
+    stunden = read_addon_options().get("gesamtvermoegen_cache_stunden", 6)
+    try:
+        stunden = int(stunden)
+    except (TypeError, ValueError):
+        stunden = 6
+    return max(0, stunden) * 3600
+
+
 # Wie weit jeder Lauf ueber die juengste bekannte Buchung hinaus zurueckschaut.
 # Faengt nachtraeglich verbuchte Vorgaenge ein; alles Aeltere ist ueber die
 # transaction_id ohnehin bekannt und kostet nur einen Mengenvergleich.
