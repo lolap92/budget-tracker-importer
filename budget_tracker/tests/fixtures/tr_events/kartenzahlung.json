@@ -1,0 +1,30 @@
+{
+  "id": "019f2a71-0c44-7311-9a02-6b1f0d3a44b1",
+  "timestamp": "2026-07-03T18:05:41.002+0000",
+  "title": "Coop Pronto",
+  "subtitle": null,
+  "amount": { "currency": "EUR", "value": -12.16, "fractionDigits": 2 },
+  "status": "EXECUTED",
+  "eventType": "card_successful_transaction",
+  "details": {
+    "id": "019f2a71-0c44-7311-9a02-6b1f0d3a44b1",
+    "sections": [
+      {
+        "title": "Du hast 12,16 € ausgegeben",
+        "data": { "timestamp": "2026-07-03T18:05:41.002Z", "status": "executed" },
+        "type": "header"
+      },
+      {
+        "title": "Übersicht",
+        "type": "table",
+        "data": [
+          { "title": "Kartenzahlung", "detail": { "text": "Fertig", "type": "status" } },
+          { "title": "Zahlung", "detail": { "text": "··5891", "type": "text" } },
+          { "title": "Händler", "detail": { "text": "Coop Pronto", "type": "text" } },
+          { "title": "Betrag", "detail": { "text": "11,20 CHF", "type": "text" } },
+          { "title": "Gesamt", "detail": { "text": "12,16 €", "type": "text" } }
+        ]
+      }
+    ]
+  }
+}

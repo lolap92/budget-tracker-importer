@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.17.0 - 2026-07-30
+
+Vorbereitung der Trade-Republic-Schnittstelle. **An der Oberfläche und an jeder Berechnung ändert sich nichts** – der CSV-Import verhält sich exakt wie bisher und bleibt dauerhaft der Weg, der auch ohne Anmeldung funktioniert.
+
+- **Der Übernahme-Kern ist jetzt geteilt** (`app/import_core.py`). Dedublizierung über die `transaction_id`, der Startdatum-Filter und die automatische Topf-Zuordnung standen bisher mitten in der CSV-Leseschleife. Sie stehen jetzt für sich, damit eine Bewegung aus der Schnittstelle exakt denselben Weg nimmt wie eine CSV-Zeile – inklusive des SAVEPOINTs, der bei einem Integritätsfehler nur die eine Buchung verwirft. In `app/csv_import.py` bleibt, was mit Dateien zu tun hat: Encoding, Trennzeichen, Zahlenformat, Datums- und Betragsparsing.
+- **Neue Spalte `quelle`** an jeder Buchung (`csv` / `api` / `manuell`), Migration `0006`. Bestehende Buchungen werden anhand der `transaction_id` zugeordnet (Präfix `manual-` → manuell, sonst CSV). Sie dient der Anzeige und der Dopplungsprüfung, sobald beide Wege parallel laufen können; in keine Berechnung fließt sie ein.
+- **Übersetzung Timeline-Event → Buchung** (`app/tr_events.py`), noch ohne Verbindung nach außen. Sie liest den Verwendungszweck aus dem Feld „Referenz" des Event-Details – genau die Angabe, die der CSV-Export der Trade-Republic-App in seiner Spalte `payment_reference` leer lässt – dazu Name und IBAN der Gegenseite. Stornierte Vorgänge und Events ohne Geldbewegung werden verworfen, Zeitstempel von UTC in lokale Zeit umgerechnet, und der Zins-Typ der Timeline (`INTEREST_PAYOUT`) auf den des CSV-Exports (`INTEREST_PAYMENT`) übersetzt, damit die Zins-Regel der Topf-Zuordnung weiter greift.
+- Test-Suite auf 227 Tests.
+
 ## 1.16.1 - 2026-07-28
 
 - **Fehlerbehebung: Topf-Umbuchungen mit Datum in der Zukunft werden abgelehnt.** Eine Topf-Umbuchung wirkt sofort – der Saldo summiert sie ohne Datumsbedingung, das Datum ist reine Dokumentation. Ein Datum in der Zukunft verschob deshalb Geld, das laut Anzeige erst später umziehen sollte, und der Eintrag landete in der Zeitachse unterhalb des „Aktueller Monat"-Trenners, obwohl er in der Zukunft datiert war. Das Datumsfeld ist jetzt auf heute begrenzt, der Server lehnt spätere Daten mit einer verständlichen Meldung ab. Bereits angelegte Umbuchungen mit Zukunftsdatum bleiben unverändert bestehen.

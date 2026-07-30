@@ -18,6 +18,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.import_core import QUELLE_MANUELL
 from app.matching import verknuepftes_vorkommen
 from app.models import Buchung, Konfiguration
 
@@ -71,6 +72,7 @@ def erstelle_manuelle_buchung(
         typ="MANUELL",
         betrag=betrag,
         titel=bezeichnung,
+        quelle=QUELLE_MANUELL,
         topf_id=topf_id,
         zuordnung_quelle="manuell",
         importiert_am=dt.datetime.utcnow(),

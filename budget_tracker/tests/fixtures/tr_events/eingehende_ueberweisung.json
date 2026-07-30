@@ -1,0 +1,40 @@
+{
+  "id": "019f111c-930b-716a-bda6-d750fb3ef752",
+  "timestamp": "2026-06-29T14:49:12.516+0000",
+  "title": "Klaus Mustermann",
+  "subtitle": "Fertig",
+  "amount": { "currency": "EUR", "value": 550.0, "fractionDigits": 2 },
+  "status": "EXECUTED",
+  "eventType": "INCOMING_TRANSFER",
+  "details": {
+    "id": "019f111c-930b-716a-bda6-d750fb3ef752",
+    "sections": [
+      {
+        "title": "Du hast 550,00 € von Klaus Mustermann erhalten",
+        "data": { "timestamp": "2026-06-29T14:49:12.516Z", "status": "executed" },
+        "type": "header"
+      },
+      {
+        "title": "Übersicht",
+        "type": "table",
+        "data": [
+          { "title": "Status", "detail": { "text": "Ausgeführt", "type": "status" } },
+          { "title": "Referenz", "detail": { "text": "Haus Renovierung Anteil", "type": "text" } }
+        ]
+      },
+      {
+        "title": "Absender",
+        "type": "table",
+        "data": [
+          { "title": "Name", "detail": { "text": "Klaus Mustermann", "type": "text" } },
+          { "title": "IBAN", "detail": { "text": "DE72120300001064363250", "type": "text" } }
+        ]
+      },
+      {
+        "title": "Dokument",
+        "type": "documents",
+        "data": [{ "title": "Transaktionsbestätigung", "detail": "29.06.2026" }]
+      }
+    ]
+  }
+}

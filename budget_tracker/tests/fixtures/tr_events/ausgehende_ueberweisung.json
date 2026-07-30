@@ -1,0 +1,36 @@
+{
+  "id": "019f7537-223d-769c-9c85-92dd484480d4",
+  "timestamp": "2026-07-18T12:32:55.357+0000",
+  "title": "Hans Mustermann",
+  "subtitle": "Gesendet",
+  "amount": { "currency": "EUR", "value": -1500.0, "fractionDigits": 2 },
+  "status": "EXECUTED",
+  "eventType": "OUTGOING_TRANSFER",
+  "details": {
+    "id": "019f7537-223d-769c-9c85-92dd484480d4",
+    "sections": [
+      {
+        "title": "Du hast -1.500,00 € an Hans Mustermann gesendet",
+        "data": { "timestamp": "2026-07-18T12:32:55.357Z", "status": "executed" },
+        "type": "header"
+      },
+      {
+        "title": "Übersicht",
+        "type": "table",
+        "data": [
+          { "title": "Status", "detail": { "text": "Ausgeführt", "type": "status" } },
+          { "title": "Gesendet mit", "detail": { "text": "Cash", "type": "text" } },
+          { "title": "Referenz", "detail": { "text": "Sondertilgung Haus Kredit", "type": "text" } }
+        ]
+      },
+      {
+        "title": "Empfänger",
+        "type": "table",
+        "data": [
+          { "title": "Name", "detail": { "text": "Hans Mustermann", "type": "text" } },
+          { "title": "IBAN", "detail": { "text": "DE02120300000000202051", "type": "text" } }
+        ]
+      }
+    ]
+  }
+}

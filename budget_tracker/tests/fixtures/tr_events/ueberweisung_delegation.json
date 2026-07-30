@@ -1,0 +1,39 @@
+{
+  "id": "019f8364-8ea3-766a-97a9-8877fcd44eda",
+  "timestamp": "2026-07-21T06:37:13.251+0000",
+  "title": "Nina",
+  "subtitle": "Gesendet",
+  "amount": { "currency": "EUR", "value": -67.0, "fractionDigits": 2 },
+  "status": "EXECUTED",
+  "eventType": "OUTGOING_TRANSFER_DELEGATION",
+  "details": {
+    "id": "019f8364-8ea3-766a-97a9-8877fcd44eda",
+    "sections": [
+      {
+        "title": "Du hast 67,00 € an Nina gesendet",
+        "data": { "timestamp": "2026-07-21T06:37:13.251Z", "status": "executed" },
+        "type": "header"
+      },
+      {
+        "title": "Übersicht",
+        "type": "table",
+        "data": [
+          { "title": "Überweisung", "detail": { "text": "Abgeschlossen", "type": "status" } },
+          { "title": "Zahlung", "detail": { "text": "Cash", "type": "text" } },
+          { "title": "Empfänger", "detail": { "text": "Nina", "type": "text" } },
+          { "title": "IBAN", "detail": { "text": "", "type": "text" } },
+          { "title": "Gesamt", "detail": { "text": "67,00 €", "type": "text" } }
+        ]
+      },
+      { "title": null, "type": "note", "data": {} },
+      {
+        "title": "Empfänger",
+        "type": "table",
+        "data": [
+          { "title": "Empfänger", "detail": { "text": "Nina", "type": "text" } },
+          { "title": "IBAN", "detail": { "text": "", "type": "text" } }
+        ]
+      }
+    ]
+  }
+}

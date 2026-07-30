@@ -2,7 +2,13 @@
 
 Quelle: Trade-Republic-Umsatzexport mit den Spalten transaction_id, date,
 type, amount, payment_reference, counterparty_name, counterparty_iban,
-description. Dedublizierung ausschliesslich ueber transaction_id.
+description (der reale Export bringt weitere Spalten mit, die ungenutzt
+bleiben). Dedublizierung ausschliesslich ueber transaction_id.
+
+Hier steht ausschliesslich, was mit *Dateien* zu tun hat: Encoding, Trennzeichen,
+Zahlenformat, Datums- und Betragsparsing. Was danach mit einer gelesenen Zeile
+passiert - Dedublizierung, Startdatum, Topf-Zuordnung - steht in
+app/import_core.py und wird mit der Trade-Republic-Schnittstelle geteilt.
 """
 import csv
 import datetime as dt
@@ -11,11 +17,9 @@ import re
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.assignment import topf_zuordnen
-from app.models import Buchung, Konfiguration
+from app.import_core import QUELLE_CSV, ImportKontext, uebernehmen
 
 logger = logging.getLogger("budget_tracker.csv_import")
 
@@ -146,13 +150,7 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
     if format_hinweis is None and zeilen:
         logger.info("Zahlenformat von %s nicht eindeutig bestimmbar.", pfad.name)
 
-    vorhandene_ids = {row[0] for row in db.query(Buchung.transaction_id).all()}
-
-    # Bewegungen vor dem Startdatum stecken bereits in den Topf-Startsalden.
-    # Wuerden sie zusaetzlich importiert, zaehlt die App sie ein zweites Mal -
-    # der Trade-Republic-Export liefert regelmaessig den kompletten Verlauf.
-    konfiguration = db.query(Konfiguration).first()
-    start_datum = konfiguration.start_datum if konfiguration is not None else None
+    kontext = ImportKontext.laden(db)
 
     for row in zeilen:
         stats["gelesen"] += 1
@@ -167,7 +165,7 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
             stats["fehler"] += 1
             continue
 
-        if transaction_id in vorhandene_ids:
+        if kontext.ist_bekannt(transaction_id):
             stats["duplikate"] += 1
             continue
 
@@ -178,39 +176,20 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
             stats["fehler"] += 1
             continue
 
-        if start_datum is not None and datum < start_datum:
-            stats["vor_startdatum"] += 1
-            continue
-
-        buchung = Buchung(
+        ergebnis = uebernehmen(
+            db,
+            kontext,
             transaction_id=transaction_id,
             datum=datum,
-            typ=row.get("type", ""),
             betrag=betrag,
-            verwendungszweck=row.get("payment_reference") or None,
-            empfaenger_name=row.get("counterparty_name") or None,
-            empfaenger_iban=row.get("counterparty_iban") or None,
-            beschreibung=row.get("description") or None,
-            importiert_am=dt.datetime.utcnow(),
+            typ=row.get("type", ""),
+            quelle=QUELLE_CSV,
+            verwendungszweck=row.get("payment_reference"),
+            empfaenger_name=row.get("counterparty_name"),
+            empfaenger_iban=row.get("counterparty_iban"),
+            beschreibung=row.get("description"),
         )
-        # SAVEPOINT je Zeile: ein Integritaetsfehler darf ausschliesslich diese
-        # eine Zeile verwerfen. Ein db.rollback() wuerde die gesamte offene
-        # Transaktion und damit alle bereits gelesenen Zeilen dieser Datei
-        # zuruecknehmen - der Watcher merkt sich die Datei danach trotzdem als
-        # verarbeitet und liest sie nie wieder, die Buchungen waeren endgueltig weg.
-        try:
-            with db.begin_nested():
-                db.add(buchung)
-                db.flush()
-        except IntegrityError:
-            # Race/erneuter Import derselben transaction_id -> Wert ignorieren, warnen.
-            logger.warning("transaction_id %s bereits vorhanden (Integritaetsfehler), ignoriert.", transaction_id)
-            stats["duplikate"] += 1
-            continue
-
-        topf_zuordnen(db, buchung)
-        vorhandene_ids.add(transaction_id)
-        stats["neu"] += 1
+        stats[ergebnis] += 1
 
     db.commit()
     logger.info(

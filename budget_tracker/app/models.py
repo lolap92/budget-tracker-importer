@@ -80,6 +80,13 @@ class Buchung(Base):
     empfaenger_iban: Mapped[str | None] = mapped_column(String, nullable=True)
     beschreibung: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    # Auf welchem Weg die Buchung in die App kam: csv | api | manuell (siehe
+    # app/import_core.py). Rein dokumentarisch - fuer die Anzeige und fuer die
+    # Dopplungspruefung, sobald Datei-Import und Schnittstelle parallel laufen.
+    # Nicht zu verwechseln mit zuordnung_quelle, die sagt, *warum* ein Topf
+    # gewaehlt wurde.
+    quelle: Mapped[str] = mapped_column(String, nullable=False, default="csv", server_default="csv")
+
     topf_id: Mapped[int | None] = mapped_column(ForeignKey("topf.id"), nullable=True, index=True)
     zuordnung_quelle: Mapped[str | None] = mapped_column(String, nullable=True)
 

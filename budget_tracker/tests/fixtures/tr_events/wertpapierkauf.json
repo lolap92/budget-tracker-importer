@@ -1,0 +1,28 @@
+{
+  "id": "019f4402-11ab-7ce0-8f1d-2c9a5b7e0011",
+  "timestamp": "2026-07-08T07:00:03.120+0000",
+  "title": "Vanguard FTSE All-World",
+  "subtitle": "Sparplan ausgeführt",
+  "amount": { "currency": "EUR", "value": -300.0, "fractionDigits": 2 },
+  "status": "EXECUTED",
+  "eventType": "SAVINGS_PLAN_EXECUTED",
+  "details": {
+    "id": "019f4402-11ab-7ce0-8f1d-2c9a5b7e0011",
+    "sections": [
+      {
+        "title": "Du hast 300,00 € investiert",
+        "data": { "timestamp": "2026-07-08T07:00:03.120Z", "status": "executed" },
+        "type": "header"
+      },
+      {
+        "title": "Übersicht",
+        "type": "table",
+        "data": [
+          { "title": "Status", "detail": { "text": "Ausgeführt", "type": "status" } },
+          { "title": "Anteile", "detail": { "text": "2,431870", "type": "text" } },
+          { "title": "Gesamt", "detail": { "text": "300,00 €", "type": "text" } }
+        ]
+      }
+    ]
+  }
+}
