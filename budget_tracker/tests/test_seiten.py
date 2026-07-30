@@ -93,6 +93,7 @@ def bewegungen(db, app):
         "/regeln/neu",
         "/topf-umbuchung/neu",
         "/trade-republic",
+        "/depot",
     ],
 )
 def test_seite_rendert(client, bewegungen, pfad):

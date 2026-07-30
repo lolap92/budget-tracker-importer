@@ -15,7 +15,7 @@ import pytest
 from app.import_core import QUELLE_CSV, ImportKontext, uebernehmen
 from app.models import Buchung, ImportVerdacht
 from app.tr_events import zeile_aus_event
-from app.tr_sync import ab_zeitpunkt, events_laden, verarbeiten
+from app.tr_sync import ab_zeitpunkt, events_laden, lauf, verarbeiten
 from tests.conftest import START_DATUM
 
 FIXTURES = Path(__file__).parent / "fixtures" / "tr_events"
@@ -90,7 +90,6 @@ class TestEventsLaden:
         # Die dritte Seite wird nicht mehr geholt: ab dem ersten zu alten
         # Event ist der Rest der Timeline erst recht zu alt.
         assert api.naechste_nummer == 3  # zwei Seiten + ein Detail
-        assert api.geschlossen is True
         assert not api.offene_subscriptions
 
     def test_details_nur_fuer_unbekannte_kontobewegungen(self):
@@ -131,6 +130,36 @@ class TestEventsLaden:
         assert events[0]["details"] == {}
         # ... und wird trotzdem zu einer Buchung, nur ohne Verwendungszweck.
         assert zeile_aus_event(events[0])["verwendungszweck"] is None
+
+
+class TestLauf:
+    """Buchungen und Depotstand teilen sich eine Verbindung."""
+
+    def test_verbindung_wird_geschlossen(self):
+        api = FakeApi(seiten=[{"_cursor": None, "items": [], "cursors": {}}])
+
+        events, depot = asyncio.run(
+            lauf(api, dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc), lambda _: False)
+        )
+
+        assert events == []
+        assert api.geschlossen is True
+
+    def test_scheiterndes_depot_kostet_nicht_die_buchungen(self):
+        """Die Buchungen sind das Wesentliche - der Depotstand ist Beiwerk."""
+        api = FakeApi(
+            seiten=[{"_cursor": None, "items": [event("zinsen")], "cursors": {}}],
+            details={"019f1ba7-f0b5-72c0-a7ff-b17274609d95": {"sections": []}},
+        )
+        # FakeApi kennt compact_portfolio nicht -> der Depot-Abruf scheitert.
+
+        events, depot = asyncio.run(
+            lauf(api, dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc), lambda _: False)
+        )
+
+        assert len(events) == 1
+        assert depot is None
+        assert api.geschlossen is True
 
 
 class TestVerarbeiten:

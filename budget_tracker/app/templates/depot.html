@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Depot – Budget-Tracker{% endblock %}
+{% block header_title %}Depot{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<a class="back-link" href="{{ base }}/mehr">{{ icons.back() }}Mehr</a>
+
+{% if not snapshot %}
+<div class="card">
+  <p class="b-ref" style="font-style:normal;">
+    Noch kein Depotstand abgerufen. Er kommt automatisch beim nächsten Abgleich mit
+    Trade Republic – oder sofort über „Jetzt abgleichen" auf der
+    <a href="{{ base }}/trade-republic">Trade-Republic-Seite</a>.
+  </p>
+</div>
+
+{% else %}
+<div class="sec-t">Stand {{ snapshot.zeitpunkt.strftime('%d.%m.%Y %H:%M') }} UTC</div>
+<div class="card">
+  <div class="meta-row">
+    <span class="k">Wertpapiere</span>
+    <span class="v">{{ snapshot.gesamtwert | eur }}</span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Cash bei TR</span>
+    <span class="v">{{ snapshot.cash | eur }}</span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Zusammen</span>
+    <span class="v" style="font-weight:600;">{{ (snapshot.gesamtwert + snapshot.cash) | eur }}</span>
+  </div>
+</div>
+
+<div class="sec-t">Abgleich mit dem berechneten Kontostand</div>
+<div class="card">
+  <div class="meta-row">
+    <span class="k">Berechnet</span>
+    <span class="v">{{ kontostand | eur }}</span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Laut Trade Republic</span>
+    <span class="v">{{ snapshot.cash | eur }}</span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Abweichung</span>
+    <span class="v" {% if abweichung %}style="color:var(--warn);font-weight:600;"{% endif %}>
+      {%- if abweichung %}{{ abweichung | eur }}{% else %}keine{% endif %}
+    </span>
+  </div>
+  <p class="b-ref" style="font-style:normal;margin-top:12px;">
+    {% if abweichung %}
+    Die App rechnet den Kontostand aus den Topf-Startsalden und allen Buchungen seit dem
+    Startdatum. Weicht er vom echten Bestand ab, fehlt eine Buchung, ist eine doppelt
+    erfasst, oder ein Startsaldo stimmt nicht.
+    {% else %}
+    Der berechnete Kontostand stimmt mit dem echten Bestand überein – es fehlt keine
+    Buchung und keine ist doppelt erfasst.
+    {% endif %}
+  </p>
+</div>
+
+{% if snapshot.positionen %}
+<div class="sec-t">Positionen ({{ snapshot.positionen|length }})</div>
+<div class="card">
+  {% for p in snapshot.positionen|sort(attribute='wert', reverse=true) %}
+  <div class="topf-row" style="display:block;">
+    <div style="display:flex;justify-content:space-between;gap:12px;">
+      <div class="nm">{{ p.name }}</div>
+      <div class="todo-amt">{{ p.wert | eur }}</div>
+    </div>
+    <div class="b-ref" style="font-style:normal;margin-top:2px;">
+      {{ p.stueck | stueck }} Stk · {{ p.kurs | eur }}
+      {%- set einstandswert = p.einstand * p.stueck %}
+      {%- if einstandswert %} · Einstand {{ einstandswert | eur }}
+      ({{ '+' if p.wert >= einstandswert else '' }}{{ (p.wert - einstandswert) | eur }}){% endif %}
+      <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-faint);"> · {{ p.isin }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<p class="b-ref" style="font-style:normal;margin-top:12px;">
+  Reine Information: der Depotwert fließt in keinen Topf-Saldo, in keinen Kontostand und
+  in keine Prognose ein.
+</p>
+{% endif %}
+
+{% endblock %}

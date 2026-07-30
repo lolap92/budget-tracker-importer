@@ -10,6 +10,7 @@ alles andere wird berechnet.
 ## Funktionen
 
 - **Direkter Abgleich mit Trade Republic** (optional, unter „Mehr → Trade Republic"): holt die Kontobewegungen alle sechs Stunden selbst ab – **inklusive Verwendungszweck**, den der CSV-Export nicht mitliefert. Der Datei-Import bleibt unverändert bestehen und ist die Rückfallebene.
+- **Depotstand** unter „Mehr → Depot“: Positionen, Kurse und Cash-Bestand als reine Information – und als Plausibilitätsprüfung, weil der echte Kontostand dem selbst berechneten gegenübergestellt wird.
 - Automatischer CSV-Import aus `/homeassistant/budget_tracker/imports`, dedupliziert über `transaction_id`. Zeilen mit einem Datum vor dem Startdatum werden übersprungen – sie stecken bereits in den Topf-Startsalden.
 - Automatische Topf-Zuordnung: Zins → Verwendungszweck → Forecast-Regel → offen zur manuellen Zuordnung.
 - Bank-Umbuchungen als bidirektionaler, schwebender Zustand mit Abgleich-Vorschlägen.
@@ -96,6 +97,19 @@ Was dabei zu wissen ist:
   würde den Betrag doppelt zählen, automatisch verwerfen ihn verlieren.
 - Es werden ausschließlich lesende Abrufe verwendet. Die Schnittstelle ist
   inoffiziell; `pytr` ist deshalb exakt auf eine Version gepinnt.
+
+### Depot
+
+Jeder Abgleich holt in derselben Verbindung den Depotstand mit: Positionen mit
+Stückzahl, Kurs, Einstand und Wert sowie den Cash-Bestand. Zu sehen unter
+**Mehr → Depot**.
+
+Der Depotwert ist **reine Information** – er fließt in keinen Topf-Saldo, in
+keinen Kontostand und in keine Prognose ein. Nützlich ist vor allem der
+Cash-Bestand daneben: die App rechnet ihren Kontostand aus Startsalden und
+Buchungen, Trade Republic kennt den echten. Weichen beide voneinander ab, fehlt
+eine Buchung, ist eine doppelt erfasst, oder ein Startsaldo stimmt nicht.
+Scheitert der Depot-Abruf, bleiben die Buchungen davon unberührt.
 
 ## Laufender Betrieb
 

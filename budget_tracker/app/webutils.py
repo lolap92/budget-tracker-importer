@@ -26,6 +26,15 @@ def eur(value) -> str:
     return f"{'-' if negativ else ''}{formatiert} €"
 
 
+def stueck(value) -> str:
+    """Stueckzahlen im Depot: bis zu sechs Nachkommastellen (Sparplaene kaufen
+    Bruchteile), aber ohne die Nullen, die dabei fast immer hinten stehen."""
+    if value is None:
+        return "-"
+    formatiert = f"{Decimal(value):,.6f}".rstrip("0").rstrip(".")
+    return formatiert.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def datum_de(value) -> str:
     if value is None:
         return "-"
@@ -70,6 +79,7 @@ def topfklasse(name) -> str:
 
 
 templates.env.filters["eur"] = eur
+templates.env.filters["stueck"] = stueck
 templates.env.filters["datum_de"] = datum_de
 templates.env.filters["datum_kurz"] = datum_kurz
 templates.env.filters["monat_kurz"] = monat_kurz

@@ -25,6 +25,7 @@ from app.config import TR_SYNC_INTERVAL_SECONDS, TR_SYNC_RUECKGRIFF_TAGE
 from app.database import SessionLocal
 from app.dopplung import finde_moegliche_dopplung
 from app.import_core import QUELLE_API, ImportKontext, uebernehmen
+from app.tr_depot import depot_laden, snapshot_speichern
 from app.models import Buchung, ImportVerdacht, Konfiguration, TradeRepublicKonto
 from app.tr_client import NichtAngemeldet, verbindung, verbindungsschloss
 from app.tr_events import ist_kontobewegung, zeile_aus_event
@@ -151,8 +152,28 @@ async def events_laden(api, ab: dt.datetime, ist_bekannt) -> list[dict]:
             )
             event.setdefault("details", {})
 
-    await api.close()
     return relevant
+
+
+async def lauf(api, ab: dt.datetime, ist_bekannt) -> tuple[list[dict], dict | None]:
+    """Alles, was eine offene Verbindung braucht, in einem Durchgang.
+
+    Der Depotstand ist Beiwerk: scheitert er, sind die Buchungen trotzdem
+    geholt - sie sind das, worauf es ankommt.
+    """
+    try:
+        events = await events_laden(api, ab, ist_bekannt)
+        try:
+            depot = await depot_laden(api, _abrufen)
+        except Exception:  # noqa: BLE001
+            logger.warning("Depotstand nicht abrufbar, Buchungen bleiben davon unberuehrt.")
+            depot = None
+        return events, depot
+    finally:
+        try:
+            await api.close()
+        except Exception:  # noqa: BLE001
+            logger.debug("Schliessen der Verbindung fehlgeschlagen.", exc_info=True)
 
 
 def verarbeiten(db: Session, events: list[dict]) -> dict:
@@ -232,8 +253,8 @@ def sync_einmal(db: Session) -> dict:
 
         kontext_ids = {row[0] for row in db.query(Buchung.transaction_id).all()}
         try:
-            events = asyncio.run(
-                events_laden(api, ab_zeitpunkt(db), kontext_ids.__contains__)
+            events, depot = asyncio.run(
+                lauf(api, ab_zeitpunkt(db), kontext_ids.__contains__)
             )
         except Exception as exc:  # noqa: BLE001 - ein Fehler darf die App nicht kippen
             logger.exception("Abgleich mit Trade Republic fehlgeschlagen.")
@@ -243,6 +264,8 @@ def sync_einmal(db: Session) -> dict:
             return {"fehler": str(exc)}
 
     zahlen = verarbeiten(db, events)
+    if depot is not None:
+        snapshot_speichern(db, depot)
     konto.letzter_sync = dt.datetime.utcnow()
     db.commit()
 

@@ -182,6 +182,49 @@ class TradeRepublicKonto(Base):
     letzter_sync: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class DepotSnapshot(Base):
+    """Der zuletzt abgerufene Stand des Wertpapierdepots - reine Information.
+
+    Bewusst ausserhalb der Buchungslogik: der Depotwert ist kein Fakt der
+    Kontofuehrung und gehoert in keinen Topf-Saldo und in keinen Kontostand.
+    Er wird gespeichert, damit die Seite ihn sofort zeigen kann, ohne bei jedem
+    Aufruf Trade Republic zu befragen.
+
+    Es gibt immer hoechstens einen: eine Historie wuerde mit jedem Abgleich
+    wachsen, ohne dass irgendetwas sie auswertet.
+    """
+
+    __tablename__ = "depot_snapshot"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    zeitpunkt: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+    cash: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    gesamtwert: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+
+    positionen: Mapped[list["DepotPosition"]] = relationship(
+        "DepotPosition", back_populates="snapshot", cascade="all, delete-orphan"
+    )
+
+
+class DepotPosition(Base):
+    __tablename__ = "depot_position"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    snapshot_id: Mapped[int] = mapped_column(
+        ForeignKey("depot_snapshot.id"), nullable=False, index=True
+    )
+    isin: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    stueck: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
+    kurs: Mapped[float] = mapped_column(Numeric(14, 4), nullable=False)
+    einstand: Mapped[float] = mapped_column(Numeric(14, 4), nullable=False)
+    wert: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+
+    snapshot: Mapped["DepotSnapshot"] = relationship(
+        "DepotSnapshot", back_populates="positionen"
+    )
+
+
 class ImportVerdacht(Base):
     """Eine Bewegung, die sehr wahrscheinlich schon als Buchung existiert - nur
     unter einer anderen transaction_id, weil sie ueber den anderen Weg kam.

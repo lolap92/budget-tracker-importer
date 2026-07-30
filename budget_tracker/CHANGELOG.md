@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.19.0 - 2026-07-30
+
+- **Neu: Depotstand** unter „Mehr → Depot". Jeder Abgleich mit Trade Republic holt in derselben Verbindung die Positionen mit Stückzahl, Kurs, Einstand und Wert sowie den Cash-Bestand mit. Bewusst eine eigene Seite und nicht die Startseite: der Depotwert ist weder ein Topf noch Teil des Kontostands und **fließt in keine Berechnung ein**. Scheitert der Abruf, bleiben die Buchungen davon unberührt – sie sind das Wesentliche.
+- **Der Kontostand lässt sich jetzt gegenprüfen.** Die App rechnet ihn aus den Topf-Startsalden und allen Buchungen seit dem Startdatum, Trade Republic kennt den echten Bestand. Die Depot-Seite stellt beide nebeneinander und weist die Abweichung aus – eine fehlende oder doppelt erfasste Buchung fällt damit sofort auf, statt jahrelang unbemerkt in den Salden zu stecken.
+- Positionen ohne abrufbaren Kurs fallen aus der Anzeige heraus, statt den Gesamtwert stillschweigend zu verfälschen. Anleihen werden erkannt und ihr Kurs vom Prozent des Nennwerts umgerechnet – sonst stünde ihr Wert um Faktor 100 zu hoch in der Summe.
+- Es wird immer nur der jüngste Stand gespeichert; eine Historie würde mit jedem Abgleich wachsen, ohne dass sie irgendwer auswertet.
+- Test-Suite auf 274 Tests.
+
 ## 1.18.0 - 2026-07-30
 
 - **Neu: Trade Republic lässt sich direkt anbinden** (Mehr → Trade Republic). Anmeldung über den Web-Login mit Telefonnummer, PIN und dem vierstelligen Code aus der App; danach gleicht die App alle sechs Stunden selbstständig ab, ein Knopf holt jederzeit sofort. Gelesen wird ab dem jüngsten bekannten Buchungsdatum minus 14 Tage, nie vor dem Startdatum.

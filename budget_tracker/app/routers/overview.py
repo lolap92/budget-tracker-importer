@@ -15,6 +15,7 @@ from app.calculations import (
 )
 from app.database import get_db
 from app.models import ImportVerdacht, Topf, TradeRepublicKonto
+from app.tr_depot import aktueller_snapshot
 from app.webutils import ctx, templates
 
 router = APIRouter()
@@ -110,6 +111,11 @@ def mehr(request: Request, db: Session = Depends(get_db)):
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
             import_status=watcher.status(),
             letzter_import=letzter_import_zeitpunkt(db),
+            depot_gesamt=(
+                snapshot.gesamtwert + snapshot.cash
+                if (snapshot := aktueller_snapshot(db)) is not None
+                else None
+            ),
             tr_angemeldet=tr_client.sitzung_vorhanden(),
             tr_verdacht=db.query(ImportVerdacht)
             .filter(ImportVerdacht.entscheidung.is_(None))

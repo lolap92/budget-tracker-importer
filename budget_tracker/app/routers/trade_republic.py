@@ -7,13 +7,15 @@ app/tr_client.py; hier steht nur, welche Telefonnummer der laufende Vorgang
 betrifft, damit sie nach Erfolg gespeichert werden kann.
 """
 import asyncio
-import datetime as dt
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app import tr_client, tr_sync
+from app.calculations import kontostand_gesamt
 from app.database import get_db
+from app.tr_depot import aktueller_snapshot
 from app.import_core import QUELLE_API, ImportKontext, uebernehmen
 from app.models import ImportVerdacht, TradeRepublicKonto
 from app.webutils import ctx, redirect, templates
@@ -53,6 +55,27 @@ def _seite(request: Request, db: Session, fehler: str | None = None, status_code
 @router.get("/trade-republic")
 def seite(request: Request, db: Session = Depends(get_db)):
     return _seite(request, db)
+
+
+@router.get("/depot")
+def depot(request: Request, db: Session = Depends(get_db)):
+    """Der Depotstand als reine Information - bewusst eine eigene Seite und
+    nicht auf der Uebersicht: er ist weder ein Topf noch Teil des Kontostands.
+
+    Der Cash-Bestand daneben ist mehr als Deko: die App rechnet ihren
+    Kontostand aus Startsalden und Buchungen, Trade Republic kennt den echten.
+    Eine Abweichung heisst, dass eine Buchung fehlt oder doppelt ist.
+    """
+    snapshot = aktueller_snapshot(db)
+    kontostand = kontostand_gesamt(db)
+    abweichung = Decimal(0)
+    if snapshot is not None:
+        abweichung = Decimal(snapshot.cash) - kontostand
+
+    return templates.TemplateResponse(
+        "depot.html",
+        ctx(request, snapshot=snapshot, kontostand=kontostand, abweichung=abweichung),
+    )
 
 
 @router.post("/trade-republic/anmelden")
