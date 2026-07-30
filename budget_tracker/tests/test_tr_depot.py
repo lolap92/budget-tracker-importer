@@ -12,23 +12,55 @@ from fastapi.testclient import TestClient
 from app.import_core import QUELLE_CSV, ImportKontext, uebernehmen
 from app.main import app as fastapi_app
 from app.models import DepotPosition, DepotSnapshot, Topf
-from app.tr_depot import aktueller_snapshot, depot_laden, snapshot_speichern
+from app.tr_depot import (
+    aktueller_snapshot,
+    depot_laden,
+    positionen_aus_antwort,
+    snapshot_speichern,
+)
 from app.tr_sync import _abrufen
 from tests.test_tr_sync import FakeApi
 
 
 class DepotApi(FakeApi):
-    """Ergaenzt die Timeline-Attrappe um die Depot-Anfragen."""
+    """Ergaenzt die Timeline-Attrappe um die Depot-Anfragen.
 
-    def __init__(self, positionen, cash, instrumente, kurse):
+    Bildet die neue Abfrage nach: compactPortfolioByType, Positionen nach
+    Kategorien gruppiert, ISIN im Feld "isin". Die beiden Schalter bilden die
+    Faelle nach, in denen nur die alte Abfrage bleibt.
+    """
+
+    def __init__(
+        self, positionen, cash, instrumente, kurse,
+        ohne_depotnummer=False, bytype_fehlt=False,
+    ):
         super().__init__(seiten=[])
         self.positionen = positionen
         self.cash_bestand = cash
         self.instrumente = instrumente
         self.kurse = kurse
+        self.ohne_depotnummer = ohne_depotnummer
+        self.bytype_fehlt = bytype_fehlt
+        self.gestellte_anfragen: list[str] = []
 
-    async def compact_portfolio(self):
-        return self._anmelden({"positions": self.positionen})
+    def settings(self):
+        if self.ohne_depotnummer:
+            return {}
+        return {"securitiesAccountNumber": "DE1234567"}
+
+    async def subscribe(self, payload):
+        self.gestellte_anfragen.append(payload["type"])
+        if payload["type"] == "compactPortfolioByType":
+            if self.bytype_fehlt:
+                raise RuntimeError("unbekannter Typ")
+            gruppiert = [
+                {k if k != "instrumentId" else "isin": v for k, v in p.items()}
+                for p in self.positionen
+            ]
+            return self._anmelden({"categories": [{"positions": gruppiert}]})
+        if payload["type"] == "compactPortfolio":
+            return self._anmelden({"positions": self.positionen})
+        raise AssertionError(f"unerwartete Anfrage {payload}")
 
     async def cash(self):
         return self._anmelden(self.cash_bestand)
@@ -61,7 +93,62 @@ def api_mit_zwei_positionen(**abweichungen):
     return DepotApi(**daten)
 
 
+class TestAntwortformate:
+    """Trade Republic hat compactPortfolio durch compactPortfolioByType
+    ersetzt: Positionen nach Kategorien gruppiert, ISIN im Feld "isin"."""
+
+    def test_neues_format_mit_kategorien(self):
+        antwort = {
+            "categories": [
+                {"positions": [{"isin": "IE00B3RBWM25", "netSize": "1"}]},
+                {"positions": [{"isin": "US0378331005", "netSize": "3"}]},
+            ]
+        }
+
+        assert [p["isin"] for p in positionen_aus_antwort(antwort)] == [
+            "IE00B3RBWM25",
+            "US0378331005",
+        ]
+
+    def test_altes_format_mit_instrumentid(self):
+        antwort = {"positions": [{"instrumentId": "IE00B3RBWM25", "netSize": "1"}]}
+
+        assert positionen_aus_antwort(antwort)[0]["isin"] == "IE00B3RBWM25"
+
+    def test_position_ohne_kennung_wird_verworfen(self):
+        assert positionen_aus_antwort({"positions": [{"netSize": "1"}]}) == []
+
+    def test_leere_antwort(self):
+        assert positionen_aus_antwort({}) == []
+
+
 class TestAbruf:
+    def test_neue_abfrage_wird_bevorzugt(self):
+        api = api_mit_zwei_positionen()
+
+        asyncio.run(depot_laden(api, _abrufen))
+
+        assert api.gestellte_anfragen == ["compactPortfolioByType"]
+
+    def test_ohne_depotnummer_gleich_die_alte_abfrage(self):
+        """Die neue Abfrage braucht die Depotnummer - fehlt sie, hat ein
+        Versuch keinen Zweck."""
+        api = api_mit_zwei_positionen(ohne_depotnummer=True)
+
+        daten = asyncio.run(depot_laden(api, _abrufen))
+
+        assert api.gestellte_anfragen == ["compactPortfolio"]
+        assert len(daten["positionen"]) == 2
+
+    def test_rueckfall_wenn_die_neue_abfrage_scheitert(self):
+        """Lieber ein zweiter Versuch als ein leer gemeldetes Depot."""
+        api = api_mit_zwei_positionen(bytype_fehlt=True)
+
+        daten = asyncio.run(depot_laden(api, _abrufen))
+
+        assert api.gestellte_anfragen == ["compactPortfolioByType", "compactPortfolio"]
+        assert len(daten["positionen"]) == 2
+
     def test_positionen_mit_wert_und_cash(self):
         daten = asyncio.run(depot_laden(api_mit_zwei_positionen(), _abrufen))
 

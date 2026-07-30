@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.19.2 - 2026-07-30
+
+- **HTTP 405 bei der Anmeldung wird erklärt.** Trade Republic verschickt auf diesem Pfad selbst kein 405. Der Status entsteht unterwegs: die Anfrage wird umgeleitet, `requests` folgt der Umleitung und macht dabei aus dem POST ein GET, das der Zielpfad nicht kennt. Umgeleitet wird zur Bot-Schutz-Prüfung – mit Telefonnummer und PIN hat das nichts zu tun. Die Meldung sagt das jetzt und verweist auf das Feld für den Token aus dem Browser.
+- **Jede HTTP-Antwort steht mit Methode, Pfad und Status im Add-on-Protokoll**, Umleitungen inklusive. Ohne diese Kette ist ein solcher Fehlschlag nicht zu deuten. Der Bestätigungscode steht im Pfad der Abschluss-Anfrage und wird dabei ausgeblendet.
+- **Fehlerbehebung (Depot wäre leer geblieben):** Trade Republic hat die Depot-Abfrage umgestellt – `compactPortfolio` heißt jetzt `compactPortfolioByType`, verlangt die Depotnummer aus den Kontoeinstellungen und liefert die Positionen nach Kategorien gruppiert, mit der ISIN im Feld `isin` statt `instrumentId`. Die in 1.19.0 verwendete Abfrage stammt aus der veröffentlichten `pytr`-Version und kennt die Umstellung noch nicht; das Depot wäre dauerhaft leer geblieben. Beide Formate werden jetzt gelesen, und schlägt die neue Abfrage fehl, wird die alte versucht.
+- Test-Suite auf 300 Tests.
+
 ## 1.19.1 - 2026-07-30
 
 Fehlersuche bei der Trade-Republic-Anmeldung – die bisherige Meldung war unbrauchbar.

@@ -11,6 +11,7 @@ Ein Abruf besteht aus mehreren Anfragen: die Positionen, der Cash-Bestand, je
 Position der Name und der aktuelle Kurs. Positionen ohne Kurs fallen heraus,
 statt den Gesamtwert stillschweigend zu verfaelschen.
 """
+import asyncio
 import datetime as dt
 import logging
 import re
@@ -39,13 +40,59 @@ def _dezimal(wert, standard: str = "0") -> Decimal:
         return Decimal(standard)
 
 
+def positionen_aus_antwort(antwort: dict) -> list[dict]:
+    """Vereinheitlicht die beiden Formate der Depotabfrage.
+
+    Trade Republic hat "compactPortfolio" durch "compactPortfolioByType"
+    ersetzt: die Positionen liegen jetzt nach Kategorien gruppiert, und das
+    ISIN-Feld heisst "isin" statt "instrumentId". Beide Formate werden
+    gelesen, damit die Umstellung in keine Richtung wehtut.
+    """
+    roh = list(antwort.get("positions") or [])
+    for kategorie in antwort.get("categories") or []:
+        roh.extend(kategorie.get("positions") or [])
+
+    positionen = []
+    for position in roh:
+        isin = position.get("isin") or position.get("instrumentId")
+        if isin:
+            positionen.append({**position, "isin": isin})
+    return positionen
+
+
+async def _portfolio_abrufen(api, abrufen) -> dict:
+    """Fragt das Depot ab - mit der neuen Abfrage, sonst mit der alten.
+
+    Die neue braucht die Depotnummer, die in den Kontoeinstellungen steht.
+    pytr 0.4.9 kennt nur die alte Abfrage, deshalb wird sie hier direkt
+    gestellt statt ueber die Hilfsmethode der Bibliothek.
+    """
+    try:
+        einstellungen = await asyncio.to_thread(api.settings)
+        depotnummer = einstellungen.get("securitiesAccountNumber")
+    except Exception:  # noqa: BLE001
+        depotnummer = None
+        logger.info("Depotnummer nicht ermittelbar, versuche die alte Abfrage.")
+
+    if depotnummer:
+        try:
+            return await abrufen(
+                api,
+                api.subscribe({"type": "compactPortfolioByType", "secAccNo": depotnummer}),
+            )
+        except Exception:  # noqa: BLE001
+            logger.info("compactPortfolioByType nicht verfuegbar, versuche die alte Abfrage.")
+
+    return await abrufen(api, api.subscribe({"type": "compactPortfolio"}))
+
+
 async def depot_laden(api, abrufen) -> dict:
     """Holt Positionen, Kurse und Cash-Bestand.
 
     `abrufen` ist die Abruf-Funktion aus app/tr_sync.py - so bleibt die
     Anfrage-/Antwort-Mechanik an einer Stelle und dieses Modul ohne Netzlogik.
     """
-    portfolio = await abrufen(api, api.compact_portfolio())
+    portfolio = await _portfolio_abrufen(api, abrufen)
     cash_antwort = await abrufen(api, api.cash())
 
     cash = Decimal("0")
@@ -53,10 +100,8 @@ async def depot_laden(api, abrufen) -> dict:
         cash = _dezimal(cash_antwort[0].get("amount"))
 
     positionen = []
-    for position in portfolio.get("positions") or []:
-        isin = position.get("instrumentId")
-        if not isin:
-            continue
+    for position in positionen_aus_antwort(portfolio):
+        isin = position["isin"]
 
         try:
             instrument = await abrufen(api, api.instrument_details(isin))

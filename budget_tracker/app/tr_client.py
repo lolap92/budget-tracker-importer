@@ -24,6 +24,7 @@ import logging
 import re
 import threading
 from typing import Any
+from urllib.parse import urlsplit
 
 from app.config import TR_COOKIES_DATEI, TR_DIR
 
@@ -93,7 +94,24 @@ def _neue_api(telefonnummer: str, pin: str | None = None):
     # deshalb nicht, weil sein Handler auf INFO steht. Darauf verlassen wir uns
     # nicht: hier wird es festgeschrieben.
     api.log.setLevel(logging.INFO)
+    api._websession.hooks["response"].append(_antwort_protokollieren)
     return api
+
+
+def _antwort_protokollieren(antwort, *args, **kwargs):
+    """Jede HTTP-Antwort mit Methode, Pfad und Status ins Protokoll.
+
+    Ohne das ist eine fehlgeschlagene Anmeldung nicht zu deuten: `requests`
+    folgt Umleitungen selbsttaetig und macht dabei aus einem POST ein GET.
+    Landet das auf einem Pfad ohne GET, kommt am Ende ein HTTP 405 heraus -
+    ein Status, den Trade Republic nie geschickt hat. Erst die Kette zeigt das.
+    """
+    pfad = urlsplit(antwort.url).path
+    # Der Bestaetigungscode steht im Pfad - er gehoert nicht ins Protokoll.
+    if "/auth/web/login/" in pfad:
+        pfad = pfad.split("/auth/web/login/")[0] + "/auth/web/login/…"
+    logger.info("Trade Republic: %s %s -> %s", antwort.request.method, pfad, antwort.status_code)
+    return antwort
 
 
 def telefonnummer_normalisieren(eingabe: str) -> str:
@@ -167,6 +185,21 @@ def _anmeldefehler(exc: Exception, ohne_token: bool = False, abgelehnt: str = ""
                 "unten aus dem Browser hinterlegt werden."
             )
         return hinweis
+    if status == 405:
+        # Trade Republic verschickt selbst kein 405 auf diesem Pfad. Der Status
+        # entsteht, wenn die Anfrage vorher umgeleitet wurde: `requests` folgt
+        # der Umleitung und macht aus dem POST ein GET, das der Zielpfad nicht
+        # kennt. Umgeleitet wird typischerweise auf die Bot-Schutz-Pruefung.
+        hinweis = (
+            "Die Anfrage wurde umgeleitet und dann abgewiesen (HTTP 405) - fast immer "
+            "der Bot-Schutz vor der Anmeldung. Das liegt nicht an Telefonnummer oder PIN."
+        )
+        if ohne_token:
+            hinweis += (
+                " Der Schutz-Token liess sich nicht automatisch ermitteln; unten lässt "
+                "er sich aus dem Browser hinterlegen."
+            )
+        return hinweis
     if status == 429:
         return "Zu viele Versuche. Trade Republic bittet um etwas Geduld."
     if status is not None:
@@ -194,10 +227,15 @@ def anmeldung_starten(telefonnummer: str, pin: str, waf_token: str | None = None
         countdown = api.initiate_weblogin()
     except Exception as exc:  # pytr wirft ValueError, requests HTTPError
         antwort = getattr(exc, "response", None)
+        umleitungen = [
+            f"{v.status_code} -> {urlsplit(v.headers.get('Location', '')).path or '?'}"
+            for v in getattr(antwort, "history", []) or []
+        ]
         logger.warning(
-            "Anmeldung fehlgeschlagen (WAF-Token %s, Antwort %s: %.200s).",
+            "Anmeldung fehlgeschlagen (WAF-Token %s, Antwort %s, Umleitungen: %s, Text: %.200s).",
             "vorhanden" if token else "fehlt",
             getattr(antwort, "status_code", "-"),
+            " | ".join(umleitungen) or "keine",
             getattr(antwort, "text", "") or "",
             exc_info=True,
         )
