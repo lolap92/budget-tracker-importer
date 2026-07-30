@@ -92,6 +92,20 @@
         <label>Ende (optional) <input type="date" name="end_datum" value="{{ r.end_datum.isoformat() if r.end_datum else '' }}"></label>
         <button class="btn secondary" type="submit">Speichern</button>
       </form>
+
+      <p class="b-ref" style="font-style:normal;margin-top:14px;">
+        Die Regel zu löschen entfernt auch ihre noch offenen, ungebuchten Vorkommen.
+        Bereits mit einer Buchung verknüpfte und bewusst verworfene Vorkommen bleiben
+        bestehen – sie sind Fakt bzw. Entscheidung – und stehen danach ohne Regel da.
+        Einzelne Vorkommen zu löschen genügt nicht: die Regel legt sie beim nächsten
+        Scan wieder an.
+      </p>
+      <form method="post" action="{{ base }}/forecast/regel/{{ r.id }}/loeschen" style="margin-top:6px;">
+        <button class="btn-outline" type="submit"
+                style="color:var(--warn);border-color:var(--warn);">
+          {{ icons.trash() }} Regel löschen
+        </button>
+      </form>
     </details>
   </div>
 {% else %}

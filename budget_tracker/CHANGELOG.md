@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.25.0 - 2026-07-30
+
+- **Neu: Forecast-Regeln lassen sich löschen** (Forecast → Regeln → bearbeiten → „Regel löschen"). Bisher fehlte dieser Weg vollständig: eine überflüssige oder versehentlich doppelt angelegte Regel war nicht mehr loszuwerden, und ihre Vorkommen einzeln zu löschen half nicht – der Verzeichnis-Scan legte sie binnen 30 Sekunden wieder an. Genau so entstehen scheinbar „doppelte" Forecast-Einträge, die sich nicht entfernen lassen.
+- Gelöscht werden nur die **noch offenen** Vorkommen der Regel. Ein mit einer realen Buchung verknüpftes Vorkommen ist ein Fakt, ein bewusst verworfenes eine Entscheidung – beide bleiben bestehen und verlieren lediglich ihre Herkunft, stehen also danach wie ein frei angelegtes Vorkommen da.
+- Test-Suite auf 351 Tests.
+
 ## 1.24.0 - 2026-07-30
 
 - **Neu: Weicht der berechnete Kontostand vom echten ab, steht das auf der Startseite** unter „Zu tun", mit Verweis auf die Depot-Seite. Die App rechnet Startsalden plus alle Buchungen seit dem Startdatum – dasselbe, was Trade Republic auch tut; beide Zahlen müssen auf den Cent übereinstimmen. Bisher war die Abweichung nur zu sehen, wenn man die Depot-Seite aufrief.

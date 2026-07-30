@@ -20,6 +20,7 @@ from app.forecast_engine import (
     jahresregel_anker_warnung,
     regel_bearbeiten,
     regel_erstellen,
+    regel_loeschen,
     vorkommen_auf_sonderausgaben_buchen,
     vorkommen_bearbeiten,
     vorkommen_loeschen,
@@ -208,6 +209,23 @@ async def regel_bearbeiten_route(regel_id: int, request: Request, db: Session = 
     except (ValueError, KeyError, InvalidOperation) as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return redirect(request, f"/forecast?topf={topf_id}")
+
+
+@router.post("/forecast/regel/{regel_id}/loeschen")
+def regel_loeschen_route(regel_id: int, request: Request, db: Session = Depends(get_db)):
+    """Entfernt eine Regel samt ihrer offenen Vorkommen.
+
+    Bis 1.25.0 fehlte dieser Weg: eine ueberfluessige Regel liess sich nicht
+    loswerden, und ihre Vorkommen einzeln zu loeschen half nicht - der naechste
+    Scan legte sie binnen 30 Sekunden wieder an.
+    """
+    regel = db.get(ForecastRegel, regel_id)
+    if regel is None:
+        raise HTTPException(status_code=404, detail="Regel nicht gefunden")
+    topf_id = regel.topf_id
+    regel_loeschen(db, regel)
+    db.commit()
     return redirect(request, f"/forecast?topf={topf_id}")
 
 

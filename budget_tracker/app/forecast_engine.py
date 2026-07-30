@@ -274,6 +274,42 @@ def regel_bearbeiten(
     ensure_forecast_vorkommen(db)
 
 
+def regel_loeschen(db: Session, regel: ForecastRegel) -> int:
+    """Entfernt eine Regel samt ihrer noch offenen Vorkommen.
+
+    Ohne diesen Weg liess sich eine ueberfluessige Regel gar nicht loswerden:
+    ihre Vorkommen einzeln zu loeschen half nicht, weil
+    ensure_forecast_vorkommen sie beim naechsten Scan - also binnen 30
+    Sekunden - wieder anlegt.
+
+    Was die Regel bereits erzeugt *und* was danach passiert ist, bleibt
+    erhalten: ein mit einer realen Buchung verknuepftes Vorkommen ist ein
+    Fakt, ein bewusst verworfenes eine Entscheidung. Beide verlieren nur ihre
+    Herkunft (regel_id = NULL) und stehen danach wie ein frei angelegtes
+    Vorkommen da. Gibt zurueck, wie viele offene Vorkommen entfernt wurden.
+    """
+    vorkommen = (
+        db.query(ForecastVorkommen).filter(ForecastVorkommen.regel_id == regel.id).all()
+    )
+    entfernt = 0
+    for v in vorkommen:
+        offen = (
+            v.verknuepfte_buchung_id is None
+            and v.verknuepfte_topf_umbuchung_id is None
+            and not v.ignoriert
+        )
+        if offen:
+            db.delete(v)
+            entfernt += 1
+        else:
+            v.regel_id = None
+
+    db.flush()
+    db.delete(regel)
+    db.flush()
+    return entfernt
+
+
 def erstelle_manuelles_vorkommen(db: Session, topf_id: int, bezeichnung: str, betrag, datum: dt.date) -> ForecastVorkommen:
     """Freie, einmalige geplante Buchung ohne Regel - wird spaeter automatisch
     mit einer realen CSV-Buchung abgeglichen (Konzept Abschnitt 6).
