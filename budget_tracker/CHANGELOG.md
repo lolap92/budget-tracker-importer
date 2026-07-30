@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.26.1 - 2026-07-30
+
+- **Invarianten-Tests für den Forecast.** Die bisherigen Tests prüften einzelne Verhaltensweisen; diese prüfen die Eigenschaft, die immer gelten muss: *für jede Regel ist die Menge der offenen, unveränderten Vorkommen genau die Menge der Termine, die die Regel erzeugt – keiner doppelt, keiner fehlt.* Beide bisherigen Forecast-Fehler waren Verletzungen genau dieser Aussage (1.15.0 ein fehlender Termin, 1.26.0 ein doppelter) und wären damit aufgefallen, ohne dass man sie vorher kennen muss.
+- Geprüft wird über die Anker-Tage 1, 15, 27, 28, 29, 30 und 31, für monatlich, jährlich und befristet, dazu die Monatsgrenzen im Einzelnen: kurze Monate kappen nur sich selbst, der Folgemonat kehrt zum Anker-Tag zurück, und im Schaltjahr ist der 29. Februar auch wirklich der Termin. Ergänzt um zwei Stabilitätsprüfungen (mehrfache Scans ändern nichts; eingeschleuste Altlasten werden von selbst eingesammelt) und eine, die die Geldwirkung festhält: ein doppelter Eintrag verschiebt den Prognose-Tiefpunkt, nach dem Aufräumen stimmt er wieder.
+- Test-Suite auf 386 Tests.
+
 ## 1.26.0 - 2026-07-30
 
 - **Fehlerbehebung (doppelte Forecast-Einträge, einer pro Monat):** Bis 1.15.0 leitete die Erzeugung den Anker-Tag durch Weiterzählen des Vormonats ab. Ein Anker-Tag 29–31 wurde damit vom Februar dauerhaft auf den 28. gekappt und blieb dort für den Rest des Jahres. Seit der Korrektur erzeugt dieselbe Regel wieder den richtigen Tag – die alten, gekappten Vorkommen blieben aber liegen, weil sie ein `generiert_fuer` tragen, das die Regel nie wieder trifft. Ergebnis: jeder Monat doppelt, und einzelnes Löschen half nicht. Solche Überbleibsel werden jetzt beim Scan entfernt. **Nach dem Update verschwinden die doppelten Einträge von selbst; die Prognose ändert sich dadurch.**
