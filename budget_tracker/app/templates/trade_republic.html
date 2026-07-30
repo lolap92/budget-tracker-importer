@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Trade Republic – Budget-Tracker{% endblock %}
+{% block header_title %}Trade Republic{% endblock %}
+{% block header_action %}{% endblock %}
+{% block content %}
+
+<a class="back-link" href="{{ base }}/mehr">{{ icons.back() }}Mehr</a>
+
+{% if fehler %}<div class="fehler">{{ fehler }}</div>{% endif %}
+
+{% if not pytr_verfuegbar %}
+<div class="fehler">
+  Die Bibliothek <code>pytr</code> ist in dieser Installation nicht vorhanden – der
+  direkte Abgleich steht deshalb nicht zur Verfügung. Der CSV-Import läuft davon unberührt weiter.
+</div>
+{% endif %}
+
+<div class="sec-t">Verbindung</div>
+<div class="card">
+  <div class="meta-row">
+    <span class="k">Status</span>
+    <span class="v">
+      {%- if anmeldung_laeuft %}<span class="chip offen">Code ausstehend</span>
+      {%- elif angemeldet %}<span class="chip ok">angemeldet</span>
+      {%- else %}<span class="chip offen">nicht angemeldet</span>{% endif %}
+    </span>
+  </div>
+  {% if konto %}
+  <div class="meta-row">
+    <span class="k">Nummer</span>
+    <span class="v" style="font-family:var(--font-mono);font-size:12px;">{{ konto.telefonnummer }}</span>
+  </div>
+  <div class="meta-row">
+    <span class="k">Letzter Abgleich</span>
+    <span class="v">{% if konto.letzter_sync %}{{ konto.letzter_sync.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}noch keiner{% endif %}</span>
+  </div>
+  {% endif %}
+
+  {% if anmeldung_laeuft %}
+  <form method="post" action="{{ base }}/trade-republic/code" class="form-grid" style="margin-top:14px;">
+    <label>
+      Code aus der Trade-Republic-App
+      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required placeholder="4-stellig">
+    </label>
+    <button class="btn" type="submit">Anmeldung abschließen</button>
+  </form>
+  <div class="actions" style="display:flex;gap:8px;margin-top:10px;">
+    <form method="post" action="{{ base }}/trade-republic/code-erneut" style="flex:1;display:flex;">
+      <button class="btn-outline" type="submit">Code per SMS anfordern</button>
+    </form>
+    <form method="post" action="{{ base }}/trade-republic/abbrechen" style="flex:1;display:flex;">
+      <button class="btn-outline" type="submit">Abbrechen</button>
+    </form>
+  </div>
+  <p class="b-ref" style="font-style:normal;margin-top:8px;">
+    Der Code kommt als Benachrichtigung in die Trade-Republic-App.
+    {% if countdown %}Eine SMS lässt sich nach etwa {{ countdown }} Sekunden anfordern.{% endif %}
+  </p>
+
+  {% elif angemeldet %}
+  <div class="actions" style="display:flex;gap:8px;margin-top:14px;">
+    <form method="post" action="{{ base }}/trade-republic/sync" style="flex:1;display:flex;">
+      <button class="btn-outline accent" type="submit">Jetzt abgleichen</button>
+    </form>
+    <form method="post" action="{{ base }}/trade-republic/abmelden" style="flex:1;display:flex;">
+      <button class="btn-outline" type="submit">Abmelden</button>
+    </form>
+  </div>
+
+  {% else %}
+  <form method="post" action="{{ base }}/trade-republic/anmelden" class="form-grid" style="margin-top:14px;">
+    <label>
+      Telefonnummer
+      <input type="tel" name="telefonnummer" required placeholder="+4915112345678"
+             value="{{ konto.telefonnummer if konto else '' }}">
+    </label>
+    <label>
+      PIN
+      <input type="password" name="pin" inputmode="numeric" autocomplete="off" required>
+    </label>
+    <button class="btn" type="submit">Anmelden</button>
+  </form>
+  <p class="b-ref" style="font-style:normal;margin-top:8px;">
+    Die PIN wird nur für diesen Anmeldevorgang benutzt und <strong>nirgends gespeichert</strong> –
+    weder in der Datenbank noch in einer Datei. Erhalten bleibt allein die Sitzung.
+    Läuft sie nach einigen Wochen ab, ist die Eingabe erneut nötig; ein vollautomatischer
+    Dauerbetrieb ist wegen des Bestätigungscodes nicht möglich.
+  </p>
+  {% endif %}
+</div>
+
+{% if angemeldet %}
+<div class="sec-t">Letzter Abgleich</div>
+<div class="card">
+  {% set z = sync_status.zahlen %}
+  <div class="meta-row">
+    <span class="k">Zeitpunkt</span>
+    <span class="v">{% if sync_status.zeitpunkt %}{{ sync_status.zeitpunkt.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}– seit dem Start noch keiner{% endif %}</span>
+  </div>
+  {% if sync_status.meldung %}
+  <div class="meta-row">
+    <span class="k">Ergebnis</span>
+    <span class="v" style="color:var(--warn);">{{ sync_status.meldung }}</span>
+  </div>
+  {% endif %}
+  {% if z %}
+  <div class="meta-row"><span class="k">Gelesen</span><span class="v">{{ z.gelesen }} Bewegung(en)</span></div>
+  <div class="meta-row"><span class="k">Neu übernommen</span><span class="v">{{ z.neu }}</span></div>
+  <div class="meta-row"><span class="k">Schon bekannt</span><span class="v">{{ z.duplikate }}</span></div>
+  {% if z.vor_startdatum %}
+  <div class="meta-row"><span class="k">Vor Startdatum</span><span class="v">{{ z.vor_startdatum }} übersprungen</span></div>
+  {% endif %}
+  {% if z.verdacht %}
+  <div class="meta-row">
+    <span class="k">Zur Entscheidung</span>
+    <span class="v" style="color:var(--warn);">{{ z.verdacht }}</span>
+  </div>
+  {% endif %}
+  {% endif %}
+  <p class="b-ref" style="font-style:normal;margin-top:12px;">
+    Der Abgleich läuft automatisch alle sechs Stunden. Gelesen wird ab dem jüngsten
+    bekannten Buchungsdatum minus 14 Tagen – nie vor dem Startdatum. Der Verwendungszweck
+    stammt aus dem Feld „Referenz" der jeweiligen Buchung; im CSV-Export bleibt diese
+    Angabe leer.
+  </p>
+</div>
+{% endif %}
+
+{% if verdachtsfaelle %}
+<div class="sec-t">Zur Entscheidung ({{ verdachtsfaelle|length }})</div>
+<div class="card">
+  <p class="b-ref" style="font-style:normal;margin-bottom:12px;">
+    Diese Bewegungen sehen aus wie bereits vorhandene Buchungen aus dem CSV-Import –
+    gleicher Betrag, fast gleicher Zeitpunkt, aber eine andere Transaktionsnummer.
+    Automatisch übernommen würden sie den Betrag doppelt zählen, automatisch verworfen
+    ginge er verloren, falls es doch zwei echte Zahlungen waren.
+  </p>
+  {% for v in verdachtsfaelle %}
+  <div class="topf-row warn" style="display:block;">
+    <div style="display:flex;justify-content:space-between;gap:12px;">
+      <div class="nm">{{ v.empfaenger_name or v.beschreibung or v.typ }}</div>
+      <div class="todo-amt">{{ v.betrag | eur }}</div>
+    </div>
+    <div class="b-ref" style="font-style:normal;margin-top:4px;">
+      {{ v.datum | datum_de }}
+      {%- if v.verwendungszweck %} · {{ v.verwendungszweck }}{% endif %}
+      {%- if v.vermutete_dopplung %}
+      <br>sieht aus wie: {{ v.vermutete_dopplung.datum | datum_de }},
+      {{ v.vermutete_dopplung.titel or v.vermutete_dopplung.empfaenger_name or v.vermutete_dopplung.typ }}
+      (<a href="{{ base }}/buchungen/{{ v.vermutete_dopplung.id }}">ansehen</a>)
+      {%- endif %}
+    </div>
+    <form method="post" action="{{ base }}/trade-republic/verdacht/{{ v.id }}"
+          style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-outline" type="submit" name="entscheidung" value="verwerfen">
+        Ist dieselbe Buchung – verwerfen
+      </button>
+      <button class="btn-outline accent" type="submit" name="entscheidung" value="uebernehmen">
+        Ist eine eigene Buchung – übernehmen
+      </button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

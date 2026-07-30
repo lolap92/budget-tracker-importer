@@ -1,0 +1,171 @@
+"""Seite "Trade Republic": Anmeldung, Abgleich, Verdachtsfaelle.
+
+Die Anmeldung ist zweistufig (Telefonnummer + PIN, dann der vierstellige Code
+aus der App). Zwischen beiden Schritten muss dieselbe pytr-Instanz erhalten
+bleiben - sie haelt Vorgangsnummer und Cookies. Diese Instanz liegt in
+app/tr_client.py; hier steht nur, welche Telefonnummer der laufende Vorgang
+betrifft, damit sie nach Erfolg gespeichert werden kann.
+"""
+import asyncio
+import datetime as dt
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from app import tr_client, tr_sync
+from app.database import get_db
+from app.import_core import QUELLE_API, ImportKontext, uebernehmen
+from app.models import ImportVerdacht, TradeRepublicKonto
+from app.webutils import ctx, redirect, templates
+
+router = APIRouter()
+
+# Nur fuer die Dauer eines Anmeldevorgangs: Nummer und Countdown bis zur
+# SMS-Option. Bewusst fluechtig - ein Neustart bricht die Anmeldung ohnehin ab.
+_offene_anmeldung: dict = {}
+
+
+def _seite(request: Request, db: Session, fehler: str | None = None, status_code: int = 200):
+    konto = db.query(TradeRepublicKonto).first()
+    verdachtsfaelle = (
+        db.query(ImportVerdacht)
+        .filter(ImportVerdacht.entscheidung.is_(None))
+        .order_by(ImportVerdacht.datum.desc())
+        .all()
+    )
+    return templates.TemplateResponse(
+        "trade_republic.html",
+        ctx(
+            request,
+            konto=konto,
+            angemeldet=tr_client.sitzung_vorhanden(),
+            anmeldung_laeuft=tr_client.anmeldung_laeuft(),
+            countdown=_offene_anmeldung.get("countdown"),
+            pytr_verfuegbar=tr_client.pytr_verfuegbar(),
+            sync_status=tr_sync.status(),
+            verdachtsfaelle=verdachtsfaelle,
+            fehler=fehler,
+        ),
+        status_code=status_code,
+    )
+
+
+@router.get("/trade-republic")
+def seite(request: Request, db: Session = Depends(get_db)):
+    return _seite(request, db)
+
+
+@router.post("/trade-republic/anmelden")
+async def anmelden(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    telefonnummer = (form.get("telefonnummer") or "").strip()
+    pin = (form.get("pin") or "").strip()
+
+    if not telefonnummer.startswith("+") or not pin:
+        return _seite(
+            request,
+            db,
+            fehler="Telefonnummer im Format +4915112345678 und PIN werden benoetigt.",
+            status_code=400,
+        )
+
+    try:
+        countdown = await asyncio.to_thread(tr_client.anmeldung_starten, telefonnummer, pin)
+    except tr_client.AnmeldungFehlgeschlagen as exc:
+        return _seite(request, db, fehler=str(exc), status_code=400)
+
+    _offene_anmeldung.update(telefonnummer=telefonnummer, countdown=countdown)
+    return redirect(request, "/trade-republic")
+
+
+@router.post("/trade-republic/code")
+async def code(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    eingabe = (form.get("code") or "").strip()
+    if not eingabe:
+        return _seite(request, db, fehler="Bitte den Code eingeben.", status_code=400)
+
+    try:
+        await asyncio.to_thread(tr_client.code_bestaetigen, eingabe)
+    except tr_client.AnmeldungFehlgeschlagen as exc:
+        return _seite(request, db, fehler=str(exc), status_code=400)
+
+    telefonnummer = _offene_anmeldung.pop("telefonnummer", None)
+    _offene_anmeldung.pop("countdown", None)
+    if telefonnummer:
+        konto = db.query(TradeRepublicKonto).first()
+        if konto is None:
+            db.add(TradeRepublicKonto(telefonnummer=telefonnummer))
+        else:
+            konto.telefonnummer = telefonnummer
+        db.commit()
+
+    return redirect(request, "/trade-republic")
+
+
+@router.post("/trade-republic/code-erneut")
+async def code_erneut(request: Request, db: Session = Depends(get_db)):
+    try:
+        await asyncio.to_thread(tr_client.code_erneut_senden)
+    except tr_client.AnmeldungFehlgeschlagen as exc:
+        return _seite(request, db, fehler=str(exc), status_code=400)
+    return redirect(request, "/trade-republic")
+
+
+@router.post("/trade-republic/abbrechen")
+def abbrechen(request: Request):
+    tr_client.anmeldung_abbrechen()
+    _offene_anmeldung.clear()
+    return redirect(request, "/trade-republic")
+
+
+@router.post("/trade-republic/abmelden")
+def abmelden(request: Request):
+    tr_client.abmelden()
+    _offene_anmeldung.clear()
+    return redirect(request, "/trade-republic")
+
+
+@router.post("/trade-republic/sync")
+async def jetzt_abgleichen(request: Request, db: Session = Depends(get_db)):
+    """Holt sofort ab, statt auf den naechsten Turnus zu warten."""
+    await asyncio.to_thread(tr_sync.sync_einmal_mit_eigener_session)
+    return redirect(request, "/trade-republic")
+
+
+@router.post("/trade-republic/verdacht/{verdacht_id}")
+async def verdacht_entscheiden(
+    verdacht_id: int, request: Request, db: Session = Depends(get_db)
+):
+    """Entweder ist es dieselbe Bewegung wie die bereits vorhandene Buchung -
+    dann wird sie verworfen - oder es sind zwei echte Zahlungen, dann wird sie
+    nachtraeglich uebernommen."""
+    verdacht = db.query(ImportVerdacht).filter(ImportVerdacht.id == verdacht_id).first()
+    if verdacht is None or verdacht.entscheidung is not None:
+        raise HTTPException(status_code=404, detail="Dieser Fall wurde bereits entschieden.")
+
+    form = await request.form()
+    entscheidung = form.get("entscheidung")
+    if entscheidung not in ("uebernehmen", "verwerfen"):
+        raise HTTPException(status_code=400, detail="Unbekannte Entscheidung.")
+
+    if entscheidung == "uebernehmen":
+        uebernehmen(
+            db,
+            ImportKontext.laden(db),
+            transaction_id=verdacht.transaction_id,
+            datum=verdacht.datum,
+            betrag=verdacht.betrag,
+            typ=verdacht.typ,
+            quelle=QUELLE_API,
+            verwendungszweck=verdacht.verwendungszweck,
+            empfaenger_name=verdacht.empfaenger_name,
+            empfaenger_iban=verdacht.empfaenger_iban,
+            beschreibung=verdacht.beschreibung,
+        )
+
+    # Der Fall bleibt bestehen: nur so erkennt der naechste Abgleich, dass
+    # diese Bewegung schon beurteilt wurde.
+    verdacht.entscheidung = entscheidung
+    db.commit()
+    return redirect(request, "/trade-republic")

@@ -4,3 +4,7 @@ SQLAlchemy==2.0.36
 alembic==1.14.0
 python-multipart==0.0.17
 Jinja2==3.1.5
+# Zugriff auf die (inoffizielle) Trade-Republic-Schnittstelle. Exakt gepinnt:
+# aendert TR etwas, zieht pytr nach - ein ungeplantes Update koennte den Import
+# ebenso gut brechen. Faellt die Schnittstelle aus, bleibt der CSV-Import.
+pytr==0.4.9

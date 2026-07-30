@@ -166,6 +166,64 @@ class ForecastVorkommen(Base):
     )
 
 
+class TradeRepublicKonto(Base):
+    """Singleton: was von der Schnittstellen-Anbindung dauerhaft gilt.
+
+    Bewusst *nicht* hier: die PIN. Sie wird ausschliesslich im Moment einer
+    Neuanmeldung entgegengenommen und danach verworfen - pytr braucht sie nur,
+    um den Anmeldevorgang zu starten. Die laufende Sitzung steckt in der
+    Cookie-Datei unter /data/pytr/ (siehe app/tr_client.py).
+    """
+
+    __tablename__ = "trade_republic_konto"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telefonnummer: Mapped[str] = mapped_column(String, nullable=False)
+    letzter_sync: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class ImportVerdacht(Base):
+    """Eine Bewegung, die sehr wahrscheinlich schon als Buchung existiert - nur
+    unter einer anderen transaction_id, weil sie ueber den anderen Weg kam.
+
+    Sie wird weder importiert noch verworfen, sondern aufbewahrt und zur
+    Entscheidung vorgelegt: beide Automatismen waeren still falsch. Importieren
+    hiesse den Betrag doppelt zaehlen, Verwerfen hiesse ihn zu verlieren, falls
+    es doch zwei echte Zahlungen ueber denselben Betrag waren.
+
+    Die Zeile bleibt auch nach der Entscheidung bestehen - nur so erkennt der
+    naechste Lauf, dass diese Bewegung bereits beurteilt wurde, und legt den
+    Verdacht nicht erneut an.
+    """
+
+    __tablename__ = "import_verdacht"
+    __table_args__ = (
+        UniqueConstraint("transaction_id", name="uq_import_verdacht_transaction_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    transaction_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    datum: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    typ: Mapped[str] = mapped_column(String, nullable=False)
+    betrag: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    verwendungszweck: Mapped[str | None] = mapped_column(String, nullable=True)
+    empfaenger_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    empfaenger_iban: Mapped[str | None] = mapped_column(String, nullable=True)
+    beschreibung: Mapped[str | None] = mapped_column(String, nullable=True)
+    quelle: Mapped[str] = mapped_column(String, nullable=False)
+
+    vermutete_dopplung_id: Mapped[int | None] = mapped_column(
+        ForeignKey("buchung.id"), nullable=True
+    )
+    # NULL = offen, sonst "uebernommen" oder "verworfen".
+    entscheidung: Mapped[str | None] = mapped_column(String, nullable=True)
+    erstellt_am: Mapped[dt.datetime] = mapped_column(
+        DateTime, nullable=False, default=dt.datetime.utcnow
+    )
+
+    vermutete_dopplung: Mapped["Buchung | None"] = relationship("Buchung")
+
+
 class TopfUmbuchung(Base):
     """Sofort wirksame, rein virtuelle Verschiebung zwischen zwei Toepfen."""
 

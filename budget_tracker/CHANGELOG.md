@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.18.0 - 2026-07-30
+
+- **Neu: Trade Republic lässt sich direkt anbinden** (Mehr → Trade Republic). Anmeldung über den Web-Login mit Telefonnummer, PIN und dem vierstelligen Code aus der App; danach gleicht die App alle sechs Stunden selbstständig ab, ein Knopf holt jederzeit sofort. Gelesen wird ab dem jüngsten bekannten Buchungsdatum minus 14 Tage, nie vor dem Startdatum.
+- **Der Verwendungszweck ist da.** Der CSV-Export der Trade-Republic-App führt zwar eine Spalte `payment_reference`, füllt sie aber nie – ohne diesen Text kann die automatische Topf-Zuordnung über den Verwendungszweck grundsätzlich nicht greifen, und praktisch jede Buchung landet in der Review-Liste. Über die Schnittstelle steht er zur Verfügung (Feld „Referenz" der jeweiligen Buchung), dazu Name und IBAN der Gegenseite.
+- **Die PIN wird nirgends gespeichert** – weder in der Datenbank noch in einer Datei. Sie wird ausschließlich für den Anmeldevorgang selbst benutzt; erhalten bleibt nur die Sitzung als Cookie-Datei unter `/data/pytr/`, die ein Add-on-Update übersteht. Ein vollautomatischer Dauerbetrieb ist wegen des Bestätigungscodes nicht möglich: läuft die Sitzung nach einigen Wochen ab, meldet die Übersicht „Anmeldung erforderlich".
+- **Schutz vor doppelten Buchungen.** Datei-Export und Schnittstelle stammen aus zwei verschiedenen Diensten von Trade Republic – schon die Typbezeichnungen unterscheiden sich (`TRANSFER_INBOUND` gegen `INCOMING_TRANSFER`) – und vergeben möglicherweise unterschiedliche Transaktionsnummern. Sieht eine abgerufene Bewegung aus wie eine bereits vorhandene Buchung, wird sie weder importiert noch verworfen, sondern zur Entscheidung vorgelegt: automatisch übernehmen würde den Betrag doppelt zählen, automatisch verwerfen ihn verlieren. Als schärfster Hinweis dient der in der Transaktionsnummer eingebettete Zeitstempel (Trade Republic vergibt UUIDs der Version 7, deren erste 48 Bit der Erzeugungszeitpunkt in Millisekunden sind).
+- **Der CSV-Import bleibt unverändert bestehen** und ist die Rückfallebene, falls die inoffizielle Schnittstelle ausfällt. Beide Wege nehmen denselben Übernahme-Kern, dedupliziert wird weiterhin über die `transaction_id`.
+- **Basis-Image ist jetzt Debian statt Alpine.** `pytr` hängt zwingend an `playwright`, wovon es kein musl-Wheel gibt – unter Alpine ließe es sich gar nicht installieren. Der Browser wird nie gestartet (der Anmelde-Token wird rein in Python geholt), sein mitgelieferter Treiber deshalb beim Bauen wieder entfernt: 131 der 270 MB.
+- Test-Suite auf 260 Tests.
+
 ## 1.17.0 - 2026-07-30
 
 Vorbereitung der Trade-Republic-Schnittstelle. **An der Oberfläche und an jeder Berechnung ändert sich nichts** – der CSV-Import verhält sich exakt wie bisher und bleibt dauerhaft der Weg, der auch ohne Anmeldung funktioniert.

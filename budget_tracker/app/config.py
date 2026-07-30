@@ -35,6 +35,23 @@ FORECAST_BETRAG_TOLERANZ = 0  # exakter Betrag als Startwert
 UMBUCHUNG_DATUM_TOLERANZ_TAGE = 10
 
 DIRECTORY_SCAN_INTERVAL_SECONDS = int(os.environ.get("SCAN_INTERVAL_SECONDS", "30"))
+
+# Trade-Republic-Schnittstelle. Sitzungs-Cookies liegen unter /data, damit sie
+# ein Add-on-Update ueberleben - pytr wuerde sie sonst nach ~/.pytr schreiben,
+# also in den fluechtigen Teil des Containers. Die PIN wird bewusst nirgends
+# gespeichert (siehe app/tr_client.py).
+TR_DIR = DATA_DIR / "pytr"
+TR_COOKIES_DATEI = TR_DIR / "cookies.txt"
+
+# Sechs Stunden: die Timeline ist kein Live-Datenstrom, und jeder Lauf oeffnet
+# eine WebSocket-Verbindung. Der Knopf auf der Trade-Republic-Seite holt
+# dazwischen jederzeit sofort ab.
+TR_SYNC_INTERVAL_SECONDS = int(os.environ.get("TR_SYNC_INTERVAL_SECONDS", str(6 * 60 * 60)))
+
+# Wie weit jeder Lauf ueber die juengste bekannte Buchung hinaus zurueckschaut.
+# Faengt nachtraeglich verbuchte Vorgaenge ein; alles Aeltere ist ueber die
+# transaction_id ohnehin bekannt und kostet nur einen Mengenvergleich.
+TR_SYNC_RUECKGRIFF_TAGE = 14
 FORECAST_HORIZON_MONATE = 12
 
 # Seitengroesse der Buchungsliste. Nach ein paar Jahren CSV-Import waeren es

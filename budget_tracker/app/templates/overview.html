@@ -37,12 +37,18 @@
   {% endfor %}
 </div>
 
-{% if offene_anzahl or umbuchungen_anzahl or import_warnung %}
+{% if offene_anzahl or umbuchungen_anzahl or import_warnung or tr_warnung %}
 <div class="sec-t">Zu tun</div>
 <div class="card" style="padding:4px 16px;">
   {% if import_warnung %}
   <a href="{{ base }}/mehr" class="topf-row" style="color:inherit;">
     <div class="who"><span class="tdot warn"></span><div class="nm">{{ import_warnung }}</div></div>
+    <div class="todo-amt" style="color:var(--warn);">ansehen</div>
+  </a>
+  {% endif %}
+  {% if tr_warnung %}
+  <a href="{{ base }}/trade-republic" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot warn"></span><div class="nm">{{ tr_warnung }}</div></div>
     <div class="todo-amt" style="color:var(--warn);">ansehen</div>
   </a>
   {% endif %}

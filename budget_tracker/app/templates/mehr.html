@@ -17,6 +17,14 @@
     <div class="who"><span class="tdot" style="background:var(--accent);"></span><div class="nm">Topf-Umbuchung anlegen</div></div>
     <div class="todo-amt">&rarr;</div>
   </a>
+  <a href="{{ base }}/trade-republic" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot {{ 'faint' if tr_angemeldet else 'warn' }}"></span><div class="nm">Trade Republic</div></div>
+    <div class="todo-amt" style="color:var(--ink-soft);">
+      {%- if tr_verdacht %}{{ tr_verdacht }} zu klären
+      {%- elif tr_angemeldet %}verbunden
+      {%- else %}nicht verbunden{% endif %}
+    </div>
+  </a>
 </div>
 
 <div class="sec-t">CSV-Import</div>

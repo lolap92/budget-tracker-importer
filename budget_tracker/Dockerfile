@@ -6,20 +6,27 @@ ENV LANG=C.UTF-8 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
-# Alpine-Basis: nur Python + Laufzeit-Libs dauerhaft, Build-Toolchain
-# (pip, Compiler) wird nach der Installation wieder entfernt, um das
-# Image fuer aarch64 klein zu halten. Die pip-installierten Pakete
-# bleiben davon unberuehrt, da apk sie nicht kennt.
-RUN apk add --no-cache python3 sqlite-libs libffi \
-    && apk add --no-cache --virtual .build-deps \
-        py3-pip gcc musl-dev python3-dev libffi-dev \
-    && pip install --no-cache-dir --break-system-packages --upgrade pip
+# Debian-Basis statt Alpine seit 1.18.0: pytr haengt zwingend an playwright,
+# und davon gibt es kein musl-Wheel - unter Alpine liesse sich pytr also gar
+# nicht installieren. Der Browser selbst wird nie gestartet (die Anmeldung holt
+# ihren WAF-Token rein in Python, siehe app/tr_client.py); playwright muss nur
+# importierbar sein. Deshalb fliegt der mitgelieferte Browser-Treiber nach der
+# Installation wieder raus - 131 der 270 MB, die niemals jemand ausfuehrt.
+#
+# tzdata wird gebraucht, weil die Zeitstempel der Trade-Republic-Timeline in UTC
+# kommen und fuer das Buchungsdatum in lokale Zeit umgerechnet werden
+# (app/tr_events.py). Ein Compiler ist nicht noetig: alle Abhaengigkeiten
+# bringen fertige manylinux-Wheels fuer amd64 und aarch64 mit.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        python3 python3-pip ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY app/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir --break-system-packages -r /app/requirements.txt \
-    && apk del .build-deps
+RUN pip3 install --no-cache-dir --break-system-packages -r /app/requirements.txt \
+    && rm -rf "$(python3 -c 'import os, playwright; print(os.path.dirname(playwright.__file__))')/driver"
 
 COPY app /app/app
 COPY alembic /app/alembic

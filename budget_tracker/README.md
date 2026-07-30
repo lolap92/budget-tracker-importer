@@ -9,6 +9,7 @@ alles andere wird berechnet.
 
 ## Funktionen
 
+- **Direkter Abgleich mit Trade Republic** (optional, unter „Mehr → Trade Republic"): holt die Kontobewegungen alle sechs Stunden selbst ab – **inklusive Verwendungszweck**, den der CSV-Export nicht mitliefert. Der Datei-Import bleibt unverändert bestehen und ist die Rückfallebene.
 - Automatischer CSV-Import aus `/homeassistant/budget_tracker/imports`, dedupliziert über `transaction_id`. Zeilen mit einem Datum vor dem Startdatum werden übersprungen – sie stecken bereits in den Topf-Startsalden.
 - Automatische Topf-Zuordnung: Zins → Verwendungszweck → Forecast-Regel → offen zur manuellen Zuordnung.
 - Bank-Umbuchungen als bidirektionaler, schwebender Zustand mit Abgleich-Vorschlägen.
@@ -62,6 +63,40 @@ Fehlt die Datei, zeigt die App beim ersten Aufruf eine Bootstrap-Seite zur
 Eingabe von Startdatum und den vier Topf-Startsalden. Forecast-Regeln lassen
 sich danach direkt in der App unter „Forecast“ anlegen.
 
+## Trade Republic direkt anbinden (optional)
+
+Unter **Mehr → Trade Republic** lässt sich das Konto direkt anbinden, statt
+regelmäßig CSV-Dateien abzulegen. Verwendet wird der Web-Login über die
+Bibliothek [pytr](https://pypi.org/project/pytr/): Telefonnummer und PIN
+eingeben, danach den vierstelligen Code bestätigen, der in die
+Trade-Republic-App kommt (auf Wunsch per SMS).
+
+**Warum das lohnt:** der CSV-Export der App führt zwar eine Spalte
+`payment_reference`, füllt sie aber nie. Ohne Verwendungszweck kann die
+automatische Topf-Zuordnung nicht greifen und praktisch jede Buchung landet in
+der Review-Liste. Über die Schnittstelle steht der Text zur Verfügung.
+
+Was dabei zu wissen ist:
+
+- **Die PIN wird nirgends gespeichert** – weder in der Datenbank noch in einer
+  Datei. Sie wird ausschließlich für den Anmeldevorgang selbst benutzt.
+  Erhalten bleibt nur die Sitzung, als Cookie-Datei unter `/data/pytr/`.
+- **Kein vollautomatischer Dauerbetrieb.** Läuft die Sitzung nach einigen
+  Wochen ab, ist wegen des Bestätigungscodes eine erneute Eingabe nötig. Die
+  Übersicht meldet das unter „Zu tun".
+- **Der CSV-Weg bleibt vollständig erhalten.** Beide Wege nehmen denselben
+  Übernahme-Kern; fällt die Schnittstelle aus – etwa weil Trade Republic etwas
+  ändert – genügt es, wieder Dateien in `imports/` abzulegen.
+- **Doppelte Buchungen werden abgefangen.** Datei-Export und Schnittstelle
+  stammen aus zwei verschiedenen Diensten und vergeben möglicherweise
+  unterschiedliche Transaktionsnummern. Sieht eine abgerufene Bewegung aus wie
+  eine bereits vorhandene Buchung (gleicher Betrag, nahezu gleicher Zeitpunkt),
+  wird sie **weder importiert noch verworfen**, sondern auf der
+  Trade-Republic-Seite zur Entscheidung vorgelegt – automatisch übernehmen
+  würde den Betrag doppelt zählen, automatisch verwerfen ihn verlieren.
+- Es werden ausschließlich lesende Abrufe verwendet. Die Schnittstelle ist
+  inoffiziell; `pytr` ist deshalb exakt auf eine Version gepinnt.
+
 ## Laufender Betrieb
 
 - CSV-Export aus Trade Republic regelmäßig in `imports/` ablegen – wird automatisch erkannt und importiert.
@@ -70,7 +105,7 @@ sich danach direkt in der App unter „Forecast“ anlegen.
 
 ## Architektur
 
-- **Backend:** FastAPI (Python), Server-seitig gerenderte, responsive Oberfläche (mobil-first, PC-tauglich).
+- **Backend:** FastAPI (Python), Server-seitig gerenderte, responsive Oberfläche (mobil-first, PC-tauglich). Basis-Image seit 1.18.0 Debian statt Alpine – `pytr` hängt an `playwright`, wovon es kein musl-Wheel gibt. Der Browser selbst wird nie gestartet und sein Treiber beim Bauen wieder entfernt.
 - **Datenbank:** SQLite unter `/data/budget_tracker.db`, verwaltet über SQLAlchemy + Alembic.
 - **Einbindung:** Home-Assistant-Ingress.
 - **Zusätzlicher Mount:** `homeassistant_config:ro` für den Lesezugriff auf `/homeassistant/budget_tracker/imports`.

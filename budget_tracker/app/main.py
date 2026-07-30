@@ -14,9 +14,11 @@ from app.routers import (
     forecast,
     overview,
     topf_umbuchung,
+    trade_republic,
     umbuchungen,
     zuordnen,
 )
+from app.tr_sync import sync_schleife
 from app.watcher import scan_schleife
 from app.webutils import ctx, templates
 
@@ -41,23 +43,26 @@ class IngressPathMiddleware:
         await self.app(scope, receive, send)
 
 
-_watcher_task: asyncio.Task | None = None
+_hintergrund_tasks: list[asyncio.Task] = []
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _watcher_task
     db = SessionLocal()
     try:
         bootstrap_falls_noetig(db)
     finally:
         db.close()
 
-    _watcher_task = asyncio.create_task(scan_schleife())
+    _hintergrund_tasks.append(asyncio.create_task(scan_schleife()))
     logger.info("Verzeichnis-Watcher gestartet.")
+    # Laeuft auch ohne hinterlegte Anmeldung mit: der Abgleich prueft das selbst
+    # und ueberspringt sich, solange keine Sitzung existiert.
+    _hintergrund_tasks.append(asyncio.create_task(sync_schleife()))
+    logger.info("Trade-Republic-Abgleich gestartet.")
     yield
-    if _watcher_task:
-        _watcher_task.cancel()
+    for task in _hintergrund_tasks:
+        task.cancel()
 
 
 app = FastAPI(title="Budget-Tracker", lifespan=lifespan)
@@ -102,3 +107,4 @@ app.include_router(zuordnen.router)
 app.include_router(umbuchungen.router)
 app.include_router(topf_umbuchung.router)
 app.include_router(forecast.router)
+app.include_router(trade_republic.router)

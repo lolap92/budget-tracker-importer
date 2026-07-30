@@ -3,7 +3,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from app import watcher
+from app import tr_client, tr_sync, watcher
 from app.calculations import (
     kontostand_gesamt,
     letzter_import_zeitpunkt,
@@ -14,7 +14,7 @@ from app.calculations import (
     sondertilgung_status,
 )
 from app.database import get_db
-from app.models import Topf
+from app.models import ImportVerdacht, Topf, TradeRepublicKonto
 from app.webutils import ctx, templates
 
 router = APIRouter()
@@ -34,6 +34,28 @@ def _import_warnung(status: dict) -> str | None:
     zahlen = status.get("letzte_zahlen") or {}
     if zahlen.get("fehler"):
         return f"Letzter Import: {zahlen['fehler']} Zeile(n) nicht verarbeitet"
+    return None
+
+
+def _tr_warnung(db: Session) -> str | None:
+    """Meldet sich nur, wenn der Abgleich ein Eingreifen braucht.
+
+    Zwei Faelle: eine Sitzung, die abgelaufen ist (der Abgleich laeuft dann
+    still ins Leere, was sonst niemandem auffiele), und Bewegungen, die auf
+    eine Entscheidung warten. Wer die Schnittstelle gar nicht nutzt, sieht
+    hier nichts.
+    """
+    offene = (
+        db.query(ImportVerdacht).filter(ImportVerdacht.entscheidung.is_(None)).count()
+    )
+    if offene:
+        return f"{offene} Bewegung{'en' if offene != 1 else ''} zu klären (Trade Republic)"
+
+    konto = db.query(TradeRepublicKonto).first()
+    if konto is not None and not tr_client.sitzung_vorhanden():
+        return "Trade Republic: Anmeldung erforderlich"
+    if tr_sync.status().get("erfolgreich") is False:
+        return "Trade Republic: letzter Abgleich fehlgeschlagen"
     return None
 
 
@@ -70,6 +92,7 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             nicht_zugeordnet=nicht_zugeordnet,
             karten=karten,
             import_warnung=_import_warnung(watcher.status()),
+            tr_warnung=_tr_warnung(db),
             offene_anzahl=len(review_liste(db)),
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
             stand_datum=neuestes_buchungsdatum(db),
@@ -87,5 +110,9 @@ def mehr(request: Request, db: Session = Depends(get_db)):
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
             import_status=watcher.status(),
             letzter_import=letzter_import_zeitpunkt(db),
+            tr_angemeldet=tr_client.sitzung_vorhanden(),
+            tr_verdacht=db.query(ImportVerdacht)
+            .filter(ImportVerdacht.entscheidung.is_(None))
+            .count(),
         ),
     )
