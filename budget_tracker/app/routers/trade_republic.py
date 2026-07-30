@@ -56,6 +56,7 @@ def _seite(
             countdown=_offene_anmeldung.get("countdown"),
             pytr_verfuegbar=tr_client.pytr_verfuegbar(),
             version=config.version(),
+            sync_intervall_stunden=config.tr_sync_intervall_sekunden() // 3600,
             sync_status=tr_sync.status(),
             verdachtsfaelle=verdachtsfaelle,
             fehler=fehler,

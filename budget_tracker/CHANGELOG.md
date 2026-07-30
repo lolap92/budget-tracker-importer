@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.23.0 - 2026-07-30
+
+- **Der Abgleich-Turnus ist einstellbar** – Add-on-Option `tr_sync_intervall_stunden`, **voreingestellt bleiben sechs Stunden** wie bisher. `0` schaltet den automatischen Abgleich ab; dann holt ausschließlich „Jetzt abgleichen". Die Trade-Republic-Seite zeigt an, was gerade gilt.
+- Hintergrund, falls die Frage nach einer Sperre aufkommt: seltener abzufragen senkt das Risiko praktisch nicht. Der Bot-Schutz sitzt vor der **Anmeldung**, nicht vor den Abrufen, und ein Lauf besteht aus einer Handvoll Anfragen. Ganz ohne automatischen Lauf kann es sogar schaden – läuft die Sitzung mangels Nutzung ab, sind mehr Anmeldungen nötig, und genau die gehen durch den Schutz.
+- Test-Suite auf 340 Tests.
+
 ## 1.22.0 - 2026-07-30
 
 - **„Ist die gleiche Buchung – zusammenführen"** heißt der Knopf jetzt, der vorher „verwerfen" hieß. Seit 1.21.1 wird dabei nichts mehr weggeworfen: die vorhandene Buchung übernimmt, was ihr fehlt – vor allem den Verwendungszweck. Die alte Beschriftung beschrieb das Gegenteil dessen, was passiert. Der erklärende Text darüber sagt jetzt ausdrücklich, was Zusammenführen tut und was unangetastet bleibt. Eine Seite, die noch vor der Umbenennung geöffnet wurde, funktioniert weiter.

@@ -21,7 +21,7 @@ import logging
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.config import TR_SYNC_INTERVAL_SECONDS, TR_SYNC_RUECKGRIFF_TAGE
+from app.config import TR_SYNC_RUECKGRIFF_TAGE, tr_sync_intervall_sekunden
 from app.database import SessionLocal
 from app.import_core import QUELLE_API, ImportKontext, uebernehmen
 from app.tr_depot import depot_laden, snapshot_speichern
@@ -254,9 +254,17 @@ def sync_einmal_mit_eigener_session() -> dict:
 
 
 async def sync_schleife() -> None:
+    """Der automatische Abgleich. Steht das Intervall auf 0, endet die Schleife
+    sofort - dann holt ausschliesslich der Knopf auf der Seite ab."""
+    intervall = tr_sync_intervall_sekunden()
+    if intervall <= 0:
+        logger.info("Automatischer Abgleich ausgeschaltet - es holt nur der Knopf in der App.")
+        return
+
+    logger.info("Automatischer Abgleich alle %d Stunde(n).", intervall // 3600)
     while True:
         try:
             await asyncio.to_thread(sync_einmal_mit_eigener_session)
         except Exception:  # noqa: BLE001 - die Schleife darf nie sterben
             logger.exception("Fehler im Trade-Republic-Abgleich")
-        await asyncio.sleep(TR_SYNC_INTERVAL_SECONDS)
+        await asyncio.sleep(intervall)

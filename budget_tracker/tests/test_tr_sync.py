@@ -276,3 +276,60 @@ class TestZeitgrenze:
         db.commit()
 
         assert ab_zeitpunkt(db).date() == START_DATUM
+
+
+class TestIntervall:
+    """Der automatische Abgleich laesst sich in den Add-on-Optionen einstellen -
+    bis hin zu 'gar nicht, nur auf Knopfdruck'."""
+
+    def test_voreinstellung_sind_sechs_stunden(self, monkeypatch):
+        from app import config
+
+        monkeypatch.delenv("TR_SYNC_INTERVAL_SECONDS", raising=False)
+        monkeypatch.setattr(config, "read_addon_options", dict)
+
+        assert config.tr_sync_intervall_sekunden() == 6 * 3600
+
+    def test_option_wird_gelesen(self, monkeypatch):
+        from app import config
+
+        monkeypatch.delenv("TR_SYNC_INTERVAL_SECONDS", raising=False)
+        monkeypatch.setattr(
+            config, "read_addon_options", lambda: {"tr_sync_intervall_stunden": 12}
+        )
+
+        assert config.tr_sync_intervall_sekunden() == 12 * 3600
+
+    def test_null_heisst_nur_auf_knopfdruck(self, monkeypatch):
+        from app import config
+
+        monkeypatch.delenv("TR_SYNC_INTERVAL_SECONDS", raising=False)
+        monkeypatch.setattr(
+            config, "read_addon_options", lambda: {"tr_sync_intervall_stunden": 0}
+        )
+
+        assert config.tr_sync_intervall_sekunden() == 0
+
+    def test_unsinnige_angabe_faellt_auf_die_voreinstellung_zurueck(self, monkeypatch):
+        from app import config
+
+        monkeypatch.delenv("TR_SYNC_INTERVAL_SECONDS", raising=False)
+        monkeypatch.setattr(
+            config, "read_addon_options", lambda: {"tr_sync_intervall_stunden": "viel"}
+        )
+
+        assert config.tr_sync_intervall_sekunden() == 6 * 3600
+
+    def test_ohne_intervall_endet_die_schleife_sofort(self, monkeypatch):
+        """Statt im Hintergrund weiterzulaufen und nichts zu tun."""
+        from app import tr_sync
+
+        monkeypatch.setattr(tr_sync, "tr_sync_intervall_sekunden", lambda: 0)
+        gelaufen = []
+        monkeypatch.setattr(
+            tr_sync, "sync_einmal_mit_eigener_session", lambda: gelaufen.append(1)
+        )
+
+        asyncio.run(tr_sync.sync_schleife())
+
+        assert gelaufen == []

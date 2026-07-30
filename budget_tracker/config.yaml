@@ -1,5 +1,5 @@
 name: "Budget-Tracker"
-version: "1.22.0"
+version: "1.23.0"
 slug: "budget_tracker"
 description: "Privater Budget-Tracker mit vier virtuellen Spartoepfen, automatischem CSV-Import und 12-Monats-Prognose"
 url: "https://github.com/lolap92/budget-tracker-importer"
@@ -17,5 +17,8 @@ map:
   - homeassistant_config:ro
 options:
   log_level: info
+  tr_sync_intervall_stunden: 6
 schema:
   log_level: list(debug|info|warning|error)
+  # 0 = kein automatischer Abgleich, nur der Knopf in der App.
+  tr_sync_intervall_stunden: int(0,168)

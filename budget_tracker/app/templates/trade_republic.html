@@ -174,10 +174,19 @@
   {% endif %}
   {% endif %}
   <p class="b-ref" style="font-style:normal;margin-top:12px;">
-    Der Abgleich läuft automatisch alle sechs Stunden. Gelesen wird ab dem jüngsten
-    bekannten Buchungsdatum minus 14 Tagen – nie vor dem Startdatum. Der Verwendungszweck
-    stammt aus dem Feld „Referenz" der jeweiligen Buchung; im CSV-Export bleibt diese
-    Angabe leer.
+    {% if sync_intervall_stunden %}
+    Der Abgleich läuft automatisch alle {{ sync_intervall_stunden }} Stunden, „Jetzt abgleichen"
+    holt jederzeit sofort.
+    {% else %}
+    Der automatische Abgleich ist ausgeschaltet – es holt ausschließlich „Jetzt abgleichen".
+    {% endif %}
+    Einstellbar in den Add-on-Optionen unter <code>tr_sync_intervall_stunden</code>
+    (0 = nur auf Knopfdruck).
+  </p>
+  <p class="b-ref" style="font-style:normal;margin-top:6px;">
+    Gelesen wird ab dem jüngsten bekannten Buchungsdatum minus 14 Tagen – nie vor dem
+    Startdatum. Der Verwendungszweck stammt aus dem Feld „Referenz" der jeweiligen
+    Buchung; im CSV-Export bleibt diese Angabe leer.
   </p>
 </div>
 {% endif %}

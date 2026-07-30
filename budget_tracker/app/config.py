@@ -44,10 +44,29 @@ DIRECTORY_SCAN_INTERVAL_SECONDS = int(os.environ.get("SCAN_INTERVAL_SECONDS", "3
 TR_DIR = DATA_DIR / "pytr"
 TR_COOKIES_DATEI = TR_DIR / "cookies.txt"
 
-# Sechs Stunden: die Timeline ist kein Live-Datenstrom, und jeder Lauf oeffnet
-# eine WebSocket-Verbindung. Der Knopf auf der Trade-Republic-Seite holt
-# dazwischen jederzeit sofort ab.
-TR_SYNC_INTERVAL_SECONDS = int(os.environ.get("TR_SYNC_INTERVAL_SECONDS", str(6 * 60 * 60)))
+
+def tr_sync_intervall_sekunden() -> int:
+    """Abstand zwischen zwei automatischen Abgleichen; 0 heisst: nur auf Knopfdruck.
+
+    Einstellbar in den Add-on-Optionen, voreingestellt sind sechs Stunden.
+
+    Seltener abzufragen senkt das Risiko einer Sperre praktisch nicht: der
+    Bot-Schutz von Trade Republic sitzt vor der *Anmeldung*, nicht vor den
+    Abrufen, und ein Lauf sind eine Handvoll Anfragen. Ganz ohne automatischen
+    Lauf kann es sogar schaden - laeuft die Sitzung mangels Nutzung ab, sind
+    mehr Anmeldungen noetig, und genau die gehen durch den Schutz.
+    """
+    aus_umgebung = os.environ.get("TR_SYNC_INTERVAL_SECONDS")
+    if aus_umgebung is not None:
+        return max(0, int(aus_umgebung))
+
+    stunden = read_addon_options().get("tr_sync_intervall_stunden", 6)
+    try:
+        stunden = int(stunden)
+    except (TypeError, ValueError):
+        stunden = 6
+    return max(0, stunden) * 3600
+
 
 # Wie weit jeder Lauf ueber die juengste bekannte Buchung hinaus zurueckschaut.
 # Faengt nachtraeglich verbuchte Vorgaenge ein; alles Aeltere ist ueber die
