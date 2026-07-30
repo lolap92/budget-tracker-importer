@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.29.0 - 2026-07-30
+
+- **Alle Zeitangaben stehen jetzt in lokaler Zeit** statt in UTC – und ohne das Kürzel dahinter, das nur nötig war, weil die Zahl davor eine Erklärung brauchte. Betroffen waren sieben Stellen: letzter Abgleich und Zeitpunkt des letzten Laufs (Trade Republic), letzter Scan und zuletzt importiert (Mehr), der Depot-Stand auf der Depot-Seite **und** auf der Startseite sowie „Importiert" in der Buchungs-Detailansicht. Im Sommer waren das zwei Stunden Unterschied – genug, um einen frischen Abgleich für veraltet zu halten.
+- Gespeichert wird unverändert UTC; umgerechnet wird erst bei der Anzeige, an einer einzigen Stelle (`app/dateutils.py: nach_lokaler_zeit`). Die Zeitzonen-Behandlung der Timeline-Zeitstempel benutzt jetzt dieselbe Stelle statt einer eigenen Kopie.
+- Test-Suite auf 399 Tests, darunter einer, der jede Seite darauf prüft, dass nirgends mehr „UTC" steht.
+
 ## 1.28.0 - 2026-07-30
 
 - **Der Aufbau eines Events wird jetzt vollständig protokolliert**, wenn sich kein Verwendungszweck finden lässt: Abschnittstyp, Beschriftungen und die *Art* der Werte („Zeichenkette der Länge 23", „Objekt mit den Schlüsseln text und icon") – nie deren Inhalt. Die bisherige Fassung zeigte nur beschriftete Tabellenfelder und ließ damit offen, was in den unbenannten Abschnitten steckt.

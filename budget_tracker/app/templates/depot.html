@@ -17,7 +17,7 @@
 </div>
 
 {% else %}
-<div class="sec-t">Stand {{ snapshot.zeitpunkt.strftime('%d.%m.%Y %H:%M') }} UTC</div>
+<div class="sec-t">Stand {{ snapshot.zeitpunkt | zeit_de }}</div>
 <div class="card">
   <div class="meta-row">
     <span class="k">Wertpapiere</span>

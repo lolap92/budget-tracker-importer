@@ -45,7 +45,7 @@
       <span class="tdot faint"></span>
       <div>
         <div class="nm">Wertpapiere</div>
-        <div class="goal">Stand {{ depot.zeitpunkt.strftime('%d.%m.%Y %H:%M') }} UTC</div>
+        <div class="goal">Stand {{ depot.zeitpunkt | zeit_de }}</div>
       </div>
     </div>
     <div class="amt">{{ depot.gesamtwert | eur }}</div>

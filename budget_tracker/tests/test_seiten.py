@@ -322,3 +322,53 @@ class TestTitelVorbefuellung:
 
         assert 'value=""' in text
         assert "Du hast 0,01" not in text.split("Topf zuweisen")[1]
+
+
+class TestLokaleZeit:
+    """Gespeichert wird UTC, angezeigt wird lokale Zeit. Im Sommer sind das
+    zwei Stunden - genug, dass ein Nutzer den letzten Abgleich fuer veraltet
+    haelt oder eine Buchung dem falschen Tag zuordnet."""
+
+    def test_filter_rechnet_um(self):
+        from app.webutils import zeit_de
+
+        # 30.07.2026 16:40 UTC ist in Berlin 18:40 (Sommerzeit).
+        assert zeit_de(dt.datetime(2026, 7, 30, 16, 40)) == "30.07.2026 18:40"
+
+    def test_winterzeit(self):
+        from app.webutils import zeit_de
+
+        assert zeit_de(dt.datetime(2026, 1, 15, 16, 40)) == "15.01.2026 17:40"
+
+    def test_ohne_wert(self):
+        from app.webutils import zeit_de
+
+        assert zeit_de(None) == "–"
+
+    def test_keine_seite_zeigt_noch_utc(self, client, db, bewegungen):
+        """Sieben Stellen zeigten die Zeit mit dem Kuerzel "UTC" an - eine
+        davon zu uebersehen faellt sonst erst im Betrieb auf."""
+        from decimal import Decimal as D
+
+        from app.models import DepotSnapshot, TradeRepublicKonto
+
+        db.add(DepotSnapshot(zeitpunkt=dt.datetime(2026, 7, 30, 16, 40),
+                             cash=D("1.00"), gesamtwert=D("2.00")))
+        db.add(TradeRepublicKonto(telefonnummer="+4915112345678",
+                                  letzter_sync=dt.datetime(2026, 7, 30, 16, 40)))
+        db.commit()
+        b = db.query(Buchung).filter(Buchung.transaction_id == "offen").one()
+
+        for pfad in ("/", "/mehr", "/depot", "/trade-republic", f"/buchungen/{b.id}"):
+            assert "UTC" not in client.get(pfad).text, pfad
+
+    def test_die_umgerechnete_zeit_steht_wirklich_da(self, client, db, bewegungen):
+        from decimal import Decimal as D
+
+        from app.models import DepotSnapshot
+
+        db.add(DepotSnapshot(zeitpunkt=dt.datetime(2026, 7, 30, 16, 40),
+                             cash=D("1.00"), gesamtwert=D("2.00")))
+        db.commit()
+
+        assert "30.07.2026 18:40" in client.get("/depot").text

@@ -50,11 +50,11 @@
   </div>
   <div class="meta-row">
     <span class="k">Letzter Scan</span>
-    <span class="v">{% if import_status.zeitpunkt %}{{ import_status.zeitpunkt.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}–{% endif %}</span>
+    <span class="v">{% if import_status.zeitpunkt %}{{ import_status.zeitpunkt | zeit_de }}{% else %}–{% endif %}</span>
   </div>
   <div class="meta-row">
     <span class="k">Zuletzt importiert</span>
-    <span class="v">{% if letzter_import %}{{ letzter_import.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}noch nichts{% endif %}</span>
+    <span class="v">{% if letzter_import %}{{ letzter_import | zeit_de }}{% else %}noch nichts{% endif %}</span>
   </div>
 
   {% if z %}

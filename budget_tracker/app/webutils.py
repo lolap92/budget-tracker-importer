@@ -9,6 +9,7 @@ from fastapi import Request
 from fastapi.responses import RedirectResponse
 from starlette.templating import Jinja2Templates
 
+from app.dateutils import nach_lokaler_zeit
 from app.manual_entry import ist_loeschbar, ist_manuelle_buchung, ist_zu_umbuchung_konvertierbar
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -33,6 +34,18 @@ def stueck(value) -> str:
         return "-"
     formatiert = f"{Decimal(value):,.6f}".rstrip("0").rstrip(".")
     return formatiert.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def zeit_de(value) -> str:
+    """Zeitpunkt in lokaler Zeit, ohne Zeitzonen-Kuerzel.
+
+    Gespeichert wird UTC; wer in der Oberflaeche auf die Uhr schaut, will die
+    Zeit sehen, die seine Uhr auch zeigt. Das Kuerzel entfaellt bewusst - es
+    stand nur da, weil die Zahl davor eine Erklaerung brauchte.
+    """
+    if value is None:
+        return "–"
+    return nach_lokaler_zeit(value).strftime("%d.%m.%Y %H:%M")
 
 
 def datum_de(value) -> str:
@@ -81,6 +94,7 @@ def topfklasse(name) -> str:
 templates.env.filters["eur"] = eur
 templates.env.filters["stueck"] = stueck
 templates.env.filters["datum_de"] = datum_de
+templates.env.filters["zeit_de"] = zeit_de
 templates.env.filters["datum_kurz"] = datum_kurz
 templates.env.filters["monat_kurz"] = monat_kurz
 templates.env.filters["monat_de"] = monat_de

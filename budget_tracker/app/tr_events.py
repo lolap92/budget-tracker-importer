@@ -21,18 +21,10 @@ import datetime as dt
 import logging
 from decimal import Decimal, InvalidOperation
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from app.dateutils import LOKALE_ZONE
 
 logger = logging.getLogger("budget_tracker.tr_events")
-
-# Die Zeitstempel der Timeline sind UTC. Eine Buchung um 23:30 UTC gehoert
-# hierzulande bereits zum Folgetag - und das Datum entscheidet ueber Startdatum-
-# Filter und Forecast-Abgleich, also wird umgerechnet.
-try:
-    LOKALE_ZONE: ZoneInfo | None = ZoneInfo("Europe/Berlin")
-except ZoneInfoNotFoundError:  # pragma: no cover - nur ohne tzdata im Image
-    logger.warning("Zeitzonendaten fehlen, Timeline-Zeitstempel werden als UTC gelesen.")
-    LOKALE_ZONE = None
 
 UEBERSICHT = ("Übersicht", "Overview")
 ABSENDER = ("Absender", "Sender")

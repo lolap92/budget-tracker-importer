@@ -38,7 +38,7 @@
   </div>
   <div class="meta-row">
     <span class="k">Letzter Abgleich</span>
-    <span class="v">{% if konto.letzter_sync %}{{ konto.letzter_sync.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}noch keiner{% endif %}</span>
+    <span class="v">{% if konto.letzter_sync %}{{ konto.letzter_sync | zeit_de }}{% else %}noch keiner{% endif %}</span>
   </div>
   {% endif %}
 
@@ -151,7 +151,7 @@
   {% set z = sync_status.zahlen %}
   <div class="meta-row">
     <span class="k">Zeitpunkt</span>
-    <span class="v">{% if sync_status.zeitpunkt %}{{ sync_status.zeitpunkt.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}– seit dem Start noch keiner{% endif %}</span>
+    <span class="v">{% if sync_status.zeitpunkt %}{{ sync_status.zeitpunkt | zeit_de }}{% else %}– seit dem Start noch keiner{% endif %}</span>
   </div>
   {% if sync_status.meldung %}
   <div class="meta-row">
