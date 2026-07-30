@@ -170,7 +170,12 @@ def verbindung(telefonnummer: str):
         raise NichtAngemeldet("Die Sitzung ist abgelaufen - bitte neu anmelden.")
 
     # Klassenweite Reste eines vorherigen Laufs raeumen: pytr fuehrt
-    # subscriptions und Antwortpuffer auf der Klasse, nicht auf der Instanz.
-    type(api).subscriptions.clear()
-    type(api)._previous_responses.clear()
+    # subscriptions und Antwortpuffer auf der Klasse, nicht auf der Instanz -
+    # eine neue Instanz erbt sie sonst. Interna, deshalb defensiv: verschwinden
+    # sie in einer kuenftigen pytr-Version, soll der Abgleich weiterlaufen und
+    # nicht an der Aufraeumarbeit scheitern.
+    for name in ("subscriptions", "_previous_responses"):
+        rest = getattr(type(api), name, None)
+        if hasattr(rest, "clear"):
+            rest.clear()
     return api
