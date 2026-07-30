@@ -149,17 +149,61 @@ def _referenz(event: dict[str, Any]) -> str | None:
         if treffer:
             return treffer
 
-    _beschriftungen_protokollieren(event)
+    treffer = _freitext(event)
+    if treffer:
+        return treffer
+
+    _struktur_protokollieren(event)
     return None
 
 
-def _beschriftungen_protokollieren(event: dict[str, Any]) -> None:
-    """Haelt fest, welche Felder ein Event *stattdessen* mitbringt.
+def _freitext(event: dict[str, Any]) -> str | None:
+    """Letzter Ausweg: ein Abschnitt vom Typ "note".
+
+    Manche Ereignistypen fuehren gar keine beschriftete Referenz, sondern
+    haengen den Text als freien Absatz an. Bewusst erst, wenn kein
+    beschriftetes Feld gefunden wurde - ein Hinweis wie "Diese Ueberweisung
+    wurde storniert" waere als Verwendungszweck falsch, aber immer noch
+    besser als nichts, und im Zweifel korrigiert ihn der Mensch beim
+    Zuordnen.
+    """
+    for sektion in _sektionen(event):
+        if sektion.get("type") != "note":
+            continue
+        daten = sektion.get("data")
+        if not isinstance(daten, dict):
+            continue
+        for schluessel in ("text", "title", "detail"):
+            wert = daten.get(schluessel)
+            if isinstance(wert, str) and wert.strip():
+                logger.info(
+                    "Verwendungszweck aus einem freien Textabschnitt von %s uebernommen.",
+                    event.get("eventType"),
+                )
+                return wert.strip()[:200]
+    return None
+
+
+def _art(wert: Any) -> str:
+    """Beschreibt einen Wert, ohne ihn preiszugeben."""
+    if isinstance(wert, str):
+        return f"str[{len(wert)}]"
+    if isinstance(wert, dict):
+        return "{" + ",".join(str(k) for k in wert) + "}"
+    if isinstance(wert, list):
+        return f"list[{len(wert)}]"
+    return type(wert).__name__
+
+
+def _struktur_protokollieren(event: dict[str, Any]) -> None:
+    """Haelt den Aufbau eines Events fest, das keinen Verwendungszweck hergibt.
 
     Ohne das laesst sich ein unbekannt benanntes Feld nicht finden, ohne den
     kompletten Datensatz zu protokollieren - und darin stuenden Betraege,
-    Namen und IBANs. Notiert werden ausschliesslich die Beschriftungen, nie
-    deren Inhalt.
+    Namen und IBANs. Notiert werden deshalb Abschnittstyp, Beschriftungen und
+    die *Art* der Werte (Zeichenkette der Laenge n, Objekt mit den Schluesseln
+    x und y), nie deren Inhalt. Das genuegt, um zu erkennen, wo etwas steht -
+    und reicht nicht, um zu erfahren, was.
     """
     if not _sektionen(event):
         return
@@ -167,15 +211,20 @@ def _beschriftungen_protokollieren(event: dict[str, Any]) -> None:
     beschreibung = []
     for sektion in _sektionen(event):
         daten = sektion.get("data")
-        felder = (
-            [str(e.get("title")) for e in daten if isinstance(e, dict) and e.get("title")]
-            if isinstance(daten, list)
-            else []
+        if isinstance(daten, list):
+            inhalt = ", ".join(
+                str(e.get("title")) for e in daten if isinstance(e, dict) and e.get("title")
+            )
+        elif isinstance(daten, dict):
+            inhalt = ", ".join(f"{k}={_art(v)}" for k, v in daten.items())
+        else:
+            inhalt = _art(daten)
+        beschreibung.append(
+            f"{sektion.get('title')!r}({sektion.get('type')}): {inhalt or '-'}"
         )
-        beschreibung.append(f"{sektion.get('title')!r}: {', '.join(felder) or '-'}")
 
     logger.info(
-        "Kein Verwendungszweck in Event vom Typ %s gefunden. Vorhandene Felder: %s",
+        "Kein Verwendungszweck in Event vom Typ %s gefunden. Aufbau: %s",
         event.get("eventType"),
         " | ".join(beschreibung),
     )

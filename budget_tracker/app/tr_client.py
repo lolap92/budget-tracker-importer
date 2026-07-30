@@ -46,13 +46,12 @@ _WAF_MODUS = "awswaf"
 
 # Kopfzeilen, die eine Anfrage als das ausweisen, was sie vorgibt zu sein: ein
 # Aufruf der Weboberflaeche von Trade Republic. pytr schickt nur einen
-# User-Agent. Der Bot-Schutz davor bewertet aber die Herkunftsangaben mit -
-# fehlen Origin, Referer und die Sec-Fetch-Angaben, sieht die Anfrage nicht nach
-# Browser aus und wird zur Schutzpruefung umgeleitet. Genau das erzeugt den
-# HTTP 405: `requests` folgt der Umleitung und macht dabei aus dem POST ein GET.
-#
+# User-Agent; der Bot-Schutz davor bewertet aber die Herkunftsangaben mit.
 # Belegt im Quelltext von cdamken/tr-api, das denselben Weg geht und es dort
 # ausdruecklich festhaelt: "Without these you'll get blocked."
+#
+# Sie waren nicht die Ursache des HTTP 405 - das kam direkt von Trade Republic,
+# ohne Umleitung (im Protokoll nachgewiesen). Richtig sind sie trotzdem.
 _BROWSER_KOPFZEILEN = {
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
@@ -71,8 +70,8 @@ _WAF_KOPFZEILE = "X-aws-waf-token"
 # Trade Republic hat die Web-Anmeldung umgestellt. Der alte Weg (v1) verschickt
 # einen vierstelligen Code; der aktuelle (v2) schickt stattdessen eine
 # Bestaetigungsanfrage in die Trade-Republic-App und wartet, bis sie dort
-# angenommen wird. pytr 0.4.9 kennt nur v1 - und genau darauf antwortet der
-# Bot-Schutz mit einer Umleitung, aus der ein HTTP 405 wird.
+# angenommen wird. pytr 0.4.9 kennt nur v1 - und darauf antwortet Trade
+# Republic mit HTTP 405: der Pfad nimmt schlicht kein POST mehr an.
 #
 # Endpunkte, Kopfzeilen und Ablauf sind dem Quelltext von cdamken/tr-api
 # entnommen, das v2 bereits fahrt. Die Versionsangaben stammen aus der
@@ -172,10 +171,9 @@ def _neue_api(telefonnummer: str, pin: str | None = None):
 def _antwort_protokollieren(antwort, *args, **kwargs):
     """Jede HTTP-Antwort mit Methode, Pfad und Status ins Protokoll.
 
-    Ohne das ist eine fehlgeschlagene Anmeldung nicht zu deuten: `requests`
-    folgt Umleitungen selbsttaetig und macht dabei aus einem POST ein GET.
-    Landet das auf einem Pfad ohne GET, kommt am Ende ein HTTP 405 heraus -
-    ein Status, den Trade Republic nie geschickt hat. Erst die Kette zeigt das.
+    Ohne das ist eine fehlgeschlagene Anmeldung nicht zu deuten - genau diese
+    Zeilen haben gezeigt, dass das HTTP 405 direkt von Trade Republic kam und
+    nicht, wie zuerst vermutet, aus einer Umleitung entstand.
     """
     pfad = urlsplit(antwort.url).path
     # Der Bestaetigungscode steht im Pfad - er gehoert nicht ins Protokoll.
@@ -257,20 +255,15 @@ def _anmeldefehler(exc: Exception, ohne_token: bool = False, abgelehnt: str = ""
             )
         return hinweis
     if status == 405:
-        # Trade Republic verschickt selbst kein 405 auf diesem Pfad. Der Status
-        # entsteht, wenn die Anfrage vorher umgeleitet wurde: `requests` folgt
-        # der Umleitung und macht aus dem POST ein GET, das der Zielpfad nicht
-        # kennt. Umgeleitet wird typischerweise auf die Bot-Schutz-Pruefung.
-        hinweis = (
-            "Die Anfrage wurde umgeleitet und dann abgewiesen (HTTP 405) - fast immer "
-            "der Bot-Schutz vor der Anmeldung. Das liegt nicht an Telefonnummer oder PIN."
+        # Kommt direkt von Trade Republic, ohne Umleitung (im Protokoll
+        # nachgewiesen): der alte Anmeldepfad nimmt schlicht kein POST mehr an.
+        # Seit 1.21.0 laeuft die Anmeldung ueber den neuen Weg; sieht jemand
+        # das hier trotzdem, hat auch der nicht geantwortet.
+        return (
+            "Trade Republic nimmt diesen Anmeldeweg nicht mehr an (HTTP 405). "
+            "Das liegt nicht an Telefonnummer oder PIN. Vermutlich hat sich das "
+            "Anmeldeverfahren erneut geändert - bitte melden."
         )
-        if ohne_token:
-            hinweis += (
-                " Der Schutz-Token liess sich nicht automatisch ermitteln; unten lässt "
-                "er sich aus dem Browser hinterlegen."
-            )
-        return hinweis
     if status == 429:
         return "Zu viele Versuche. Trade Republic bittet um etwas Geduld."
     if status is not None:

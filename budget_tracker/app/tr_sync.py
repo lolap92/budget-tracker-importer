@@ -25,7 +25,7 @@ from app.config import TR_SYNC_RUECKGRIFF_TAGE, tr_sync_intervall_sekunden
 from app.database import SessionLocal
 from app.import_core import QUELLE_API, ImportKontext, uebernehmen
 from app.tr_depot import depot_laden, snapshot_speichern
-from app.models import Buchung, Konfiguration, TradeRepublicKonto
+from app.models import Buchung, ImportVerdacht, Konfiguration, TradeRepublicKonto
 from app.tr_client import NichtAngemeldet, verbindung, verbindungsschloss
 from app.tr_events import ist_kontobewegung, zeile_aus_event
 
@@ -216,7 +216,12 @@ def sync_einmal(db: Session) -> dict:
             _letzter_lauf.update(erfolgreich=False, meldung=str(exc))
             return {"uebersprungen": str(exc)}
 
+        # Auch die schon beurteilten Verdachtsfaelle gelten als bekannt. Sonst
+        # holt jeder Lauf ihre Details erneut, nur damit die Uebernahme sie
+        # anschliessend als Duplikat verwirft - im Protokoll sah das aus wie
+        # "4 neu und relevant", gefolgt von "1 neu, 3 bekannt".
         kontext_ids = {row[0] for row in db.query(Buchung.transaction_id).all()}
+        kontext_ids |= {row[0] for row in db.query(ImportVerdacht.transaction_id).all()}
         try:
             events, depot = asyncio.run(
                 lauf(api, ab_zeitpunkt(db), kontext_ids.__contains__)

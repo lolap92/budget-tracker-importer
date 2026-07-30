@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.28.0 - 2026-07-30
+
+- **Der Aufbau eines Events wird jetzt vollständig protokolliert**, wenn sich kein Verwendungszweck finden lässt: Abschnittstyp, Beschriftungen und die *Art* der Werte („Zeichenkette der Länge 23", „Objekt mit den Schlüsseln text und icon") – nie deren Inhalt. Die bisherige Fassung zeigte nur beschriftete Tabellenfelder und ließ damit offen, was in den unbenannten Abschnitten steckt.
+- **Ein freier Textabschnitt gilt als letzter Ausweg für den Verwendungszweck.** Manche Ereignistypen führen kein beschriftetes Feld, sondern hängen den Text als Absatz an. Er wird nur genommen, wenn kein beschriftetes Feld gefunden wurde, und der Griff dorthin steht im Protokoll.
+- **Der Abgleich holt Verdachtsfälle nicht mehr bei jedem Lauf neu ab.** Bereits vorgelegte Bewegungen galten nur bei der Übernahme als bekannt, nicht schon beim Einsammeln – jeder Lauf lud also ihre Details erneut, nur damit sie anschließend als Duplikat verworfen wurden. Im Protokoll sah das aus wie „4 neu und relevant", gefolgt von „1 neu, 3 bekannt".
+- **Berichtigung: der HTTP 405 entstand nicht durch eine Umleitung.** Das Protokoll weist „Umleitungen: keine" aus – Trade Republic antwortet auf dem alten Anmeldepfad direkt so, weil er kein POST mehr annimmt. Fehlermeldung und die betreffenden Code-Kommentare sagen das jetzt richtig. An der Lösung ändert sich nichts: der neue Anmeldeweg (seit 1.21.0) umgeht ihn.
+
 ## 1.27.0 - 2026-07-30
 
 - **Der Verwendungszweck wird jetzt im ganzen Detail gesucht**, nicht mehr nur im Abschnitt „Übersicht". Trade Republic hat mit dem Girokonto neue Ereignistypen eingeführt (`BANK_TRANSACTION_INCOMING`/`_OUTGOING`), die ihre Angaben anders aufteilen – bei denen blieb das Feld leer, obwohl es in der App und im Transaktions-PDF zu sehen ist. Der verlässliche Anker ist die Beschriftung, nicht der Abschnitt, in dem sie steht. Zusätzlich akzeptiert werden „Zahlungsreferenz", „Betreff", „Nachricht", „Kommentar" und „Note".
