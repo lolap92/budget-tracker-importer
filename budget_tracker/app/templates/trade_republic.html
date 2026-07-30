@@ -19,9 +19,14 @@
 <div class="sec-t">Verbindung</div>
 <div class="card">
   <div class="meta-row">
+    <span class="k">Add-on-Version</span>
+    <span class="v" style="font-family:var(--font-mono);font-size:12px;">{{ version }}</span>
+  </div>
+  <div class="meta-row">
     <span class="k">Status</span>
     <span class="v">
-      {%- if anmeldung_laeuft %}<span class="chip offen">Code ausstehend</span>
+      {%- if anmeldung_laeuft and wartet_auf_app %}<span class="chip offen">Bestätigung ausstehend</span>
+      {%- elif anmeldung_laeuft %}<span class="chip offen">Code ausstehend</span>
       {%- elif angemeldet %}<span class="chip ok">angemeldet</span>
       {%- else %}<span class="chip offen">nicht angemeldet</span>{% endif %}
     </span>
@@ -37,7 +42,24 @@
   </div>
   {% endif %}
 
-  {% if anmeldung_laeuft %}
+  {% if anmeldung_laeuft and wartet_auf_app %}
+  <div style="margin-top:14px;text-align:center;">
+    <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:6px;">
+      Bitte in der Trade-Republic-App bestätigen
+    </div>
+    <p class="b-ref" style="font-style:normal;">
+      Trade Republic hat eine Anfrage in deine App geschickt. Sobald du sie dort annimmst,
+      geht es hier automatisch weiter – diese Seite prüft das alle drei Sekunden.
+    </p>
+  </div>
+  <div class="actions" style="display:flex;gap:8px;margin-top:12px;">
+    <form method="post" action="{{ base }}/trade-republic/abbrechen" style="flex:1;display:flex;">
+      <button class="btn-outline" type="submit">Abbrechen</button>
+    </form>
+  </div>
+  <script>setTimeout(function(){ location.reload(); }, 3000);</script>
+
+  {% elif anmeldung_laeuft %}
   <form method="post" action="{{ base }}/trade-republic/code" class="form-grid" style="margin-top:14px;">
     <label>
       Code aus der Trade-Republic-App

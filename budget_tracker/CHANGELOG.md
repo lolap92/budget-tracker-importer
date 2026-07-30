@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.21.0 - 2026-07-30
+
+- **Neu: Anmeldung über die Bestätigung in der Trade-Republic-App.** Trade Republic hat die Web-Anmeldung umgestellt – statt eines vierstelligen Codes kommt eine Anfrage in die App, die dort angenommen wird. `pytr` kennt in der veröffentlichten Fassung nur den alten Weg (`/api/v1/auth/web/login`), und genau darauf antwortet der Bot-Schutz mit der Umleitung, aus der der HTTP 405 entsteht. Der aktuelle Weg (`/api/v2/auth/web/login`) ist jetzt eingebaut; der alte bleibt als Rückfall, falls die neue Anmeldung nicht antwortet.
+- Die Anmeldeseite zeigt dabei „Bitte in der Trade-Republic-App bestätigen" und prüft alle drei Sekunden selbst nach – kein Tippen mehr, kein SMS-Countdown.
+- **Falsche Zugangsdaten führen nicht mehr zu einem zweiten Versuch.** Lehnt Trade Republic Nummer oder PIN ab, wird abgebrochen statt auf den alten Weg auszuweichen – ein zweiter Versuch mit derselben falschen PIN bringt nur die Kontosperre näher.
+- **Die Add-on-Version steht jetzt auf der Trade-Republic-Seite.** Gelesen aus dem Manifest, nicht ein zweites Mal im Quelltext gepflegt. Damit lässt sich nicht mehr verwechseln, welche Fassung gerade läuft.
+- Grundlage sind wieder Endpunkte und Kopfzeilen aus dem Quelltext von [cdamken/tr-api](https://github.com/cdamken/tr-api), das den v2-Ablauf bereits fährt.
+- Test-Suite auf 327 Tests.
+
 ## 1.20.0 - 2026-07-30
 
 - **Vermutliche Ursache des Anmeldefehlers behoben: die Anfragen sahen nicht nach Browser aus.** `pytr` schickt als einzige Kopfzeile einen User-Agent. Der Bot-Schutz vor der Anmeldung bewertet aber auch die Herkunftsangaben – fehlen `Origin`, `Referer` und die `Sec-Fetch-*`-Angaben, wird die Anfrage zur Schutzprüfung umgeleitet, und genau daraus entsteht der HTTP 405: `requests` folgt der Umleitung und macht dabei aus dem POST ein GET, das der Zielpfad nicht kennt. Diese Kopfzeilen werden jetzt mitgeschickt.

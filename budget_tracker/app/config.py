@@ -3,6 +3,7 @@ uebersteuerbar, damit sich die App auch ausserhalb des HA-Containers
 (z.B. lokal zum Testen) starten laesst."""
 import json
 import os
+import re
 from pathlib import Path
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
@@ -72,6 +73,24 @@ ZEITACHSE_VERGANGENHEIT_MAX = 25
 # Buchung, die knapp in den Vormonat gehoerte, ihr Vorkommen noch findet
 # (siehe FORECAST_DATUM_TOLERANZ_TAGE).
 FORECAST_RUECKWIRKEND_MONATE = 1
+
+
+def version() -> str:
+    """Die Add-on-Version aus dem Manifest.
+
+    Gelesen statt im Quelltext gepflegt: eine zweite Stelle mit derselben Zahl
+    laeuft frueher oder spaeter auseinander, und dann zeigt die App eine
+    Version an, die es nicht gibt.
+    """
+    manifest = Path(__file__).resolve().parent.parent / "config.yaml"
+    try:
+        for zeile in manifest.read_text(encoding="utf-8").splitlines():
+            treffer = re.match(r'^version:\s*"?([^"\s]+)"?', zeile)
+            if treffer:
+                return treffer.group(1)
+    except OSError:
+        pass
+    return "unbekannt"
 
 
 def read_addon_options() -> dict:

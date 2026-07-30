@@ -3,7 +3,13 @@
 Ohne Netz und ohne pytr: geprueft wird, was die App aus einer Eingabe macht
 und was sie aus einer Fehlerantwort liest.
 """
+import re
+
 import pytest
+from fastapi.testclient import TestClient
+
+from app.config import version
+from app.main import app as fastapi_app
 
 from app.tr_client import _anmeldefehler, telefonnummer_normalisieren
 
@@ -85,3 +91,17 @@ class TestFehlerdeutung:
         text = _anmeldefehler(HttpFehler(401), abgelehnt="Der Code wurde nicht akzeptiert.")
 
         assert text == "Der Code wurde nicht akzeptiert."
+
+
+class TestVersionsanzeige:
+    """Damit sich nie wieder raten laesst, welche Fassung gerade laeuft."""
+
+    def test_version_kommt_aus_dem_manifest(self):
+        """Gelesen statt im Quelltext gepflegt - eine zweite Stelle mit
+        derselben Zahl laeuft frueher oder spaeter auseinander."""
+        assert re.match(r"^\d+\.\d+\.\d+$", version()), version()
+
+    def test_version_steht_auf_der_seite(self, db, app):
+        client = TestClient(fastapi_app)
+
+        assert version() in client.get("/trade-republic").text

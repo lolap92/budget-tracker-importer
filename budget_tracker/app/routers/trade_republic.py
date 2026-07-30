@@ -12,7 +12,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app import tr_client, tr_sync
+from app import config, tr_client, tr_sync
 from app.calculations import kontostand_gesamt
 from app.database import get_db
 from app.tr_depot import aktueller_snapshot
@@ -48,8 +48,10 @@ def _seite(
             konto=konto,
             angemeldet=tr_client.sitzung_vorhanden(),
             anmeldung_laeuft=tr_client.anmeldung_laeuft(),
+            wartet_auf_app=tr_client.anmeldeverfahren() == tr_client.VERFAHREN_V2,
             countdown=_offene_anmeldung.get("countdown"),
             pytr_verfuegbar=tr_client.pytr_verfuegbar(),
+            version=config.version(),
             sync_status=tr_sync.status(),
             verdachtsfaelle=verdachtsfaelle,
             fehler=fehler,
@@ -63,8 +65,31 @@ def _seite(
     )
 
 
+def _telefonnummer_merken(db: Session) -> None:
+    telefonnummer = _offene_anmeldung.pop("telefonnummer", None)
+    _offene_anmeldung.pop("countdown", None)
+    if not telefonnummer:
+        return
+    konto = db.query(TradeRepublicKonto).first()
+    if konto is None:
+        db.add(TradeRepublicKonto(telefonnummer=telefonnummer))
+    else:
+        konto.telefonnummer = telefonnummer
+    db.commit()
+
+
 @router.get("/trade-republic")
 def seite(request: Request, db: Session = Depends(get_db)):
+    """Wartet eine Anmeldung auf die Bestaetigung in der App, fragt jeder
+    Seitenaufruf einmal nach - die Seite laedt sich dafuer selbst nach."""
+    if tr_client.anmeldeverfahren() == tr_client.VERFAHREN_V2:
+        try:
+            if tr_client.bestaetigung_pruefen():
+                _telefonnummer_merken(db)
+                return redirect(request, "/trade-republic")
+        except tr_client.AnmeldungFehlgeschlagen as exc:
+            _offene_anmeldung.clear()
+            return _seite(request, db, fehler=str(exc))
     return _seite(request, db)
 
 
@@ -141,16 +166,7 @@ async def code(request: Request, db: Session = Depends(get_db)):
     except tr_client.AnmeldungFehlgeschlagen as exc:
         return _seite(request, db, fehler=str(exc), status_code=400)
 
-    telefonnummer = _offene_anmeldung.pop("telefonnummer", None)
-    _offene_anmeldung.pop("countdown", None)
-    if telefonnummer:
-        konto = db.query(TradeRepublicKonto).first()
-        if konto is None:
-            db.add(TradeRepublicKonto(telefonnummer=telefonnummer))
-        else:
-            konto.telefonnummer = telefonnummer
-        db.commit()
-
+    _telefonnummer_merken(db)
     return redirect(request, "/trade-republic")
 
 

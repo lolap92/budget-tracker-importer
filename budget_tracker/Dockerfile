@@ -31,6 +31,9 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /app/requirements.txt
 COPY app /app/app
 COPY alembic /app/alembic
 COPY alembic.ini /app/alembic.ini
+# Nur wegen der Versionsangabe: die App liest sie von hier, statt sie ein
+# zweites Mal im Quelltext zu fuehren (app/config.py: version()).
+COPY config.yaml /app/config.yaml
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 
