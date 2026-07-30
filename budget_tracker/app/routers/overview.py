@@ -94,6 +94,9 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             karten=karten,
             import_warnung=_import_warnung(watcher.status()),
             tr_warnung=_tr_warnung(db),
+            # Bewusst neben den Toepfen und nicht in ihrer Summe: der Depotwert
+            # ist kein Guthaben auf dem Cashkonto.
+            depot=aktueller_snapshot(db),
             offene_anzahl=len(review_liste(db)),
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
             stand_datum=neuestes_buchungsdatum(db),

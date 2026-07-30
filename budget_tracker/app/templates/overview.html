@@ -37,6 +37,25 @@
   {% endfor %}
 </div>
 
+{% if depot %}
+<div class="sec-t">Depot</div>
+<div class="card" style="padding:4px 16px;">
+  <a href="{{ base }}/depot" class="topf-row" style="color:inherit;">
+    <div class="who">
+      <span class="tdot faint"></span>
+      <div>
+        <div class="nm">Wertpapiere</div>
+        <div class="goal">Stand {{ depot.zeitpunkt.strftime('%d.%m.%Y %H:%M') }} UTC</div>
+      </div>
+    </div>
+    <div class="amt">{{ depot.gesamtwert | eur }}</div>
+  </a>
+</div>
+<p class="b-ref" style="font-style:normal;margin:6px 2px 0;">
+  Reine Information – der Depotwert zählt nicht zum Kontostand und in keinen Topf.
+</p>
+{% endif %}
+
 {% if offene_anzahl or umbuchungen_anzahl or import_warnung or tr_warnung %}
 <div class="sec-t">Zu tun</div>
 <div class="card" style="padding:4px 16px;">

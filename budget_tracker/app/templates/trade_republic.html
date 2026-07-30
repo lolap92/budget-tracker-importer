@@ -186,10 +186,16 @@
 <div class="sec-t">Zur Entscheidung ({{ verdachtsfaelle|length }})</div>
 <div class="card">
   <p class="b-ref" style="font-style:normal;margin-bottom:12px;">
-    Diese Bewegungen sehen aus wie bereits vorhandene Buchungen aus dem CSV-Import –
-    gleicher Betrag, fast gleicher Zeitpunkt, aber eine andere Transaktionsnummer.
-    Automatisch übernommen würden sie den Betrag doppelt zählen, automatisch verworfen
-    ginge er verloren, falls es doch zwei echte Zahlungen waren.
+    Diese Bewegungen sehen aus wie bereits vorhandene Buchungen – gleicher Betrag, fast
+    gleicher Zeitpunkt, aber eine andere Transaktionsnummer. Automatisch als eigene Buchung
+    übernommen würden sie den Betrag doppelt zählen, automatisch weggeworfen ginge er
+    verloren, falls es doch zwei echte Zahlungen waren.
+  </p>
+  <p class="b-ref" style="font-style:normal;margin-bottom:12px;">
+    <strong>Zusammenführen</strong> legt keine zweite Buchung an und ergänzt an der
+    vorhandenen, was dort fehlt – vor allem den Verwendungszweck, den nur die
+    Schnittstelle kennt. Bereits gepflegte Angaben und die Topf-Zuordnung bleiben
+    unverändert.
   </p>
   {% for v in verdachtsfaelle %}
   <div class="topf-row warn" style="display:block;">
@@ -208,8 +214,8 @@
     </div>
     <form method="post" action="{{ base }}/trade-republic/verdacht/{{ v.id }}"
           style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn-outline" type="submit" name="entscheidung" value="verwerfen">
-        Ist dieselbe Buchung – verwerfen
+      <button class="btn-outline" type="submit" name="entscheidung" value="zusammenfuehren">
+        Ist die gleiche Buchung – zusammenführen
       </button>
       <button class="btn-outline accent" type="submit" name="entscheidung" value="uebernehmen">
         Ist eine eigene Buchung – übernehmen

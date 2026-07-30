@@ -113,9 +113,9 @@ class TestAnmeldung:
 
 
 class TestEntscheidung:
-    def test_verwerfen_legt_keine_buchung_an(self, client, db, verdacht):
+    def test_zusammenfuehren_legt_keine_zweite_buchung_an(self, client, db, verdacht):
         antwort = client.post(
-            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "verwerfen"}
+            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "zusammenfuehren"}
         )
 
         assert antwort.status_code == 303
@@ -123,7 +123,7 @@ class TestEntscheidung:
         # Die Route arbeitet in einer eigenen Sitzung - erst nach expire_all
         # sieht die Test-Sitzung deren Aenderungen.
         db.expire_all()
-        assert db.query(ImportVerdacht).one().entscheidung == "verwerfen"
+        assert db.query(ImportVerdacht).one().entscheidung == "zusammenfuehren"
 
     def test_uebernehmen_legt_die_zweite_buchung_an(self, client, db, verdacht):
         client.post(
@@ -139,7 +139,7 @@ class TestEntscheidung:
 
     def test_ein_fall_wird_nur_einmal_entschieden(self, client, db, verdacht):
         client.post(
-            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "verwerfen"}
+            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "zusammenfuehren"}
         )
         antwort = client.post(
             f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "uebernehmen"}
@@ -149,13 +149,13 @@ class TestEntscheidung:
         assert db.query(Buchung).count() == 1
 
 
-class TestAngabenRetten:
-    """Beim Verwerfen darf der Verwendungszweck nicht mit verschwinden - er ist
-    genau das, was die Schnittstelle dem CSV-Export voraus hat."""
+class TestZusammenfuehren:
+    """Zusammenfuehren heisst: keine zweite Buchung, aber die Angaben der
+    Schnittstelle retten - vor allem den Verwendungszweck, den nur sie kennt."""
 
     def test_verwendungszweck_wandert_in_die_bestehende_buchung(self, client, db, verdacht):
         client.post(
-            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "verwerfen"}
+            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "zusammenfuehren"}
         )
 
         db.expire_all()
@@ -169,8 +169,20 @@ class TestAngabenRetten:
         db.commit()
 
         client.post(
-            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "verwerfen"}
+            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "zusammenfuehren"}
         )
 
         db.expire_all()
         assert db.query(Buchung).one().verwendungszweck == "vom Nutzer gepflegt"
+
+    def test_alte_beschriftung_wird_weiter_angenommen(self, client, db, verdacht):
+        """Eine Seite, die noch vor der Umbenennung geladen wurde, soll nicht
+        mit einem Fehler enden."""
+        antwort = client.post(
+            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "verwerfen"}
+        )
+
+        assert antwort.status_code == 303
+        db.expire_all()
+        assert db.query(Buchung).count() == 1
+        assert db.query(Buchung).one().verwendungszweck == "Haus Renovierung Anteil"

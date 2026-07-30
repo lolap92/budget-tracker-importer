@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.22.0 - 2026-07-30
+
+- **„Ist die gleiche Buchung – zusammenführen"** heißt der Knopf jetzt, der vorher „verwerfen" hieß. Seit 1.21.1 wird dabei nichts mehr weggeworfen: die vorhandene Buchung übernimmt, was ihr fehlt – vor allem den Verwendungszweck. Die alte Beschriftung beschrieb das Gegenteil dessen, was passiert. Der erklärende Text darüber sagt jetzt ausdrücklich, was Zusammenführen tut und was unangetastet bleibt. Eine Seite, die noch vor der Umbenennung geöffnet wurde, funktioniert weiter.
+- **Neu: Depot-Kachel auf der Startseite**, unter den vier Töpfen, mit Gesamtwert und Stand. Bewusst als eigener Abschnitt neben den Töpfen und nicht in ihrer Summe: der Depotwert ist kein Guthaben auf dem Cashkonto, fließt in keinen Topf-Saldo und in keine Prognose ein – die Kachel sagt das auch. Ohne abgerufenen Stand erscheint sie gar nicht.
+- Test-Suite auf 335 Tests.
+
 ## 1.21.1 - 2026-07-30
 
 Der erste echte Abgleich hat bestätigt, dass Datei-Export und Schnittstelle **unterschiedliche Transaktionsnummern** für dieselbe Bewegung vergeben. Daraus folgen zwei Korrekturen.

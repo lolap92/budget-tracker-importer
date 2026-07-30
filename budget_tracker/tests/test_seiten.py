@@ -192,3 +192,48 @@ class TestAnzeigekorrekturen:
 
         assert "Karteileichen" in text
         assert "wieder angelegt" in text
+
+
+class TestDepotAufDerStartseite:
+    """Neben den Toepfen, nicht in ihrer Summe: der Depotwert ist kein
+    Guthaben auf dem Cashkonto."""
+
+    def test_ohne_stand_keine_kachel(self, client, bewegungen):
+        assert "Wertpapiere" not in client.get("/").text
+
+    def test_mit_stand_erscheint_die_kachel(self, client, db, bewegungen):
+        from decimal import Decimal as D
+
+        from app.models import DepotSnapshot
+
+        db.add(
+            DepotSnapshot(
+                zeitpunkt=dt.datetime(2026, 7, 30, 7, 12),
+                cash=D("4812.30"),
+                gesamtwert=D("12430.18"),
+            )
+        )
+        db.commit()
+
+        text = client.get("/").text
+
+        assert "Wertpapiere" in text
+        assert "12.430,18" in text
+        assert "zählt nicht zum Kontostand" in text
+
+    def test_der_kontostand_bleibt_unberuehrt(self, client, db, bewegungen):
+        from decimal import Decimal as D
+
+        from app.models import DepotSnapshot
+
+        db.add(
+            DepotSnapshot(
+                zeitpunkt=dt.datetime(2026, 7, 30, 7, 12),
+                cash=D("4812.30"),
+                gesamtwert=D("12430.18"),
+            )
+        )
+        db.commit()
+
+        # 4x1000 Startsaldo - 450 - 800 - 60, unveraendert durch das Depot.
+        assert "2.690" in client.get("/").text

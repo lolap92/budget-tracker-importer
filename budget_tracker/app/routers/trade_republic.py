@@ -26,6 +26,10 @@ router = APIRouter()
 # SMS-Option. Bewusst fluechtig - ein Neustart bricht die Anmeldung ohnehin ab.
 _offene_anmeldung: dict = {}
 
+# Werte der Entscheidung ueber einen Verdachtsfall.
+ENTSCHEIDUNG_UEBERNEHMEN = "uebernehmen"
+ENTSCHEIDUNG_ZUSAMMENFUEHREN = "zusammenfuehren"
+
 
 def _seite(
     request: Request,
@@ -222,18 +226,22 @@ async def verdacht_entscheiden(
     verdacht_id: int, request: Request, db: Session = Depends(get_db)
 ):
     """Entweder ist es dieselbe Bewegung wie die bereits vorhandene Buchung -
-    dann wird sie verworfen - oder es sind zwei echte Zahlungen, dann wird sie
-    nachtraeglich uebernommen."""
+    dann werden beide zusammengefuehrt - oder es sind zwei echte Zahlungen,
+    dann wird sie nachtraeglich als eigene Buchung uebernommen."""
     verdacht = db.query(ImportVerdacht).filter(ImportVerdacht.id == verdacht_id).first()
     if verdacht is None or verdacht.entscheidung is not None:
         raise HTTPException(status_code=404, detail="Dieser Fall wurde bereits entschieden.")
 
     form = await request.form()
     entscheidung = form.get("entscheidung")
-    if entscheidung not in ("uebernehmen", "verwerfen"):
+    # "verwerfen" hiess das bis 1.21.1, als noch nichts uebernommen wurde -
+    # eine offene Seite aus der Zeit soll trotzdem funktionieren.
+    if entscheidung == "verwerfen":
+        entscheidung = ENTSCHEIDUNG_ZUSAMMENFUEHREN
+    if entscheidung not in (ENTSCHEIDUNG_UEBERNEHMEN, ENTSCHEIDUNG_ZUSAMMENFUEHREN):
         raise HTTPException(status_code=400, detail="Unbekannte Entscheidung.")
 
-    if entscheidung == "uebernehmen":
+    if entscheidung == ENTSCHEIDUNG_UEBERNEHMEN:
         uebernehmen(
             db,
             ImportKontext.laden(db),
