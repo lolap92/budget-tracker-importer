@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.27.0 - 2026-07-30
+
+- **Der Verwendungszweck wird jetzt im ganzen Detail gesucht**, nicht mehr nur im Abschnitt „Übersicht". Trade Republic hat mit dem Girokonto neue Ereignistypen eingeführt (`BANK_TRANSACTION_INCOMING`/`_OUTGOING`), die ihre Angaben anders aufteilen – bei denen blieb das Feld leer, obwohl es in der App und im Transaktions-PDF zu sehen ist. Der verlässliche Anker ist die Beschriftung, nicht der Abschnitt, in dem sie steht. Zusätzlich akzeptiert werden „Zahlungsreferenz", „Betreff", „Nachricht", „Kommentar" und „Note".
+- **Findet sich trotzdem keiner, notiert das Protokoll die vorhandenen Feld-Beschriftungen** – ausschließlich die Beschriftungen, nie deren Inhalt. Ohne das ließe sich ein unbekannt benanntes Feld nur finden, indem man den kompletten Datensatz protokolliert, und darin stünden Beträge, Namen und IBANs.
+- Die neuen Ereignistypen werden auf die Typ-Bezeichnungen des CSV-Exports übersetzt (`TRANSFER_INBOUND`/`TRANSFER_OUTBOUND`) statt roh angezeigt.
+- **Die Buchungs-Detailseite zeigt den Verwendungszweck** – die Zeile fehlte dort schlicht.
+- **Fehlerbehebung: die Detailseite behauptete bei jeder Buchung „CSV-Import".** Der Text war fest verdrahtet und älter als die Spalte `quelle`; Buchungen aus der Schnittstelle wurden dadurch falsch ausgewiesen. Jetzt steht dort, woher die Buchung wirklich stammt.
+- Test-Suite auf 390 Tests.
+
 ## 1.26.1 - 2026-07-30
 
 - **Invarianten-Tests für den Forecast.** Die bisherigen Tests prüften einzelne Verhaltensweisen; diese prüfen die Eigenschaft, die immer gelten muss: *für jede Regel ist die Menge der offenen, unveränderten Vorkommen genau die Menge der Termine, die die Regel erzeugt – keiner doppelt, keiner fehlt.* Beide bisherigen Forecast-Fehler waren Verletzungen genau dieser Aussage (1.15.0 ein fehlender Termin, 1.26.0 ein doppelter) und wären damit aufgefallen, ohne dass man sie vorher kennen muss.

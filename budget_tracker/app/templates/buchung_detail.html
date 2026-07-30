@@ -22,10 +22,15 @@
   <div class="meta-row"><span class="k">Typ</span><span class="v">{{ b.typ }}</span></div>
   <div class="meta-row"><span class="k">Empfänger</span><span class="v">{{ b.empfaenger_name or '–' }}</span></div>
   <div class="meta-row"><span class="k">IBAN</span><span class="v">{{ b.empfaenger_iban or '–' }}</span></div>
+  <div class="meta-row"><span class="k">Verwendungszweck</span><span class="v">{{ b.verwendungszweck or '–' }}</span></div>
   <div class="meta-row"><span class="k">Beschreibung</span><span class="v">{{ b.beschreibung or '–' }}</span></div>
   <div class="meta-row">
     <span class="k">Herkunft</span>
-    <span class="v">{% if b | ist_manuell %}<span class="chip offen">manuell erfasst</span>{% else %}CSV-Import{% endif %}</span>
+    <span class="v">
+      {%- if b | ist_manuell %}<span class="chip offen">manuell erfasst</span>
+      {%- elif b.quelle == 'api' %}Trade Republic (Schnittstelle)
+      {%- else %}CSV-Import{% endif %}
+    </span>
   </div>
   <div class="meta-row"><span class="k">Transaction-ID</span><span class="v" style="font-family:var(--font-mono);font-size:11.5px;">{{ b.transaction_id }}</span></div>
   <div class="meta-row"><span class="k">Importiert</span><span class="v">{{ b.importiert_am.strftime('%d.%m.%Y %H:%M') }} UTC</span></div>

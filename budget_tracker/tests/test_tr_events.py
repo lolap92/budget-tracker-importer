@@ -169,3 +169,92 @@ class TestZusammenspielMitDemImport:
         assert uebernehmen(db, kontext, quelle=QUELLE_API, **zeile) == NEU
         assert uebernehmen(db, kontext, quelle=QUELLE_API, **zeile) == DUPLIKAT
         assert db.query(Buchung).count() == 1
+
+
+class TestReferenzAusserhalbDerUebersicht:
+    """Mit dem Girokonto hat Trade Republic neue Ereignistypen eingefuehrt
+    (BANK_TRANSACTION_*), die ihre Angaben anders aufteilen. Bis 1.26.1 wurde
+    nur der Abschnitt "Übersicht" durchsucht - der Verwendungszweck fehlte
+    dann, obwohl er im Detail steht."""
+
+    @staticmethod
+    def _mit_sektionen(sektionen):
+        return {
+            "id": "019f-neu",
+            "timestamp": "2026-07-30T15:42:00.000+0000",
+            "title": "Max Mustermann",
+            "subtitle": "Gesendet",
+            "status": "EXECUTED",
+            "amount": {"currency": "EUR", "value": -0.01},
+            "eventType": "BANK_TRANSACTION_OUTGOING",
+            "details": {"sections": sektionen},
+        }
+
+    def test_referenz_in_einem_anderen_abschnitt(self):
+        event = self._mit_sektionen(
+            [
+                {"title": "Du hast 0,01 € gesendet", "type": "header", "data": {}},
+                {
+                    "title": "Übersicht",
+                    "type": "table",
+                    "data": [{"title": "Status", "detail": {"text": "Ausgeführt"}}],
+                },
+                {
+                    "title": "Transaktion",
+                    "type": "table",
+                    "data": [
+                        {"title": "Verwendungszweck", "detail": {"text": "Miete August"}}
+                    ],
+                },
+            ]
+        )
+
+        assert zeile_aus_event(event)["verwendungszweck"] == "Miete August"
+
+    def test_die_uebersicht_hat_vorrang(self):
+        event = self._mit_sektionen(
+            [
+                {
+                    "title": "Übersicht",
+                    "type": "table",
+                    "data": [{"title": "Referenz", "detail": {"text": "aus der Übersicht"}}],
+                },
+                {
+                    "title": "Transaktion",
+                    "type": "table",
+                    "data": [{"title": "Betreff", "detail": {"text": "woanders"}}],
+                },
+            ]
+        )
+
+        assert zeile_aus_event(event)["verwendungszweck"] == "aus der Übersicht"
+
+    def test_neuer_typ_wird_uebersetzt(self):
+        event = self._mit_sektionen([])
+
+        assert zeile_aus_event(event)["typ"] == "TRANSFER_OUTBOUND"
+
+    def test_ohne_referenz_werden_die_beschriftungen_protokolliert(self, caplog):
+        """Damit sich ein unbekannt benanntes Feld finden laesst, ohne den
+        kompletten Datensatz mit Betraegen und IBANs zu protokollieren."""
+        event = self._mit_sektionen(
+            [
+                {
+                    "title": "Übersicht",
+                    "type": "table",
+                    "data": [
+                        {"title": "Status", "detail": {"text": "Ausgeführt"}},
+                        {"title": "Geheimfeld", "detail": {"text": "Streng geheim"}},
+                    ],
+                }
+            ]
+        )
+
+        with caplog.at_level("INFO", logger="budget_tracker.tr_events"):
+            assert zeile_aus_event(event)["verwendungszweck"] is None
+
+        protokoll = caplog.text
+        assert "BANK_TRANSACTION_OUTGOING" in protokoll
+        assert "Geheimfeld" in protokoll
+        # Nur die Beschriftungen, nie deren Inhalt.
+        assert "Streng geheim" not in protokoll

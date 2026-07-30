@@ -38,7 +38,17 @@ UEBERSICHT = ("Übersicht", "Overview")
 ABSENDER = ("Absender", "Sender")
 EMPFAENGER = ("Empfänger", "Empfaenger", "Recipient")
 
-REFERENZ_LABELS = ("Referenz", "Verwendungszweck", "Reference")
+REFERENZ_LABELS = (
+    "Referenz",
+    "Verwendungszweck",
+    "Reference",
+    "Zahlungsreferenz",
+    "Payment reference",
+    "Betreff",
+    "Nachricht",
+    "Kommentar",
+    "Note",
+)
 NAME_LABELS = ("Name", "Empfänger", "Absender", "Von", "An", "Händler", "Merchant")
 IBAN_LABELS = ("IBAN",)
 
@@ -58,6 +68,9 @@ TYP_MAPPING = {
     "OUTGOING_TRANSFER": "TRANSFER_OUTBOUND",
     "OUTGOING_TRANSFER_DELEGATION": "TRANSFER_OUTBOUND",
     "PAYMENT_OUTBOUND": "TRANSFER_OUTBOUND",
+    # Seit dem Girokonto benennt Trade Republic Ueberweisungen neu.
+    "BANK_TRANSACTION_INCOMING": "TRANSFER_INBOUND",
+    "BANK_TRANSACTION_OUTGOING": "TRANSFER_OUTBOUND",
     "INTEREST_PAYOUT": "INTEREST_PAYMENT",
     "INTEREST_PAYOUT_CREATED": "INTEREST_PAYMENT",
     "card_successful_transaction": "CARD_PAYMENT",
@@ -85,7 +98,7 @@ NICHT_AUSGEFUEHRT = {"canceled", "cancelled", "rejected", "failed"}
 
 
 def _sektion(event: dict[str, Any], titel: tuple[str, ...]) -> dict[str, Any] | None:
-    for sektion in event.get("details", {}).get("sections", []) or []:
+    for sektion in _sektionen(event):
         if sektion.get("title") in titel:
             return sektion
     return None
@@ -109,6 +122,63 @@ def _feld(sektion: dict[str, Any] | None, labels: tuple[str, ...]) -> str | None
             if isinstance(text, str) and text.strip():
                 return text.strip()
     return None
+
+
+def _sektionen(event: dict[str, Any]) -> list[dict[str, Any]]:
+    return event.get("details", {}).get("sections", []) or []
+
+
+def _referenz(event: dict[str, Any]) -> str | None:
+    """Der Verwendungszweck - erst in der Uebersicht, dann ueberall sonst.
+
+    Bis 1.26.1 wurde ausschliesslich der Abschnitt "Uebersicht" durchsucht.
+    Das genuegte fuer die Ereignistypen, die es damals gab; mit dem Girokonto
+    hat Trade Republic neue eingefuehrt (BANK_TRANSACTION_*), die ihre Angaben
+    anders aufteilen. Die Beschriftung ist der verlaessliche Anker, nicht der
+    Abschnitt, in dem sie steht.
+    """
+    uebersicht = _sektion(event, UEBERSICHT)
+    treffer = _feld(uebersicht, REFERENZ_LABELS)
+    if treffer:
+        return treffer
+
+    for sektion in _sektionen(event):
+        if sektion.get("title") in UEBERSICHT:
+            continue
+        treffer = _feld(sektion, REFERENZ_LABELS)
+        if treffer:
+            return treffer
+
+    _beschriftungen_protokollieren(event)
+    return None
+
+
+def _beschriftungen_protokollieren(event: dict[str, Any]) -> None:
+    """Haelt fest, welche Felder ein Event *stattdessen* mitbringt.
+
+    Ohne das laesst sich ein unbekannt benanntes Feld nicht finden, ohne den
+    kompletten Datensatz zu protokollieren - und darin stuenden Betraege,
+    Namen und IBANs. Notiert werden ausschliesslich die Beschriftungen, nie
+    deren Inhalt.
+    """
+    if not _sektionen(event):
+        return
+
+    beschreibung = []
+    for sektion in _sektionen(event):
+        daten = sektion.get("data")
+        felder = (
+            [str(e.get("title")) for e in daten if isinstance(e, dict) and e.get("title")]
+            if isinstance(daten, list)
+            else []
+        )
+        beschreibung.append(f"{sektion.get('title')!r}: {', '.join(felder) or '-'}")
+
+    logger.info(
+        "Kein Verwendungszweck in Event vom Typ %s gefunden. Vorhandene Felder: %s",
+        event.get("eventType"),
+        " | ".join(beschreibung),
+    )
 
 
 def _datum(zeitstempel: str) -> dt.date | None:
@@ -158,7 +228,7 @@ def _beschreibung(event: dict[str, Any]) -> str | None:
     """Der Kopf des Details ist der sprechendste Text, den TR liefert
     ("Du hast 88,04 € von Klaus Mustermann erhalten") und entspricht dem, was
     der CSV-Export in `description` schreibt. Sonst der Untertitel."""
-    for sektion in event.get("details", {}).get("sections", []) or []:
+    for sektion in _sektionen(event):
         if sektion.get("type") == "header" and (sektion.get("title") or "").strip():
             return sektion["title"].strip()
     untertitel = (event.get("subtitle") or "").strip()
@@ -199,7 +269,7 @@ def zeile_aus_event(event: dict[str, Any]) -> dict[str, Any] | None:
         "datum": datum,
         "betrag": betrag,
         "typ": TYP_MAPPING.get(event_typ, event_typ),
-        "verwendungszweck": _feld(_sektion(event, UEBERSICHT), REFERENZ_LABELS),
+        "verwendungszweck": _referenz(event),
         "empfaenger_name": name or (event.get("title") or "").strip() or None,
         "empfaenger_iban": iban,
         "beschreibung": _beschreibung(event),
