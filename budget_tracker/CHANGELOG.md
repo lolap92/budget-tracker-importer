@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.19.3 - 2026-07-30
+
+- **Das Feld für den Schutz-Token ist jetzt sichtbar.** Es steckte in einem aufklappbaren Bereich, der sich in der Home-Assistant-App auf dem Handy nicht öffnen ließ – die eine Eingabe, die den Bot-Schutz umgeht, war damit unerreichbar. Es ist jetzt ein gewöhnliches, optionales Feld.
+- **Anleitung für PC und Handy** steht direkt unter dem Formular, inklusive eines Lesezeichen-Schnipsels für Mobilgeräte, wo es keine Entwicklerwerkzeuge gibt.
+- **Hinweis auf das Netz:** Der Token sollte von einem Gerät im selben Netz wie Home Assistant stammen – Trade Republic kann ihn sonst wegen der abweichenden Herkunft ebenfalls ablehnen.
+
 ## 1.19.2 - 2026-07-30
 
 - **HTTP 405 bei der Anmeldung wird erklärt.** Trade Republic verschickt auf diesem Pfad selbst kein 405. Der Status entsteht unterwegs: die Anfrage wird umgeleitet, `requests` folgt der Umleitung und macht dabei aus dem POST ein GET, das der Zielpfad nicht kennt. Umgeleitet wird zur Bot-Schutz-Prüfung – mit Telefonnummer und PIN hat das nichts zu tun. Die Meldung sagt das jetzt und verweist auf das Feld für den Token aus dem Browser.

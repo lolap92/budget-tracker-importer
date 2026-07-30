@@ -79,26 +79,39 @@
       PIN
       <input type="password" name="pin" inputmode="numeric" autocomplete="off" required>
     </label>
-    <details style="margin-top:-2px;">
-      <summary class="b-ref" style="font-style:normal;cursor:pointer;">
-        Schutz-Token aus dem Browser hinterlegen (nur nötig, wenn die Anmeldung mit
-        „Bot-Schutz" abgewiesen wird)
-      </summary>
-      <label style="margin-top:8px;">
-        aws-waf-token
-        <input type="text" name="waf_token" autocomplete="off" placeholder="leer lassen">
-      </label>
-      <p class="b-ref" style="font-style:normal;margin-top:6px;">
-        Trade Republic schützt die Anmeldung mit einem Amazon-Bot-Schutz. Das Add-on löst
-        ihn selbst; klappt das nicht, hilft der Token aus einer Browser-Sitzung:
-        <code>app.traderepublic.com</code> öffnen, Entwicklerwerkzeuge (F12) →
-        <em>Application</em> bzw. <em>Speicher</em> → <em>Cookies</em> → Wert von
-        <code>aws-waf-token</code> kopieren. Er gilt nur etwa eine Stunde – für die
-        Anmeldung genügt das, danach trägt die Sitzung selbst.
-      </p>
-    </details>
+    <label>
+      Schutz-Token (optional)
+      <input type="text" name="waf_token" autocomplete="off"
+             placeholder="leer lassen – wird sonst automatisch geholt">
+    </label>
     <button class="btn" type="submit">Anmelden</button>
   </form>
+  <p class="b-ref" style="font-style:normal;margin-top:10px;">
+    <strong>Zum Schutz-Token:</strong> Trade Republic sichert die Anmeldung mit einem
+    Amazon-Bot-Schutz ab. Das Add-on löst ihn selbst – wird die Anmeldung trotzdem
+    „umgeleitet und abgewiesen" (HTTP&nbsp;405 oder 403), hilft ein Token aus einer echten
+    Browser-Sitzung. <strong>Am besten von einem Gerät im selben Netz wie Home Assistant</strong>,
+    sonst kann Trade Republic ihn wegen der abweichenden Herkunft ebenfalls ablehnen.
+  </p>
+  <p class="b-ref" style="font-style:normal;margin-top:6px;">
+    <strong>Am PC:</strong> <code>app.traderepublic.com</code> öffnen und anmelden → F12 →
+    <em>Application</em> bzw. <em>Speicher</em> → <em>Cookies</em> → Wert von
+    <code>aws-waf-token</code> kopieren.
+  </p>
+  <p class="b-ref" style="font-style:normal;margin-top:6px;">
+    <strong>Am Handy</strong> (ohne Entwicklerwerkzeuge): ein Lesezeichen mit dieser Adresse
+    anlegen, danach <code>app.traderepublic.com</code> öffnen, anmelden und das Lesezeichen
+    über die Adressleiste aufrufen – der Token erscheint in einem Dialog zum Kopieren.
+  </p>
+  <p style="font-family:var(--font-mono);font-size:10.5px;word-break:break-all;
+            background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+            padding:8px;margin-top:6px;color:var(--ink-soft);">
+    javascript:(function(){var m=document.cookie.match(/aws-waf-token=([^;]+)/);prompt('aws-waf-token',m?m[1]:'nicht gefunden – Cookie fuer Skripte gesperrt');})()
+  </p>
+  <p class="b-ref" style="font-style:normal;margin-top:6px;">
+    Der Token gilt nur etwa eine Stunde. Für die Anmeldung genügt das – danach trägt die
+    Sitzung selbst, und er wird erst wieder gebraucht, wenn sie abläuft.
+  </p>
   <p class="b-ref" style="font-style:normal;margin-top:8px;">
     Die Nummer darf auch als <code>015112345678</code> eingegeben werden, Leerzeichen und
     Bindestriche stören nicht.
