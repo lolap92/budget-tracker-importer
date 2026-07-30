@@ -278,3 +278,47 @@ class TestKontostandHinweis:
         self._snapshot(db, "2601.96", zeitpunkt=dt.datetime(2020, 1, 1))
 
         assert "Abweichung zu Trade Republic" not in client.get("/").text
+
+
+class TestTitelVorbefuellung:
+    """Beim Zuweisen ist der Verwendungszweck der naheliegende Titel - er ist
+    genau der Text, den man sonst abtippen wuerde. Ungetestet stand die
+    Vorbefuellung nur in zwei Templates und waere bei der naechsten Aenderung
+    still verschwunden."""
+
+    def test_zuordnen_seite_schlaegt_den_verwendungszweck_vor(self, client, bewegungen):
+        text = client.get("/zuordnen").text
+
+        assert 'value="REWE"' in text
+
+    def test_detailseite_schlaegt_den_verwendungszweck_vor(self, client, db, bewegungen):
+        b = db.query(Buchung).filter(Buchung.transaction_id == "offen").one()
+
+        text = client.get(f"/buchungen/{b.id}").text
+
+        assert 'value="REWE"' in text
+
+    def test_ein_vorhandener_titel_hat_vorrang(self, client, db, bewegungen):
+        """Wurde die Buchung schon benannt, gewinnt der Name - sonst
+        ueberschriebe der Vorschlag die eigene Wahl."""
+        b = db.query(Buchung).filter(Buchung.transaction_id == "offen").one()
+        b.titel = "Wocheneinkauf"
+        db.commit()
+
+        text = client.get(f"/buchungen/{b.id}").text
+
+        assert 'value="Wocheneinkauf"' in text
+
+    def test_ohne_verwendungszweck_bleibt_das_feld_leer(self, client, db, bewegungen):
+        """Kein Ersatz aus Beschreibung oder Empfaenger: bei Buchungen aus der
+        Schnittstelle waere das "Du hast 0,01 € an ... gesendet" - als Titel
+        unbrauchbar und schlechter als ein leeres Feld mit Platzhalter."""
+        b = db.query(Buchung).filter(Buchung.transaction_id == "offen").one()
+        b.verwendungszweck = None
+        b.beschreibung = "Du hast 0,01 € an Max Mustermann gesendet"
+        db.commit()
+
+        text = client.get(f"/buchungen/{b.id}").text
+
+        assert 'value=""' in text
+        assert "Du hast 0,01" not in text.split("Topf zuweisen")[1]
