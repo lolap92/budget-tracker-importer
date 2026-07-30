@@ -56,9 +56,21 @@
 </p>
 {% endif %}
 
-{% if offene_anzahl or umbuchungen_anzahl or import_warnung or tr_warnung %}
+{% if offene_anzahl or umbuchungen_anzahl or import_warnung or tr_warnung or kontostand_hinweis %}
 <div class="sec-t">Zu tun</div>
 <div class="card" style="padding:4px 16px;">
+  {% if kontostand_hinweis %}
+  <a href="{{ base }}/depot" class="topf-row" style="color:inherit;">
+    <div class="who">
+      <span class="tdot warn"></span>
+      <div>
+        <div class="nm">{{ kontostand_hinweis }}</div>
+        <div class="goal">Startsaldo, fehlende oder doppelte Buchung – siehe Depot</div>
+      </div>
+    </div>
+    <div class="todo-amt" style="color:var(--warn);">ansehen</div>
+  </a>
+  {% endif %}
   {% if import_warnung %}
   <a href="{{ base }}/mehr" class="topf-row" style="color:inherit;">
     <div class="who"><span class="tdot warn"></span><div class="nm">{{ import_warnung }}</div></div>

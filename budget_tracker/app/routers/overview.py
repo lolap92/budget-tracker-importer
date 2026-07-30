@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import tr_client, tr_sync, watcher
@@ -14,9 +15,9 @@ from app.calculations import (
     sondertilgung_status,
 )
 from app.database import get_db
-from app.models import ImportVerdacht, Topf, TradeRepublicKonto
+from app.models import Buchung, ImportVerdacht, Topf, TradeRepublicKonto
 from app.tr_depot import aktueller_snapshot
-from app.webutils import ctx, templates
+from app.webutils import ctx, eur, templates
 
 router = APIRouter()
 
@@ -60,6 +61,35 @@ def _tr_warnung(db: Session) -> str | None:
     return None
 
 
+def _kontostand_hinweis(db: Session) -> str | None:
+    """Weicht der berechnete Kontostand vom echten ab, stimmt etwas nicht.
+
+    Die App rechnet Startsalden plus alle Buchungen seit dem Startdatum -
+    dasselbe, was Trade Republic auch tut. Beide Zahlen muessen auf den Cent
+    uebereinstimmen. Bewusst kein Eintrag in der Zuordnen-Liste: eine
+    Abweichung ist keine Buchung, es gibt nichts zuzuordnen, und dieselbe Zahl
+    kann drei Ursachen haben (falscher Startsaldo, fehlende oder doppelte
+    Buchung). Deshalb ein Hinweis mit Verweis auf die Depot-Seite, wo die
+    Deutung steht - keine Aufgabe mit Knopf.
+    """
+    snapshot = aktueller_snapshot(db)
+    if snapshot is None:
+        return None
+
+    # Ist seit dem Depotstand noch eine Buchung hereingekommen, vergleicht man
+    # zwei Zeitpunkte miteinander - die Differenz waere dann nur veraltet.
+    # Genau das passiert, wenn die Sitzung abgelaufen ist und der Datei-Import
+    # weiterlaeuft.
+    juengste = db.query(func.max(Buchung.importiert_am)).scalar()
+    if juengste is not None and juengste > snapshot.zeitpunkt:
+        return None
+
+    abweichung = Decimal(snapshot.cash) - kontostand_gesamt(db)
+    if abweichung == 0:
+        return None
+    return f"Kontostand: {eur(abs(abweichung))} Abweichung zu Trade Republic"
+
+
 @router.get("/")
 def uebersicht(request: Request, db: Session = Depends(get_db)):
     toepfe = db.query(Topf).order_by(Topf.reihenfolge).all()
@@ -94,6 +124,7 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             karten=karten,
             import_warnung=_import_warnung(watcher.status()),
             tr_warnung=_tr_warnung(db),
+            kontostand_hinweis=_kontostand_hinweis(db),
             # Bewusst neben den Toepfen und nicht in ihrer Summe: der Depotwert
             # ist kein Guthaben auf dem Cashkonto.
             depot=aktueller_snapshot(db),

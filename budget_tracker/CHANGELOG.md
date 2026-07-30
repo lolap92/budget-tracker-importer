@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.24.0 - 2026-07-30
+
+- **Neu: Weicht der berechnete Kontostand vom echten ab, steht das auf der Startseite** unter „Zu tun", mit Verweis auf die Depot-Seite. Die App rechnet Startsalden plus alle Buchungen seit dem Startdatum – dasselbe, was Trade Republic auch tut; beide Zahlen müssen auf den Cent übereinstimmen. Bisher war die Abweichung nur zu sehen, wenn man die Depot-Seite aufrief.
+- Bewusst **kein** Eintrag in der Zuordnen-Liste: eine Abweichung ist keine Buchung, es gibt nichts zuzuordnen, und dieselbe Zahl kann drei Ursachen haben – ein falscher Topf-Startsaldo (konstante Differenz), eine fehlende oder doppelt erfasste Buchung (wachsende Differenz) oder eine reservierte, noch nicht verbuchte Kartenzahlung (verschwindet beim nächsten Abgleich). Deshalb ein Hinweis mit Erklärung statt einer Aufgabe mit Knopf.
+- **Kein Fehlalarm bei veraltetem Stand:** Kam nach dem letzten Depotstand noch eine Buchung herein, wird nichts gemeldet – sonst würden zwei verschiedene Zeitpunkte verglichen. Genau das passierte sonst, wenn die Sitzung abgelaufen ist und der Datei-Import weiterläuft.
+- Test-Suite auf 344 Tests.
+
 ## 1.23.0 - 2026-07-30
 
 - **Der Abgleich-Turnus ist einstellbar** – Add-on-Option `tr_sync_intervall_stunden`, **voreingestellt bleiben sechs Stunden** wie bisher. `0` schaltet den automatischen Abgleich ab; dann holt ausschließlich „Jetzt abgleichen". Die Trade-Republic-Seite zeigt an, was gerade gilt.

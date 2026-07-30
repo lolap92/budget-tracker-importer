@@ -237,3 +237,44 @@ class TestDepotAufDerStartseite:
 
         # 4x1000 Startsaldo - 450 - 800 - 60, unveraendert durch das Depot.
         assert "2.690" in client.get("/").text
+
+
+class TestKontostandHinweis:
+    """Der berechnete Kontostand muss auf den Cent zum echten passen. Tut er
+    das nicht, gehoert das auf die Startseite - aber als Hinweis, nicht als
+    Aufgabe: eine Abweichung ist keine Buchung, die sich zuordnen liesse."""
+
+    @staticmethod
+    def _snapshot(db, cash, zeitpunkt=dt.datetime(2027, 1, 1)):
+        from decimal import Decimal as D
+
+        from app.models import DepotSnapshot
+
+        db.query(DepotSnapshot).delete()
+        db.add(DepotSnapshot(zeitpunkt=zeitpunkt, cash=D(cash), gesamtwert=D("0")))
+        db.commit()
+
+    def test_ohne_depotstand_keine_meldung(self, client, bewegungen):
+        assert "Abweichung zu Trade Republic" not in client.get("/").text
+
+    def test_uebereinstimmung_meldet_nichts(self, client, db, bewegungen):
+        # 4x1000 Startsaldo - 450 - 800 - 60 = 2690
+        self._snapshot(db, "2690.00")
+
+        assert "Abweichung zu Trade Republic" not in client.get("/").text
+
+    def test_abweichung_erscheint_unter_zu_tun(self, client, db, bewegungen):
+        self._snapshot(db, "2601.96")
+
+        text = client.get("/").text
+
+        assert "Kontostand: 88,04 € Abweichung zu Trade Republic" in text
+        assert "Startsaldo, fehlende oder doppelte Buchung" in text
+
+    def test_veralteter_depotstand_meldet_nichts(self, client, db, bewegungen):
+        """Kam nach dem Depotstand noch eine Buchung herein, vergleicht man
+        zwei Zeitpunkte - die Differenz waere nur veraltet. Genau das passiert,
+        wenn die Sitzung abgelaufen ist und der Datei-Import weiterlaeuft."""
+        self._snapshot(db, "2601.96", zeitpunkt=dt.datetime(2020, 1, 1))
+
+        assert "Abweichung zu Trade Republic" not in client.get("/").text
