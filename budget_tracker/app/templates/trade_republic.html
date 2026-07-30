@@ -73,15 +73,35 @@
     <label>
       Telefonnummer
       <input type="tel" name="telefonnummer" required placeholder="+4915112345678"
-             value="{{ konto.telefonnummer if konto else '' }}">
+             value="{{ telefonnummer or '' }}">
     </label>
     <label>
       PIN
       <input type="password" name="pin" inputmode="numeric" autocomplete="off" required>
     </label>
+    <details style="margin-top:-2px;">
+      <summary class="b-ref" style="font-style:normal;cursor:pointer;">
+        Schutz-Token aus dem Browser hinterlegen (nur nötig, wenn die Anmeldung mit
+        „Bot-Schutz" abgewiesen wird)
+      </summary>
+      <label style="margin-top:8px;">
+        aws-waf-token
+        <input type="text" name="waf_token" autocomplete="off" placeholder="leer lassen">
+      </label>
+      <p class="b-ref" style="font-style:normal;margin-top:6px;">
+        Trade Republic schützt die Anmeldung mit einem Amazon-Bot-Schutz. Das Add-on löst
+        ihn selbst; klappt das nicht, hilft der Token aus einer Browser-Sitzung:
+        <code>app.traderepublic.com</code> öffnen, Entwicklerwerkzeuge (F12) →
+        <em>Application</em> bzw. <em>Speicher</em> → <em>Cookies</em> → Wert von
+        <code>aws-waf-token</code> kopieren. Er gilt nur etwa eine Stunde – für die
+        Anmeldung genügt das, danach trägt die Sitzung selbst.
+      </p>
+    </details>
     <button class="btn" type="submit">Anmelden</button>
   </form>
   <p class="b-ref" style="font-style:normal;margin-top:8px;">
+    Die Nummer darf auch als <code>015112345678</code> eingegeben werden, Leerzeichen und
+    Bindestriche stören nicht.
     Die PIN wird nur für diesen Anmeldevorgang benutzt und <strong>nirgends gespeichert</strong> –
     weder in der Datenbank noch in einer Datei. Erhalten bleibt allein die Sitzung.
     Läuft sie nach einigen Wochen ab, ist die Eingabe erneut nötig; ein vollautomatischer

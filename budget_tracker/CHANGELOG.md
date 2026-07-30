@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.19.1 - 2026-07-30
+
+Fehlersuche bei der Trade-Republic-Anmeldung – die bisherige Meldung war unbrauchbar.
+
+- **Die Anmeldung sagt jetzt, woran sie gescheitert ist.** Bisher endete *jeder* Fehlschlag in „Anmeldung konnte nicht gestartet werden. Stimmen Telefonnummer und PIN?" – auch dann, wenn Trade Republic die Anfrage gar nicht erst angesehen hatte. Unterschieden werden jetzt: abgelehnte Zugangsdaten (HTTP 401), Abweisung durch den Amazon-Bot-Schutz (403, hat mit PIN und Nummer nichts zu tun), zu viele Versuche (429), Fehlermeldungen von Trade Republic selbst und Netzfehler. Der vollständige Hergang steht mit Statuscode im Add-on-Protokoll.
+- **Die Telefonnummer wird normalisiert.** `015112345678`, `+49 151 1234 5678`, `0049...` und Schreibweisen mit Bindestrichen oder Klammern führen jetzt alle zur selben Nummer. Vorher wurde alles außer der exakten `+49…`-Form von Trade Republic abgelehnt – ununterscheidbar von einer falschen PIN.
+- **Der Bot-Schutz-Token lässt sich von Hand hinterlegen.** Das Add-on löst ihn selbst, ohne Browser. Scheitert das, kann der `aws-waf-token`-Cookie aus einer Browser-Sitzung eingetragen werden; ein aufklappbarer Bereich im Anmeldeformular erklärt, wo er steht. Scheitert die automatische Ermittlung, wird der Versuch trotzdem unternommen – erst die Antwort zeigt, ob der Token überhaupt nötig war.
+- **Die eingetippte Nummer bleibt nach einem Fehlschlag im Formular stehen**, statt für den nächsten Versuch erneut getippt werden zu müssen.
+- Fehlt `pytr`, erscheint eine Meldung statt eines Serverfehlers.
+- Der Logger von `pytr` wird fest auf INFO gesetzt. Er steht intern auf DEBUG und würde dort vollständige Antworten protokollieren – darunter die Anmeldedaten. Dass das bisher nicht sichtbar wurde, lag allein an seiner Handler-Einstellung.
+- Test-Suite auf 293 Tests.
+
 ## 1.19.0 - 2026-07-30
 
 - **Neu: Depotstand** unter „Mehr → Depot". Jeder Abgleich mit Trade Republic holt in derselben Verbindung die Positionen mit Stückzahl, Kurs, Einstand und Wert sowie den Cash-Bestand mit. Bewusst eine eigene Seite und nicht die Startseite: der Depotwert ist weder ein Topf noch Teil des Kontostands und **fließt in keine Berechnung ein**. Scheitert der Abruf, bleiben die Buchungen davon unberührt – sie sind das Wesentliche.

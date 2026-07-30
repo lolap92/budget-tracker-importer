@@ -78,11 +78,32 @@ class TestSeite:
 class TestAnmeldung:
     def test_unvollstaendige_eingabe_wird_abgelehnt(self, client):
         antwort = client.post(
-            "/trade-republic/anmelden", data={"telefonnummer": "015112345678", "pin": "1234"}
+            "/trade-republic/anmelden", data={"telefonnummer": "0151", "pin": ""}
         )
 
         assert antwort.status_code == 400
-        assert "+4915112345678" in antwort.text
+        assert "werden benötigt" in antwort.text
+
+    def test_eingetippte_nummer_bleibt_im_formular(self, client):
+        """Sie noch einmal zu tippen ist die haerteste Art, einen Tippfehler zu
+        wiederholen."""
+        antwort = client.post(
+            "/trade-republic/anmelden", data={"telefonnummer": "0151 1234", "pin": ""}
+        )
+
+        assert 'value="0151 1234"' in antwort.text
+
+    def test_ohne_pytr_kein_serverfehler(self, client, monkeypatch):
+        """Fehlt die Bibliothek, muss eine Meldung erscheinen - kein 500er."""
+        monkeypatch.setattr("app.tr_client.pytr_verfuegbar", lambda: False)
+
+        antwort = client.post(
+            "/trade-republic/anmelden",
+            data={"telefonnummer": "015112345678", "pin": "1234"},
+        )
+
+        assert antwort.status_code == 400
+        assert "pytr" in antwort.text
 
     def test_code_ohne_laufende_anmeldung(self, client):
         antwort = client.post("/trade-republic/code", data={"code": "1234"})

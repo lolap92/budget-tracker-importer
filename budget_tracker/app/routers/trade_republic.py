@@ -27,7 +27,13 @@ router = APIRouter()
 _offene_anmeldung: dict = {}
 
 
-def _seite(request: Request, db: Session, fehler: str | None = None, status_code: int = 200):
+def _seite(
+    request: Request,
+    db: Session,
+    fehler: str | None = None,
+    status_code: int = 200,
+    telefonnummer: str | None = None,
+):
     konto = db.query(TradeRepublicKonto).first()
     verdachtsfaelle = (
         db.query(ImportVerdacht)
@@ -47,6 +53,11 @@ def _seite(request: Request, db: Session, fehler: str | None = None, status_code
             sync_status=tr_sync.status(),
             verdachtsfaelle=verdachtsfaelle,
             fehler=fehler,
+            # Nach einem Fehlschlag soll die Nummer im Feld stehen bleiben -
+            # sie noch einmal zu tippen ist die haerteste Art, einen Tippfehler
+            # zu wiederholen.
+            telefonnummer=telefonnummer
+            or (konto.telefonnummer if konto is not None else ""),
         ),
         status_code=status_code,
     )
@@ -81,21 +92,38 @@ def depot(request: Request, db: Session = Depends(get_db)):
 @router.post("/trade-republic/anmelden")
 async def anmelden(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-    telefonnummer = (form.get("telefonnummer") or "").strip()
+    eingabe = (form.get("telefonnummer") or "").strip()
     pin = (form.get("pin") or "").strip()
+    waf_token = (form.get("waf_token") or "").strip() or None
 
-    if not telefonnummer.startswith("+") or not pin:
+    # Erst die Eingabe pruefen, dann die Umgebung: was der Nutzer selbst
+    # beheben kann, soll er zuerst erfahren.
+    telefonnummer = tr_client.telefonnummer_normalisieren(eingabe)
+    if not telefonnummer.startswith("+") or len(telefonnummer) < 8 or not pin:
         return _seite(
             request,
             db,
-            fehler="Telefonnummer im Format +4915112345678 und PIN werden benoetigt.",
+            fehler="Telefonnummer (z.B. +4915112345678 oder 015112345678) und PIN werden benötigt.",
             status_code=400,
+            telefonnummer=eingabe,
+        )
+
+    if not tr_client.pytr_verfuegbar():
+        return _seite(
+            request,
+            db,
+            fehler="Die Bibliothek pytr ist nicht installiert - der direkte Abgleich "
+            "steht in dieser Installation nicht zur Verfügung.",
+            status_code=400,
+            telefonnummer=eingabe,
         )
 
     try:
-        countdown = await asyncio.to_thread(tr_client.anmeldung_starten, telefonnummer, pin)
+        countdown = await asyncio.to_thread(
+            tr_client.anmeldung_starten, telefonnummer, pin, waf_token
+        )
     except tr_client.AnmeldungFehlgeschlagen as exc:
-        return _seite(request, db, fehler=str(exc), status_code=400)
+        return _seite(request, db, fehler=str(exc), status_code=400, telefonnummer=telefonnummer)
 
     _offene_anmeldung.update(telefonnummer=telefonnummer, countdown=countdown)
     return redirect(request, "/trade-republic")

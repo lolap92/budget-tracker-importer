@@ -21,6 +21,7 @@ Der Import von pytr passiert absichtlich erst beim Aufruf: die Test-Suite und
 die uebrige App laufen damit auch ohne installiertes pytr.
 """
 import logging
+import re
 import threading
 from typing import Any
 
@@ -64,11 +65,19 @@ def pytr_verfuegbar() -> bool:
 
 
 def _neue_api(telefonnummer: str, pin: str | None = None):
-    from pytr.api import TradeRepublicApi
+    try:
+        from pytr.api import TradeRepublicApi
+    except ImportError as exc:
+        # Kann im Add-on nicht passieren, wohl aber bei lokaler Entwicklung
+        # ohne pytr. Eine verstaendliche Meldung statt eines 500ers.
+        raise AnmeldungFehlgeschlagen(
+            "Die Bibliothek pytr ist nicht installiert - der direkte Abgleich "
+            "steht in dieser Installation nicht zur Verfuegung."
+        ) from exc
 
     TR_DIR.mkdir(parents=True, exist_ok=True)
     TR_DIR.chmod(0o700)
-    return TradeRepublicApi(
+    api = TradeRepublicApi(
         phone_no=telefonnummer,
         pin=pin or _PLATZHALTER_PIN,
         locale="de",
@@ -79,6 +88,29 @@ def _neue_api(telefonnummer: str, pin: str | None = None):
         credentials_file=str(TR_DIR / "credentials-unbenutzt"),
         waf_token=_WAF_MODUS,
     )
+    # pytr setzt seinen Logger auf DEBUG und protokolliert dort komplette
+    # Antworten - darunter die Anmeldedaten. Sichtbar wird das derzeit nur
+    # deshalb nicht, weil sein Handler auf INFO steht. Darauf verlassen wir uns
+    # nicht: hier wird es festgeschrieben.
+    api.log.setLevel(logging.INFO)
+    return api
+
+
+def telefonnummer_normalisieren(eingabe: str) -> str:
+    """Bringt die Nummer in die Form, die Trade Republic erwartet (+49...).
+
+    Auf dem Handy tippt man Nummern mit Leerzeichen, Bindestrichen oder als
+    0151..., und die Schnittstelle antwortet darauf schlicht mit "abgelehnt" -
+    ununterscheidbar von einer falschen PIN.
+    """
+    roh = re.sub(r"[\s\-/().]", "", eingabe or "")
+    if roh.startswith("00"):
+        roh = "+" + roh[2:]
+    elif roh.startswith("0"):
+        # Landesvorwahl fehlt. Deutschland ist die einzige sinnvolle Annahme -
+        # Trade Republic gibt es nur in Europa, aber raten waere hier falsch.
+        roh = "+49" + roh[1:]
+    return roh
 
 
 def anmeldung_laeuft() -> bool:
@@ -92,19 +124,84 @@ def sitzung_vorhanden() -> bool:
     return TR_COOKIES_DATEI.exists()
 
 
-def anmeldung_starten(telefonnummer: str, pin: str) -> int:
+def _waf_token_besorgen(api, manuell: str | None) -> str | None:
+    """Holt den Bot-Schutz-Token von Amazon WAF - rein in Python, ohne Browser.
+
+    Scheitert das, wird trotzdem weitergemacht: die Antwort von Trade Republic
+    auf den Anmeldeversuch sagt uns dann, ob der Token ueberhaupt noetig war
+    (HTTP 403) oder ob es an etwas anderem lag. Ein stiller Abbruch hier
+    verwechselt beides.
+    """
+    if manuell:
+        logger.info("Verwende manuell hinterlegten WAF-Token.")
+        return manuell.strip()
+    try:
+        token = api._fetch_waf_token_awswaf()
+    except Exception:  # noqa: BLE001 - jede Ursache ist hier gleich behandelbar
+        logger.warning("WAF-Token konnte nicht ermittelt werden.", exc_info=True)
+        return None
+    if not token:
+        logger.warning("WAF-Token war leer.")
+    return token
+
+
+def _anmeldefehler(exc: Exception, ohne_token: bool = False, abgelehnt: str = "") -> str:
+    """Uebersetzt die Ausnahme in etwas, mit dem sich etwas anfangen laesst.
+
+    Vorher hiess jeder Fehlschlag "Stimmen Telefonnummer und PIN?" - auch dann,
+    wenn Trade Republic die Anfrage gar nicht erst angesehen hatte.
+    """
+    antwort = getattr(exc, "response", None)
+    status = getattr(antwort, "status_code", None)
+
+    if status in (400, 401):
+        return abgelehnt or "Telefonnummer oder PIN wurden nicht akzeptiert."
+    if status == 403:
+        hinweis = (
+            "Trade Republic hat die Anfrage abgewiesen (Bot-Schutz). "
+            "Das liegt nicht an Telefonnummer oder PIN."
+        )
+        if ohne_token:
+            hinweis += (
+                " Der Schutz-Token liess sich nicht automatisch ermitteln - er kann "
+                "unten aus dem Browser hinterlegt werden."
+            )
+        return hinweis
+    if status == 429:
+        return "Zu viele Versuche. Trade Republic bittet um etwas Geduld."
+    if status is not None:
+        return f"Trade Republic antwortete mit HTTP {status}."
+    if isinstance(exc, ValueError):
+        # pytr reicht die Fehlerliste von Trade Republic durch.
+        return f"Trade Republic meldet: {exc}"
+    return (
+        f"Die Anfrage kam nicht durch ({type(exc).__name__}). "
+        "Details stehen im Add-on-Protokoll."
+    )
+
+
+def anmeldung_starten(telefonnummer: str, pin: str, waf_token: str | None = None) -> int:
     """Startet den Web-Login. Gibt zurueck, wie viele Sekunden bis zur
     Moeglichkeit einer SMS-Zustellung vergehen."""
     global _anmeldung
 
     api = _neue_api(telefonnummer, pin)
+    token = _waf_token_besorgen(api, waf_token)
+    # Konkreter Wert oder None: pytr wuerde sonst selbst noch einmal losziehen.
+    api._waf_token = token
+
     try:
         countdown = api.initiate_weblogin()
     except Exception as exc:  # pytr wirft ValueError, requests HTTPError
-        logger.warning("Anmeldung konnte nicht gestartet werden: %s", type(exc).__name__)
-        raise AnmeldungFehlgeschlagen(
-            "Anmeldung konnte nicht gestartet werden. Stimmen Telefonnummer und PIN?"
-        ) from exc
+        antwort = getattr(exc, "response", None)
+        logger.warning(
+            "Anmeldung fehlgeschlagen (WAF-Token %s, Antwort %s: %.200s).",
+            "vorhanden" if token else "fehlt",
+            getattr(antwort, "status_code", "-"),
+            getattr(antwort, "text", "") or "",
+            exc_info=True,
+        )
+        raise AnmeldungFehlgeschlagen(_anmeldefehler(exc, ohne_token=not token)) from exc
 
     _anmeldung = api
     return countdown
@@ -127,8 +224,10 @@ def code_bestaetigen(code: str) -> None:
     try:
         _anmeldung.complete_weblogin(code.strip())
     except Exception as exc:
-        logger.warning("Code wurde abgelehnt: %s", type(exc).__name__)
-        raise AnmeldungFehlgeschlagen("Der Code wurde nicht akzeptiert.") from exc
+        logger.warning("Code wurde abgelehnt.", exc_info=True)
+        raise AnmeldungFehlgeschlagen(
+            _anmeldefehler(exc, abgelehnt="Der Code wurde nicht akzeptiert.")
+        ) from exc
     finally:
         # In beiden Faellen los: nach Erfolg steckt die Sitzung in der
         # Cookie-Datei, nach Misserfolg beginnt der Nutzer von vorn. So bleibt
