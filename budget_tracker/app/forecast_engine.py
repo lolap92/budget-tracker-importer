@@ -1,6 +1,7 @@
 """Erzeugung von FORECAST_VORKOMMEN aus FORECAST_REGEL sowie die Wege,
 ein offenes Vorkommen aufzuloesen oder zu verwerfen (Konzept Abschnitt 6)."""
 import datetime as dt
+import logging
 
 from sqlalchemy.orm import Session
 
@@ -19,6 +20,8 @@ from app.models import (
     Topf,
     TopfUmbuchung,
 )
+
+logger = logging.getLogger("budget_tracker.forecast")
 
 
 def _occurrence_dates(
@@ -109,6 +112,60 @@ def forecast_untergrenze(db: Session, heute: dt.date) -> dt.date:
     return grenze
 
 
+def _verwaiste_entfernen(
+    db: Session,
+    regel: ForecastRegel,
+    termine: set[dt.date],
+    untergrenze: dt.date,
+    horizon_end: dt.date,
+) -> int:
+    """Entfernt Vorkommen, die diese Regel heute nicht mehr erzeugen wuerde.
+
+    Der Anlass: bis 1.15.0 leitete die Erzeugung den Anker-Tag durch
+    Weiterzaehlen des Vormonats ab. Ein Anker-Tag 29-31 wurde damit vom Februar
+    dauerhaft auf den 28. gekappt und blieb dort fuer den Rest des Jahres. Die
+    so entstandenen Vorkommen tragen ein generiert_fuer, das die korrigierte
+    Regel nie wieder trifft - sie bleiben also liegen, waehrend daneben das
+    richtige Datum neu angelegt wird. Ergebnis: jeder Monat doppelt.
+
+    Dasselbe passiert, wenn ein Enddatum nachtraeglich vorgezogen wird.
+
+    Angefasst wird nur, was zweifelsfrei ein Ueberbleibsel ist:
+
+    * aus einer Regel erzeugt (frei angelegte Vorkommen gehen das nichts an),
+    * noch offen - verknuepfte sind Fakt, verworfene eine Entscheidung,
+    * unveraendert (erwartetes_datum == generiert_fuer): ein verschobenes oder
+      bearbeitetes Vorkommen hat der Mensch angefasst, das bleibt,
+    * innerhalb des Zeitraums, den die Erzeugung ueberhaupt abdeckt. Aeltere
+      offene Vorkommen sind ueberfaellige Erwartungen und gehoeren weiter in
+      die Prognose.
+    """
+    verwaist = [
+        v
+        for v in db.query(ForecastVorkommen).filter(
+            ForecastVorkommen.regel_id == regel.id,
+            ForecastVorkommen.generiert_fuer.isnot(None),
+            ForecastVorkommen.verknuepfte_buchung_id.is_(None),
+            ForecastVorkommen.verknuepfte_topf_umbuchung_id.is_(None),
+            ForecastVorkommen.ignoriert.is_(False),
+            ForecastVorkommen.generiert_fuer >= untergrenze,
+            ForecastVorkommen.generiert_fuer <= horizon_end,
+        )
+        if v.generiert_fuer not in termine and v.erwartetes_datum == v.generiert_fuer
+    ]
+    for v in verwaist:
+        logger.info(
+            "Vorkommen %s (%s) entfernt: Regel %s erzeugt dieses Datum nicht mehr.",
+            v.id,
+            v.generiert_fuer,
+            regel.id,
+        )
+        db.delete(v)
+    if verwaist:
+        db.flush()
+    return len(verwaist)
+
+
 def ensure_forecast_vorkommen(
     db: Session, heute: dt.date | None = None, horizon_monate: int = FORECAST_HORIZON_MONATE
 ) -> int:
@@ -128,6 +185,9 @@ def ensure_forecast_vorkommen(
     erzeugt = 0
 
     for regel in db.query(ForecastRegel).all():
+        termine = _occurrence_dates(regel, horizon_end, untergrenze)
+        _verwaiste_entfernen(db, regel, set(termine), untergrenze, horizon_end)
+
         belegt = {
             v.generiert_fuer
             for v in db.query(ForecastVorkommen).filter(
@@ -135,7 +195,7 @@ def ensure_forecast_vorkommen(
                 ForecastVorkommen.generiert_fuer.isnot(None),
             )
         }
-        for d in _occurrence_dates(regel, horizon_end, untergrenze):
+        for d in termine:
             if d in belegt:
                 continue
             db.add(

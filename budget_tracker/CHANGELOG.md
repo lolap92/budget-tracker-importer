@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.26.0 - 2026-07-30
+
+- **Fehlerbehebung (doppelte Forecast-Einträge, einer pro Monat):** Bis 1.15.0 leitete die Erzeugung den Anker-Tag durch Weiterzählen des Vormonats ab. Ein Anker-Tag 29–31 wurde damit vom Februar dauerhaft auf den 28. gekappt und blieb dort für den Rest des Jahres. Seit der Korrektur erzeugt dieselbe Regel wieder den richtigen Tag – die alten, gekappten Vorkommen blieben aber liegen, weil sie ein `generiert_fuer` tragen, das die Regel nie wieder trifft. Ergebnis: jeder Monat doppelt, und einzelnes Löschen half nicht. Solche Überbleibsel werden jetzt beim Scan entfernt. **Nach dem Update verschwinden die doppelten Einträge von selbst; die Prognose ändert sich dadurch.**
+- Angefasst wird nur, was zweifelsfrei ein Überbleibsel ist: aus einer Regel erzeugt, noch offen, unverändert und innerhalb des Erzeugungszeitraums. Ein mit einer Buchung verknüpftes Vorkommen (Fakt), ein bewusst verworfenes (Entscheidung), ein von Hand verschobenes oder bearbeitetes, ein frei angelegtes sowie überfällige Erwartungen aus der Vergangenheit bleiben unberührt.
+- Derselbe Mechanismus räumt auch auf, wenn das Enddatum einer Regel nachträglich vorgezogen wird – auch dort blieben bisher Vorkommen jenseits des neuen Endes stehen.
+- Test-Suite auf 359 Tests.
+
 ## 1.25.0 - 2026-07-30
 
 - **Neu: Forecast-Regeln lassen sich löschen** (Forecast → Regeln → bearbeiten → „Regel löschen"). Bisher fehlte dieser Weg vollständig: eine überflüssige oder versehentlich doppelt angelegte Regel war nicht mehr loszuwerden, und ihre Vorkommen einzeln zu löschen half nicht – der Verzeichnis-Scan legte sie binnen 30 Sekunden wieder an. Genau so entstehen scheinbar „doppelte" Forecast-Einträge, die sich nicht entfernen lassen.
