@@ -39,6 +39,30 @@ _PLATZHALTER_PIN = "0000"
 # noetig noch angemessen, und der Browser ist im Image gar nicht enthalten.
 _WAF_MODUS = "awswaf"
 
+# Kopfzeilen, die eine Anfrage als das ausweisen, was sie vorgibt zu sein: ein
+# Aufruf der Weboberflaeche von Trade Republic. pytr schickt nur einen
+# User-Agent. Der Bot-Schutz davor bewertet aber die Herkunftsangaben mit -
+# fehlen Origin, Referer und die Sec-Fetch-Angaben, sieht die Anfrage nicht nach
+# Browser aus und wird zur Schutzpruefung umgeleitet. Genau das erzeugt den
+# HTTP 405: `requests` folgt der Umleitung und macht dabei aus dem POST ein GET.
+#
+# Belegt im Quelltext von cdamken/tr-api, das denselben Weg geht und es dort
+# ausdruecklich festhaelt: "Without these you'll get blocked."
+_BROWSER_KOPFZEILEN = {
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+    "Origin": "https://app.traderepublic.com",
+    "Referer": "https://app.traderepublic.com/",
+    "Sec-Fetch-Site": "same-site",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Dest": "empty",
+}
+
+# pytr legt den Schutz-Token nur als Cookie ab. Die Weboberflaeche schickt ihn
+# zusaetzlich als Kopfzeile - beides zu senden kostet nichts und trifft den
+# Weg, den der Schutz erwartet.
+_WAF_KOPFZEILE = "X-aws-waf-token"
+
 # pytr haelt WebSocket, Subscriptions und Antwortpuffer als Klassenattribute.
 # Zwei gleichzeitige Laeufe wuerden sich damit gegenseitig die Antworten
 # zuordnen. Alles, was eine Verbindung benutzt, geht durch dieses Schloss.
@@ -94,6 +118,9 @@ def _neue_api(telefonnummer: str, pin: str | None = None):
     # deshalb nicht, weil sein Handler auf INFO steht. Darauf verlassen wir uns
     # nicht: hier wird es festgeschrieben.
     api.log.setLevel(logging.INFO)
+    # Bewusst eine neue Abbildung statt update(): pytr weist allen Sitzungen
+    # dieselbe Klassen-Abbildung zu, ein update() wuerde sie fuer alle aendern.
+    api._websession.headers = {**api._websession.headers, **_BROWSER_KOPFZEILEN}
     api._websession.hooks["response"].append(_antwort_protokollieren)
     return api
 
@@ -222,6 +249,9 @@ def anmeldung_starten(telefonnummer: str, pin: str, waf_token: str | None = None
     token = _waf_token_besorgen(api, waf_token)
     # Konkreter Wert oder None: pytr wuerde sonst selbst noch einmal losziehen.
     api._waf_token = token
+    if token:
+        # pytr setzt daraus gleich noch das Cookie; die Kopfzeile kommt dazu.
+        api._websession.headers[_WAF_KOPFZEILE] = token
 
     try:
         countdown = api.initiate_weblogin()

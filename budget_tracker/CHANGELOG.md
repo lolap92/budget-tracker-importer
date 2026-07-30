@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.20.0 - 2026-07-30
+
+- **Vermutliche Ursache des Anmeldefehlers behoben: die Anfragen sahen nicht nach Browser aus.** `pytr` schickt als einzige Kopfzeile einen User-Agent. Der Bot-Schutz vor der Anmeldung bewertet aber auch die Herkunftsangaben – fehlen `Origin`, `Referer` und die `Sec-Fetch-*`-Angaben, wird die Anfrage zur Schutzprüfung umgeleitet, und genau daraus entsteht der HTTP 405: `requests` folgt der Umleitung und macht dabei aus dem POST ein GET, das der Zielpfad nicht kennt. Diese Kopfzeilen werden jetzt mitgeschickt.
+- **Der Schutz-Token wird zusätzlich als Kopfzeile `X-aws-waf-token` gesendet**, nicht nur als Cookie. Die Weboberfläche von Trade Republic macht es genauso.
+- Grundlage ist der Quelltext von [cdamken/tr-api](https://github.com/cdamken/tr-api), das denselben Weg geht und dazu festhält: „The Sec-Fetch-* and Origin/Referer trio is what tells TR's WAF that we're a same-site XHR from app.traderepublic.com. Without these you'll get blocked."
+- Test-Suite auf 305 Tests.
+
 ## 1.19.3 - 2026-07-30
 
 - **Das Feld für den Schutz-Token ist jetzt sichtbar.** Es steckte in einem aufklappbaren Bereich, der sich in der Home-Assistant-App auf dem Handy nicht öffnen ließ – die eine Eingabe, die den Bot-Schutz umgeht, war damit unerreichbar. Es ist jetzt ein gewöhnliches, optionales Feld.
