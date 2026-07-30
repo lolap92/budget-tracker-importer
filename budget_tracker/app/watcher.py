@@ -42,9 +42,9 @@ def status() -> dict:
 
 def _zahlen_zusammenfassen(alle_stats: list[dict]) -> dict:
     summe = {"dateien": len(alle_stats), "gelesen": 0, "neu": 0, "duplikate": 0,
-             "vor_startdatum": 0, "fehler": 0}
+             "vor_startdatum": 0, "verdacht": 0, "fehler": 0}
     for s in alle_stats:
-        for schluessel in ("gelesen", "neu", "duplikate", "vor_startdatum", "fehler"):
+        for schluessel in ("gelesen", "neu", "duplikate", "vor_startdatum", "verdacht", "fehler"):
             summe[schluessel] += s.get(schluessel, 0)
     return summe
 

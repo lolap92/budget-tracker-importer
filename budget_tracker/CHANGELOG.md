@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.21.1 - 2026-07-30
+
+Der erste echte Abgleich hat bestätigt, dass Datei-Export und Schnittstelle **unterschiedliche Transaktionsnummern** für dieselbe Bewegung vergeben. Daraus folgen zwei Korrekturen.
+
+- **Fehlerbehebung (doppelte Beträge beim Datei-Import):** Die Dopplungsprüfung lief nur beim Abgleich über die Schnittstelle. Eine CSV-Datei, die eine bereits per Schnittstelle geholte Buchung enthält, wäre also ungeprüft ein zweites Mal importiert worden – der Betrag hätte doppelt gezählt. Die Prüfung sitzt jetzt im gemeinsamen Übernahme-Kern und wirkt damit in beide Richtungen. Verdachtsfälle aus dem Datei-Import erscheinen auf derselben Seite zur Entscheidung, und die Import-Karte unter „Mehr" weist sie aus.
+- **„Ist dieselbe Buchung – verwerfen" rettet jetzt den Verwendungszweck.** Es ist dieselbe Bewegung, aber nur die Fassung aus der Schnittstelle kennt das Feld „Referenz". Sie mitsamt dem Verdachtsfall wegzuwerfen hieße, genau das aufzugeben, wofür die Anbindung da ist. Ergänzt wird ausschließlich, was an der vorhandenen Buchung leer ist – eine gepflegte Angabe wird nie überschrieben, die Topf-Zuordnung bleibt unangetastet.
+- Test-Suite auf 331 Tests.
+
 ## 1.21.0 - 2026-07-30
 
 - **Neu: Anmeldung über die Bestätigung in der Trade-Republic-App.** Trade Republic hat die Web-Anmeldung umgestellt – statt eines vierstelligen Codes kommt eine Anfrage in die App, die dort angenommen wird. `pytr` kennt in der veröffentlichten Fassung nur den alten Weg (`/api/v1/auth/web/login`), und genau darauf antwortet der Bot-Schutz mit der Umleitung, aus der der HTTP 405 entsteht. Der aktuelle Weg (`/api/v2/auth/web/login`) ist jetzt eingebaut; der alte bleibt als Rückfall, falls die neue Anmeldung nicht antwortet.

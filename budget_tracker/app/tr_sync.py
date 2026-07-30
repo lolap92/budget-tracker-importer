@@ -23,10 +23,9 @@ from sqlalchemy.orm import Session
 
 from app.config import TR_SYNC_INTERVAL_SECONDS, TR_SYNC_RUECKGRIFF_TAGE
 from app.database import SessionLocal
-from app.dopplung import finde_moegliche_dopplung
 from app.import_core import QUELLE_API, ImportKontext, uebernehmen
 from app.tr_depot import depot_laden, snapshot_speichern
-from app.models import Buchung, ImportVerdacht, Konfiguration, TradeRepublicKonto
+from app.models import Buchung, Konfiguration, TradeRepublicKonto
 from app.tr_client import NichtAngemeldet, verbindung, verbindungsschloss
 from app.tr_events import ist_kontobewegung, zeile_aus_event
 
@@ -187,9 +186,6 @@ def verarbeiten(db: Session, events: list[dict]) -> dict:
         "uebersprungen": 0,
     }
     kontext = ImportKontext.laden(db)
-    # Bereits beurteilte Verdachtsfaelle nicht erneut vorlegen - auch die
-    # verworfenen, die gerade deshalb keine Buchung haben.
-    beurteilt = {row[0] for row in db.query(ImportVerdacht.transaction_id).all()}
 
     for event in events:
         zeile = zeile_aus_event(event)
@@ -197,39 +193,8 @@ def verarbeiten(db: Session, events: list[dict]) -> dict:
             zahlen["uebersprungen"] += 1
             continue
 
-        transaction_id = zeile["transaction_id"]
-        if kontext.ist_bekannt(transaction_id):
-            zahlen["duplikate"] += 1
-            continue
-        if transaction_id in beurteilt:
-            zahlen["duplikate"] += 1
-            continue
-
-        dopplung = finde_moegliche_dopplung(
-            db,
-            transaction_id=transaction_id,
-            datum=zeile["datum"],
-            betrag=zeile["betrag"],
-            quelle=QUELLE_API,
-        )
-        if dopplung is not None:
-            logger.info(
-                "Bewegung %s sieht aus wie Buchung %s - zur Entscheidung vorgelegt.",
-                transaction_id,
-                dopplung.id,
-            )
-            db.add(
-                ImportVerdacht(
-                    quelle=QUELLE_API,
-                    vermutete_dopplung_id=dopplung.id,
-                    erstellt_am=dt.datetime.utcnow(),
-                    **zeile,
-                )
-            )
-            beurteilt.add(transaction_id)
-            zahlen["verdacht"] += 1
-            continue
-
+        # Dedublizierung, Startdatum und die Dopplungspruefung stecken im Kern -
+        # dieselben Regeln wie beim Datei-Import (app/import_core.py).
         ergebnis = uebernehmen(db, kontext, quelle=QUELLE_API, **zeile)
         zahlen[ergebnis] += 1
 

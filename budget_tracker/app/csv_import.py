@@ -121,6 +121,7 @@ def import_csv_datei(db: Session, pfad: Path) -> dict:
         "neu": 0,
         "duplikate": 0,
         "vor_startdatum": 0,
+        "verdacht": 0,
         "fehler": 0,
         "meldung": None,  # Klartext fuer die Import-Anzeige, sonst nur im Log
     }

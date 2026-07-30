@@ -16,7 +16,7 @@ from app import config, tr_client, tr_sync
 from app.calculations import kontostand_gesamt
 from app.database import get_db
 from app.tr_depot import aktueller_snapshot
-from app.import_core import QUELLE_API, ImportKontext, uebernehmen
+from app.import_core import ImportKontext, uebernehmen
 from app.models import ImportVerdacht, TradeRepublicKonto
 from app.webutils import ctx, redirect, templates
 
@@ -200,6 +200,23 @@ async def jetzt_abgleichen(request: Request, db: Session = Depends(get_db)):
     return redirect(request, "/trade-republic")
 
 
+def _angaben_uebernehmen(verdacht: ImportVerdacht) -> None:
+    """Beim Verwerfen die Angaben retten, die nur die Schnittstelle kennt.
+
+    Es ist dieselbe Bewegung - und die Fassung aus der Schnittstelle bringt den
+    Verwendungszweck mit, den der CSV-Export leer laesst. Ihn mit dem
+    Verdachtsfall wegzuwerfen hiesse, genau das aufzugeben, wofuer die
+    Anbindung da ist. Ergaenzt wird nur, was leer ist: eine vorhandene Angabe
+    wird nie ueberschrieben, und die Topf-Zuordnung bleibt unangetastet.
+    """
+    buchung = verdacht.vermutete_dopplung
+    if buchung is None:
+        return
+    for feld in ("verwendungszweck", "empfaenger_name", "empfaenger_iban", "beschreibung"):
+        if not getattr(buchung, feld) and getattr(verdacht, feld):
+            setattr(buchung, feld, getattr(verdacht, feld))
+
+
 @router.post("/trade-republic/verdacht/{verdacht_id}")
 async def verdacht_entscheiden(
     verdacht_id: int, request: Request, db: Session = Depends(get_db)
@@ -224,12 +241,20 @@ async def verdacht_entscheiden(
             datum=verdacht.datum,
             betrag=verdacht.betrag,
             typ=verdacht.typ,
-            quelle=QUELLE_API,
+            # Seit die Pruefung im Kern sitzt, kann ein Fall auch aus dem
+            # Datei-Import stammen - die Quelle steht am Fall selbst.
+            quelle=verdacht.quelle,
             verwendungszweck=verdacht.verwendungszweck,
             empfaenger_name=verdacht.empfaenger_name,
             empfaenger_iban=verdacht.empfaenger_iban,
             beschreibung=verdacht.beschreibung,
+            # Der Fall wurde gerade angesehen und als eigene Zahlung beurteilt -
+            # die Dopplungspruefung darf ihn jetzt nicht erneut abfangen.
+            trotz_verdacht=True,
         )
+
+    else:
+        _angaben_uebernehmen(verdacht)
 
     # Der Fall bleibt bestehen: nur so erkennt der naechste Abgleich, dass
     # diese Bewegung schon beurteilt wurde.

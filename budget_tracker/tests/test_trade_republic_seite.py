@@ -147,3 +147,30 @@ class TestEntscheidung:
 
         assert antwort.status_code == 404
         assert db.query(Buchung).count() == 1
+
+
+class TestAngabenRetten:
+    """Beim Verwerfen darf der Verwendungszweck nicht mit verschwinden - er ist
+    genau das, was die Schnittstelle dem CSV-Export voraus hat."""
+
+    def test_verwendungszweck_wandert_in_die_bestehende_buchung(self, client, db, verdacht):
+        client.post(
+            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "verwerfen"}
+        )
+
+        db.expire_all()
+        buchung = db.query(Buchung).one()
+        assert buchung.verwendungszweck == "Haus Renovierung Anteil"
+        assert buchung.empfaenger_name == "Klaus Mustermann"
+
+    def test_vorhandene_angaben_werden_nicht_ueberschrieben(self, client, db, verdacht):
+        buchung = db.query(Buchung).one()
+        buchung.verwendungszweck = "vom Nutzer gepflegt"
+        db.commit()
+
+        client.post(
+            f"/trade-republic/verdacht/{verdacht.id}", data={"entscheidung": "verwerfen"}
+        )
+
+        db.expire_all()
+        assert db.query(Buchung).one().verwendungszweck == "vom Nutzer gepflegt"

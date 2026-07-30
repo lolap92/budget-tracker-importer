@@ -68,6 +68,12 @@
     <span class="v">{{ z.vor_startdatum }} übersprungen</span>
   </div>
   {% endif %}
+  {% if z.verdacht %}
+  <div class="meta-row">
+    <span class="k">Zur Entscheidung</span>
+    <span class="v" style="color:var(--warn);">{{ z.verdacht }} – siehe Trade Republic</span>
+  </div>
+  {% endif %}
   {% if z.fehler %}
   <div class="meta-row">
     <span class="k">Nicht verarbeitet</span>

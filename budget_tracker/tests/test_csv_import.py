@@ -252,3 +252,62 @@ class TestZahlenformat:
 
         assert stats["neu"] == 0
         assert stats["fehler"] == 1
+
+
+class TestDopplungGegenDieSchnittstelle:
+    """Seit die Schnittstelle Buchungen anlegt, muss die Pruefung in beide
+    Richtungen wirken: Datei-Export und Timeline vergeben unabhaengige
+    Transaktionsnummern fuer dieselbe Bewegung."""
+
+    def test_csv_zeile_die_wie_eine_api_buchung_aussieht(self, db, app, tmp_path):
+        from app.import_core import QUELLE_API, ImportKontext, uebernehmen
+        from app.models import ImportVerdacht
+
+        uebernehmen(
+            db,
+            ImportKontext.laden(db),
+            transaction_id="019f7537-223d-769c-9c85-92dd484480d4",
+            datum=dt.date(2026, 7, 18),
+            betrag=Decimal("-1500.00"),
+            typ="TRANSFER_OUTBOUND",
+            quelle=QUELLE_API,
+        )
+        db.commit()
+
+        pfad = csv_schreiben(
+            tmp_path / "e.csv",
+            ["csv-eigene-nummer,2026-07-18,TRANSFER_INSTANT_OUTBOUND,-1500.00,,Empf,DE1,"],
+        )
+        stats = import_csv_datei(db, pfad)
+
+        assert stats["verdacht"] == 1
+        assert stats["neu"] == 0
+        # Keine zweite Buchung - der Betrag zaehlt nicht doppelt.
+        assert db.query(Buchung).count() == 1
+        assert db.query(ImportVerdacht).one().quelle == "csv"
+
+    def test_derselbe_fall_wird_nicht_erneut_vorgelegt(self, db, app, tmp_path):
+        from app.import_core import QUELLE_API, ImportKontext, uebernehmen
+        from app.models import ImportVerdacht
+
+        uebernehmen(
+            db,
+            ImportKontext.laden(db),
+            transaction_id="019f7537-223d-769c-9c85-92dd484480d4",
+            datum=dt.date(2026, 7, 18),
+            betrag=Decimal("-1500.00"),
+            typ="TRANSFER_OUTBOUND",
+            quelle=QUELLE_API,
+        )
+        db.commit()
+        pfad = csv_schreiben(
+            tmp_path / "e.csv",
+            ["csv-eigene-nummer,2026-07-18,TRANSFER_INSTANT_OUTBOUND,-1500.00,,Empf,DE1,"],
+        )
+
+        import_csv_datei(db, pfad)
+        stats = import_csv_datei(db, pfad)
+
+        assert stats["verdacht"] == 0
+        assert stats["duplikate"] == 1
+        assert db.query(ImportVerdacht).count() == 1
