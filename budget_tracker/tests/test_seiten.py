@@ -240,12 +240,12 @@ class TestDepotAufDerStartseite:
 
 
 class TestLetzterAbgleichAufDerStartseite:
-    """Neben dem Buchungsstand soll auf einen Blick sichtbar sein, wie aktuell
-    der Depot- und Kontostand von Trade Republic ist - ohne extra auf die
-    Trade-Republic- oder Depot-Seite wechseln zu muessen."""
+    """Direkt unter dem Kontostand soll auf einen Blick sichtbar sein, wie
+    aktuell der Depot- und Kontostand von Trade Republic ist - ohne extra auf
+    die Trade-Republic- oder Depot-Seite wechseln zu muessen."""
 
     def test_ohne_konto_kein_hinweis(self, client, bewegungen):
-        assert "letzter Abgleich" not in client.get("/").text
+        assert "Letzter Abgleich" not in client.get("/").text
 
     def test_mit_konto_erscheint_zeitpunkt_in_lokaler_zeit(self, client, db, bewegungen):
         from app.models import TradeRepublicKonto
@@ -260,7 +260,7 @@ class TestLetzterAbgleichAufDerStartseite:
 
         text = client.get("/").text
 
-        assert "letzter Abgleich 31.07.2026 14:04" in text
+        assert "Letzter Abgleich 31.07.2026 14:04" in text
 
     def test_ohne_bisherigen_abgleich_kein_hinweis(self, client, db, bewegungen):
         from app.models import TradeRepublicKonto
@@ -268,7 +268,7 @@ class TestLetzterAbgleichAufDerStartseite:
         db.add(TradeRepublicKonto(telefonnummer="+4915112345678", letzter_sync=None))
         db.commit()
 
-        assert "letzter Abgleich" not in client.get("/").text
+        assert "Letzter Abgleich" not in client.get("/").text
 
 
 class TestKontostandHinweis:

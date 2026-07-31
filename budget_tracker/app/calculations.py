@@ -288,14 +288,6 @@ def offene_umbuchungen(db: Session) -> list[Buchung]:
     return offene_umbuchungen_query(db).order_by(Buchung.datum.desc()).all()
 
 
-def neuestes_buchungsdatum(db: Session) -> dt.date | None:
-    """Datum der zuletzt importierten/erfassten Buchung - fuer den 'Stand'
-    auf der Uebersicht, da dieser zeigen soll, wie aktuell die Datenlage
-    tatsaechlich ist, statt nur des heutigen Kalendertags."""
-    buchung = db.query(Buchung).order_by(Buchung.datum.desc()).first()
-    return buchung.datum if buchung else None
-
-
 def letzter_import_zeitpunkt(db: Session) -> dt.datetime | None:
     """Wann zuletzt eine Buchung angelegt wurde (UTC).
 

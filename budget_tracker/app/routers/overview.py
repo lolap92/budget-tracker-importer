@@ -8,7 +8,6 @@ from app import tr_client, tr_sync, watcher
 from app.calculations import (
     kontostand_gesamt,
     letzter_import_zeitpunkt,
-    neuestes_buchungsdatum,
     offene_umbuchungen,
     prognose_topf,
     review_liste,
@@ -131,7 +130,6 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             depot=aktueller_snapshot(db),
             offene_anzahl=len(review_liste(db)),
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
-            stand_datum=neuestes_buchungsdatum(db),
             tr_letzter_sync=tr_konto.letzter_sync if tr_konto else None,
         ),
     )
