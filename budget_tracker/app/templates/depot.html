@@ -74,13 +74,13 @@
       <div class="progress-bar" style="flex:1;"><div style="width:{{ anteil }}%;"></div></div>
       <div class="todo-amt">{{ p.wert | eur }}</div>
     </div>
+    {%- set einstandswert = p.einstand * p.stueck %}
+    {%- if einstandswert %}
     <div class="b-ref" style="font-style:normal;margin-top:2px;">
-      {{ p.kurs | eur }}
-      {%- set einstandswert = p.einstand * p.stueck %}
-      {%- if einstandswert %} · Einstand {{ einstandswert | eur }}
-      ({{ '+' if p.wert >= einstandswert else '' }}{{ (p.wert - einstandswert) | eur }}){% endif %}
-      <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-faint);"> · {{ p.isin }}</span>
+      Einstand {{ einstandswert | eur }}
+      ({{ '+' if p.wert >= einstandswert else '' }}{{ (p.wert - einstandswert) | eur }})
     </div>
+    {%- endif %}
   </div>
   {% endfor %}
 </div>
