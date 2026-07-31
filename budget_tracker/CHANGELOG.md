@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.30.1 - 2026-07-31
+
+- **Auf der Startseite steht jetzt „Letzter Abgleich" mit Datum und Uhrzeit (lokale Zeit) unter dem Kontostand** – der Zeitpunkt der letzten erfolgreichen Abfrage über die Trade-Republic-Schnittstelle, sichtbar ohne extra auf die Trade-Republic- oder Depot-Seite zu wechseln. Erscheint nur, wenn ein Konto verbunden ist.
+- **Der bisherige „Stand"-Hinweis (Datum der zuletzt importierten Buchung) ist dafür entfallen.** `neuestes_buchungsdatum()` war dadurch ungenutzt und wurde entfernt.
+- Test-Suite auf 409 Tests.
+
 ## 1.30.0 - 2026-07-31
 
 - **Jede Position im Depot zeigt jetzt ihren Anteil am Gesamtdepot** – prominent, direkt neben dem Namen, dazu ein Balken darunter. Der Anteil bezieht sich auf den Wert der Wertpapiere allein, nicht auf Wertpapiere plus Cash: sonst würde jede Einzahlung aufs Verrechnungskonto alle Anteile verschieben, ohne dass sich am Depot etwas geändert hätte.
