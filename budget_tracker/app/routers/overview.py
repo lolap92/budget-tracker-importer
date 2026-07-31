@@ -53,7 +53,9 @@ def _tr_warnung(db: Session) -> str | None:
         return f"{offene} Bewegung{'en' if offene != 1 else ''} zu klären (Trade Republic)"
 
     konto = db.query(TradeRepublicKonto).first()
-    if konto is not None and not tr_client.sitzung_vorhanden():
+    if konto is None:
+        return None
+    if not tr_client.sitzung_vorhanden():
         return "Trade Republic: Anmeldung erforderlich"
     status = tr_sync.status()
     if status.get("erfolgreich") is False:
@@ -155,7 +157,7 @@ def mehr(request: Request, db: Session = Depends(get_db)):
                 if (snapshot := aktueller_snapshot(db)) is not None
                 else None
             ),
-            tr_angemeldet=tr_client.sitzung_vorhanden(),
+            tr_angemeldet=tr_sync.sitzung_gilt(),
             tr_verdacht=db.query(ImportVerdacht)
             .filter(ImportVerdacht.entscheidung.is_(None))
             .count(),

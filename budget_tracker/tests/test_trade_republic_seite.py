@@ -135,6 +135,48 @@ class TestAnmeldung:
         assert antwort.status_code == 400
         assert "erneut mit Telefonnummer und PIN" in antwort.text
 
+    def test_schutz_token_feld_ist_normalerweise_nicht_da(self, client):
+        """Der automatische Weg klappt praktisch immer - das Feld waere sonst
+        taeglich sichtbarer Ballast fuer etwas, das so gut wie nie gebraucht wird."""
+        assert "Schutz-Token" not in client.get("/trade-republic").text
+
+    def test_schutz_token_feld_erscheint_erst_nach_bot_schutz_fehler(self, client, monkeypatch):
+        def _starten(telefonnummer, pin, waf_token):
+            from app import tr_client
+
+            raise tr_client.AnmeldungFehlgeschlagen(
+                "Trade Republic hat die Anfrage abgewiesen (Bot-Schutz)."
+            )
+
+        # pytr muss fuer diesen Test nicht wirklich installiert sein - nur die
+        # Pruefung davor darf den eigentlichen Anmeldeversuch nicht blockieren.
+        monkeypatch.setattr("app.tr_client.pytr_verfuegbar", lambda: True)
+        monkeypatch.setattr("app.tr_client.anmeldung_starten", _starten)
+
+        antwort = client.post(
+            "/trade-republic/anmelden",
+            data={"telefonnummer": "015112345678", "pin": "1234"},
+        )
+
+        assert "Schutz-Token" in antwort.text
+
+    def test_klick_auf_todo_zeile_fuehrt_direkt_zur_pin_eingabe(self, client, db, app, monkeypatch):
+        """Der haeufigste Fall: die Cookie-Datei liegt noch da, Trade Republic
+        hat die Sitzung aber schon abgelehnt. Ein Klick von der Startseite
+        soll direkt das Anmeldeformular zeigen, nicht "angemeldet"."""
+        from app import tr_client, tr_sync
+
+        db.add(TradeRepublicKonto(telefonnummer="+4915112345678"))
+        db.commit()
+        monkeypatch.setattr(tr_client, "sitzung_vorhanden", lambda: True)
+        monkeypatch.setitem(tr_sync._letzter_lauf, "sitzung_verloren", True)
+
+        text = client.get("/trade-republic").text
+
+        assert "PIN" in text
+        assert "Jetzt abgleichen" not in text
+        assert 'value="+4915112345678"' in text
+
 
 class TestEntscheidung:
     def test_zusammenfuehren_legt_keine_zweite_buchung_an(self, client, db, verdacht):

@@ -26,6 +26,7 @@ from app.database import SessionLocal
 from app.import_core import QUELLE_API, ImportKontext, uebernehmen
 from app.tr_depot import depot_laden, snapshot_speichern
 from app.models import Buchung, ImportVerdacht, Konfiguration, TradeRepublicKonto
+from app import tr_client
 from app.tr_client import NichtAngemeldet, verbindung, verbindungsschloss
 from app.tr_events import ist_kontobewegung, zeile_aus_event
 
@@ -42,11 +43,24 @@ _letzter_lauf = {
     "erfolgreich": None,
     "meldung": None,
     "zahlen": None,
+    "sitzung_verloren": False,
 }
 
 
 def status() -> dict:
     return dict(_letzter_lauf)
+
+
+def sitzung_gilt() -> bool:
+    """Ob die gespeicherte Sitzung nach dem letzten Kontakt mit Trade Republic
+    noch als gueltig gelten darf.
+
+    Eine Cookie-Datei allein sagt das nicht: sie bleibt liegen, auch wenn
+    Trade Republic sie beim letzten Abgleich schon abgelehnt hat - "Abmelden"
+    muss dafuer niemand extra klicken. Ohne diesen Blick auf den letzten
+    Versuch wuerde die Anmeldeseite trotz toter Sitzung "angemeldet" zeigen.
+    """
+    return tr_client.sitzung_vorhanden() and not _letzter_lauf["sitzung_verloren"]
 
 
 def _zeitstempel(event: dict) -> dt.datetime | None:
@@ -213,8 +227,12 @@ def sync_einmal(db: Session) -> dict:
         try:
             api = verbindung(konto.telefonnummer)
         except NichtAngemeldet as exc:
-            _letzter_lauf.update(erfolgreich=False, meldung=str(exc))
+            _letzter_lauf.update(erfolgreich=False, meldung=str(exc), sitzung_verloren=True)
             return {"uebersprungen": str(exc)}
+
+        # verbindung() ist da - was auch immer noch schiefgeht, an der Sitzung
+        # liegt es nicht mehr.
+        _letzter_lauf["sitzung_verloren"] = False
 
         # Auch die schon beurteilten Verdachtsfaelle gelten als bekannt. Sonst
         # holt jeder Lauf ihre Details erneut, nur damit die Uebernahme sie

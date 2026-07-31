@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.31.0 - 2026-07-31
+
+- **Ein Klick auf den „Zu tun"-Hinweis zu Trade Republic führt jetzt direkt zur PIN-Eingabe**, auch wenn noch eine (ungültige) Sitzungs-Cookie-Datei vorliegt. Bisher zeigte die Seite in diesem – mit Abstand häufigsten – Fall fälschlich „angemeldet" mit den Knöpfen „Jetzt abgleichen"/„Abmelden" an, weil sie nur prüfte, ob die Datei existiert, nicht ob Trade Republic sie noch akzeptiert. Ein explizites Abmelden vor der Neuanmeldung ist nicht nötig – eine neue Anmeldung überschreibt die alte Sitzung ohnehin. Die Telefonnummer ist vorausgefüllt, der Cursor springt direkt ins PIN-Feld.
+- **Das Anmeldeformular ist deutlich kürzer.** Der Schutz-Token samt vier Absätzen Erklärung und Lesezeichen-Code stand bisher immer da, obwohl die automatische Ermittlung so gut wie immer klappt. Er erscheint jetzt nur noch, wenn eine Anmeldung tatsächlich am Bot-Schutz gescheitert ist – serverseitig anhand der Fehlermeldung, kein aufklappbarer Bereich: genau der ließ sich in 1.19.3 in der Home-Assistant-App auf dem Handy nicht öffnen.
+- Grundlage ist ein neues `tr_sync.sitzung_gilt()`, das Cookie-Datei und letzten Abgleichsversuch zusammen bewertet, statt nur die Datei zu prüfen. Beim Testen dafür fiel auf, dass `_tr_warnung()` auch ohne je hinterlegtes Trade-Republic-Konto einen Fehlschlag hätte melden können – abgesichert, auch wenn es im Betrieb nie ein Konto ohne vorherige Anmeldung gibt.
+- Test-Suite auf 419 Tests.
+
 ## 1.30.2 - 2026-07-31
 
 - **Der Hinweis zu einem fehlgeschlagenen Trade-Republic-Abgleich nennt jetzt den Grund** statt pauschal „letzter Abgleich fehlgeschlagen" – meistens „Die Sitzung ist abgelaufen – bitte neu anmelden.", denn genau das ist der mit Abstand häufigste Fall. Die Trade-Republic-Websession hält erfahrungsgemäß nur etwa einen Tag, danach verlangt Trade Republic serverseitig eine neue Anmeldung samt Bestätigung in der App – ein pauschales „fehlgeschlagen" ließe das wie einen echten Fehler aussehen, den es zu untersuchen gilt.

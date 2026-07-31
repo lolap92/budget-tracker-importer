@@ -13,9 +13,11 @@ from pathlib import Path
 import pytest
 
 from app.import_core import QUELLE_CSV, ImportKontext, uebernehmen
-from app.models import Buchung, ImportVerdacht
+from app.models import Buchung, ImportVerdacht, TradeRepublicKonto
+from app.tr_client import NichtAngemeldet
 from app.tr_events import zeile_aus_event
-from app.tr_sync import ab_zeitpunkt, events_laden, lauf, verarbeiten
+from app import tr_sync
+from app.tr_sync import ab_zeitpunkt, events_laden, lauf, sync_einmal, verarbeiten
 from tests.conftest import START_DATUM
 
 FIXTURES = Path(__file__).parent / "fixtures" / "tr_events"
@@ -333,3 +335,95 @@ class TestIntervall:
         asyncio.run(tr_sync.sync_schleife())
 
         assert gelaufen == []
+
+
+class TestSitzungGilt:
+    """Eine Cookie-Datei allein sagt nichts darueber, ob Trade Republic die
+    Sitzung noch akzeptiert - erst der letzte Kontaktversuch tut das."""
+
+    def test_ohne_cookie_datei(self, monkeypatch):
+        monkeypatch.setattr(tr_sync.tr_client, "sitzung_vorhanden", lambda: False)
+
+        assert tr_sync.sitzung_gilt() is False
+
+    def test_mit_gueltiger_sitzung(self, monkeypatch):
+        monkeypatch.setattr(tr_sync.tr_client, "sitzung_vorhanden", lambda: True)
+        monkeypatch.setitem(tr_sync._letzter_lauf, "sitzung_verloren", False)
+
+        assert tr_sync.sitzung_gilt() is True
+
+    def test_mit_verlorener_sitzung(self, monkeypatch):
+        """Der Fall aus der Praxis: die Cookie-Datei liegt noch da, Trade
+        Republic hat die Sitzung beim letzten Abgleich aber schon abgelehnt."""
+        monkeypatch.setattr(tr_sync.tr_client, "sitzung_vorhanden", lambda: True)
+        monkeypatch.setitem(tr_sync._letzter_lauf, "sitzung_verloren", True)
+
+        assert tr_sync.sitzung_gilt() is False
+
+
+class TestSyncEinmalSitzungsstatus:
+    """sync_einmal() haelt fest, ob ein Fehlschlag an der Sitzung lag - nur so
+    kann die Anmeldeseite bei einer toten Sitzung sofort das Formular zeigen
+    statt "angemeldet"."""
+
+    @pytest.fixture(autouse=True)
+    def _status_zuruecksetzen(self):
+        """sync_einmal() mutiert _letzter_lauf direkt (nicht ueber status()),
+        ein monkeypatch.setitem sieht diese spaeteren Schreibzugriffe also
+        nicht - ohne diese Wiederherstellung wuerde ein hier gesetztes
+        erfolgreich=False in ganz andere Tests hineinwirken."""
+        vorher = dict(tr_sync._letzter_lauf)
+        yield
+        tr_sync._letzter_lauf.clear()
+        tr_sync._letzter_lauf.update(vorher)
+
+    @pytest.fixture
+    def konto(self, db, app):
+        k = TradeRepublicKonto(telefonnummer="+4915112345678")
+        db.add(k)
+        db.commit()
+        return k
+
+    def test_abgelaufene_sitzung_setzt_das_flag(self, db, konto, monkeypatch):
+        def _verbindung(telefonnummer):
+            raise NichtAngemeldet("Die Sitzung ist abgelaufen - bitte neu anmelden.")
+
+        monkeypatch.setattr(tr_sync, "verbindung", _verbindung)
+
+        sync_einmal(db)
+
+        status = tr_sync.status()
+        assert status["erfolgreich"] is False
+        assert status["sitzung_verloren"] is True
+        assert "abgelaufen" in status["meldung"]
+
+    def test_erfolgreicher_lauf_setzt_das_flag_zurueck(self, db, konto, monkeypatch):
+        monkeypatch.setitem(tr_sync._letzter_lauf, "sitzung_verloren", True)
+        monkeypatch.setattr(tr_sync, "verbindung", lambda telefonnummer: object())
+
+        async def _lauf(api, ab, ist_bekannt):
+            return [], None
+
+        monkeypatch.setattr(tr_sync, "lauf", _lauf)
+
+        sync_einmal(db)
+
+        status = tr_sync.status()
+        assert status["erfolgreich"] is True
+        assert status["sitzung_verloren"] is False
+
+    def test_anderer_fehler_laesst_das_flag_in_ruhe(self, db, konto, monkeypatch):
+        """Scheitert der Abruf, nachdem die Verbindung stand, liegt es nicht
+        an der Sitzung - das Flag darf nicht faelschlich gesetzt werden."""
+        monkeypatch.setattr(tr_sync, "verbindung", lambda telefonnummer: object())
+
+        async def _lauf(api, ab, ist_bekannt):
+            raise RuntimeError("Netzwerk weg")
+
+        monkeypatch.setattr(tr_sync, "lauf", _lauf)
+
+        sync_einmal(db)
+
+        status = tr_sync.status()
+        assert status["erfolgreich"] is False
+        assert status["sitzung_verloren"] is False

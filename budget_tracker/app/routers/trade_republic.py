@@ -50,7 +50,7 @@ def _seite(
         ctx(
             request,
             konto=konto,
-            angemeldet=tr_client.sitzung_vorhanden(),
+            angemeldet=tr_sync.sitzung_gilt(),
             anmeldung_laeuft=tr_client.anmeldung_laeuft(),
             wartet_auf_app=tr_client.anmeldeverfahren() == tr_client.VERFAHREN_V2,
             countdown=_offene_anmeldung.get("countdown"),
