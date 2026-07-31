@@ -183,6 +183,11 @@ def anteile(snapshot: DepotSnapshot | None) -> list[tuple[DepotPosition, Decimal
         return [(position, Decimal("0")) for position in sortiert]
 
     return [
-        (position, (Decimal(position.wert) / gesamt * 100).quantize(Decimal("0.1")))
+        (
+            position,
+            (Decimal(position.wert) / gesamt * 100).quantize(
+                Decimal("0.1"), rounding=ROUND_HALF_UP
+            ),
+        )
         for position in sortiert
     ]

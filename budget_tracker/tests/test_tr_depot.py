@@ -14,6 +14,7 @@ from app.main import app as fastapi_app
 from app.models import DepotPosition, DepotSnapshot, Topf
 from app.tr_depot import (
     aktueller_snapshot,
+    anteile,
     depot_laden,
     positionen_aus_antwort,
     snapshot_speichern,
@@ -276,3 +277,69 @@ class TestSeite:
         db.commit()
 
         assert "stimmt mit dem echten Bestand überein" in client.get("/depot").text
+
+    def test_positionen_zeigen_ihren_anteil_und_keine_stueckzahl(self, client, db, app):
+        """Der Anteil am Depot ist das, was interessiert - die Stueckzahl
+        wich ihm auf der Seite."""
+        snapshot_speichern(db, asyncio.run(depot_laden(api_mit_zwei_positionen(), _abrufen)))
+        db.commit()
+
+        text = client.get("/depot").text
+
+        assert "80,2 %" in text
+        assert "19,8 %" in text
+        assert "Stk" not in text
+
+
+class TestAnteile:
+    """Der Anteil je Position bezieht sich auf den Wert der Wertpapiere,
+    nicht auf Wertpapiere plus Cash - sonst wuerde jede Einzahlung aufs
+    Verrechnungskonto alle Anteile verschieben, ohne dass sich am Depot
+    etwas geaendert haette."""
+
+    def test_ohne_snapshot_leere_liste(self):
+        assert anteile(None) == []
+
+    def test_anteile_summieren_sich_auf_hundert(self, db, app):
+        snapshot = snapshot_speichern(
+            db, asyncio.run(depot_laden(api_mit_zwei_positionen(), _abrufen))
+        )
+        db.commit()
+
+        ergebnis = anteile(snapshot)
+
+        assert sum(anteil for _, anteil in ergebnis) == Decimal("100.0")
+
+    def test_groesste_position_zuerst(self, db, app):
+        snapshot = snapshot_speichern(
+            db, asyncio.run(depot_laden(api_mit_zwei_positionen(), _abrufen))
+        )
+        db.commit()
+
+        ergebnis = anteile(snapshot)
+
+        assert [p.name for p, _ in ergebnis] == ["Vanguard FTSE All-World", "Apple"]
+        assert [a for _, a in ergebnis] == [Decimal("80.2"), Decimal("19.8")]
+
+    def test_ohne_wert_keine_division_durch_null(self, db, app):
+        """Ein frischer Snapshot, dessen Positionen noch keinen Kurs hatten,
+        darf nicht crashen - er zeigt einfach ueberall 0 %."""
+        snapshot = snapshot_speichern(
+            db, asyncio.run(depot_laden(api_mit_zwei_positionen(kurse={}), _abrufen))
+        )
+        db.commit()
+
+        assert anteile(snapshot) == []
+
+
+class TestProzentFilter:
+    def test_formatierung(self):
+        from app.webutils import prozent
+
+        assert prozent(Decimal("80.2")) == "80,2 %"
+        assert prozent(Decimal("3")) == "3,0 %"
+
+    def test_ohne_wert(self):
+        from app.webutils import prozent
+
+        assert prozent(None) == "-"

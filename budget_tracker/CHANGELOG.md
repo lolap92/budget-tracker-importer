@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.30.0 - 2026-07-31
+
+- **Jede Position im Depot zeigt jetzt ihren Anteil am Gesamtdepot** – prominent, direkt neben dem Namen, dazu ein Balken darunter. Der Anteil bezieht sich auf den Wert der Wertpapiere allein, nicht auf Wertpapiere plus Cash: sonst würde jede Einzahlung aufs Verrechnungskonto alle Anteile verschieben, ohne dass sich am Depot etwas geändert hätte.
+- **Im Gegenzug fielen Stückzahl, Kurs und ISIN aus der Detailzeile** – geblieben sind Einstand und Gewinn/Verlust je Position. Das Prozent war der Wunsch, alles Weitere trat dafür zurück.
+- Die Rechnung steht in `app/tr_depot.py: anteile()`, nicht im Template – ein Snapshot ganz ohne Wert (frisch angelegt, noch keine Position mit Kurs) liefert überall 0 % statt einer Division durch null.
+- Test-Suite auf 406 Tests.
+
 ## 1.29.0 - 2026-07-30
 
 - **Alle Zeitangaben stehen jetzt in lokaler Zeit** statt in UTC – und ohne das Kürzel dahinter, das nur nötig war, weil die Zahl davor eine Erklärung brauchte. Betroffen waren sieben Stellen: letzter Abgleich und Zeitpunkt des letzten Laufs (Trade Republic), letzter Scan und zuletzt importiert (Mehr), der Depot-Stand auf der Depot-Seite **und** auf der Startseite sowie „Importiert" in der Buchungs-Detailansicht. Im Sommer waren das zwei Stunden Unterschied – genug, um einen frischen Abgleich für veraltet zu halten.
