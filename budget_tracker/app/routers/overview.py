@@ -114,6 +114,7 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
     # stehen zu lassen.
     kontostand = kontostand_gesamt(db)
     nicht_zugeordnet = kontostand - sum((k["saldo"] for k in karten), Decimal(0))
+    tr_konto = db.query(TradeRepublicKonto).first()
 
     return templates.TemplateResponse(
         "overview.html",
@@ -131,6 +132,7 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             offene_anzahl=len(review_liste(db)),
             umbuchungen_anzahl=len(offene_umbuchungen(db)),
             stand_datum=neuestes_buchungsdatum(db),
+            tr_letzter_sync=tr_konto.letzter_sync if tr_konto else None,
         ),
     )
 

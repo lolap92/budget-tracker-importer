@@ -6,7 +6,10 @@
 <div class="card hero">
   <div class="card-label">Kontostand Cashkonto</div>
   <div class="total">{{ (kontostand | eur).split(',')[0] }}<span class="cur">,{{ (kontostand | eur).split(',')[1] }}</span></div>
-  <div class="sub">{% if stand_datum %}Stand {{ stand_datum | datum_de }}{% else %}Noch keine Buchungen importiert{% endif %}</div>
+  <div class="sub">
+    {% if stand_datum %}Stand {{ stand_datum | datum_de }}{% else %}Noch keine Buchungen importiert{% endif %}
+    {%- if tr_letzter_sync %} · letzter Abgleich {{ tr_letzter_sync | zeit_de }}{% endif %}
+  </div>
   {% if nicht_zugeordnet %}
   <div class="sub">davon {{ nicht_zugeordnet | eur }} noch keinem Topf zugeordnet</div>
   {% endif %}
