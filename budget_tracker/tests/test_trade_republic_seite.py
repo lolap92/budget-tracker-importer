@@ -74,6 +74,30 @@ class TestSeite:
     def test_ohne_konto_keine_meldung(self, client, db, app):
         assert "Trade Republic:" not in client.get("/").text
 
+    def test_uebersicht_nennt_den_grund_des_fehlgeschlagenen_abgleichs(
+        self, client, db, app, monkeypatch
+    ):
+        """Die abgelaufene Sitzung ist der mit Abstand haeufigste Grund - ein
+        pauschales "fehlgeschlagen" liesse sie wie einen echten Fehler
+        aussehen, den es zu untersuchen gilt."""
+        from app import tr_client, tr_sync
+
+        db.add(TradeRepublicKonto(telefonnummer="+4915112345678"))
+        db.commit()
+        monkeypatch.setattr(tr_client, "sitzung_vorhanden", lambda: True)
+        monkeypatch.setattr(
+            tr_sync,
+            "status",
+            lambda: {
+                "erfolgreich": False,
+                "meldung": "Die Sitzung ist abgelaufen - bitte neu anmelden.",
+            },
+        )
+
+        text = client.get("/").text
+
+        assert "Trade Republic: Die Sitzung ist abgelaufen - bitte neu anmelden." in text
+
 
 class TestAnmeldung:
     def test_unvollstaendige_eingabe_wird_abgelehnt(self, client):

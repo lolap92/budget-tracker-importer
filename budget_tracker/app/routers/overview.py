@@ -55,8 +55,13 @@ def _tr_warnung(db: Session) -> str | None:
     konto = db.query(TradeRepublicKonto).first()
     if konto is not None and not tr_client.sitzung_vorhanden():
         return "Trade Republic: Anmeldung erforderlich"
-    if tr_sync.status().get("erfolgreich") is False:
-        return "Trade Republic: letzter Abgleich fehlgeschlagen"
+    status = tr_sync.status()
+    if status.get("erfolgreich") is False:
+        # Der Grund steht schon in status["meldung"] (z.B. "Die Sitzung ist
+        # abgelaufen - bitte neu anmelden.") - lieber den nennen als pauschal
+        # "fehlgeschlagen", sonst sieht eine abgelaufene Sitzung (der mit
+        # Abstand haeufigste Fall) aus wie ein echter Fehler.
+        return f"Trade Republic: {status.get('meldung') or 'letzter Abgleich fehlgeschlagen'}"
     return None
 
 

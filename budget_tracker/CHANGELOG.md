@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.30.2 - 2026-07-31
+
+- **Der Hinweis zu einem fehlgeschlagenen Trade-Republic-Abgleich nennt jetzt den Grund** statt pauschal „letzter Abgleich fehlgeschlagen" – meistens „Die Sitzung ist abgelaufen – bitte neu anmelden.", denn genau das ist der mit Abstand häufigste Fall. Die Trade-Republic-Websession hält erfahrungsgemäß nur etwa einen Tag, danach verlangt Trade Republic serverseitig eine neue Anmeldung samt Bestätigung in der App – ein pauschales „fehlgeschlagen" ließe das wie einen echten Fehler aussehen, den es zu untersuchen gilt.
+- Der Grund stand technisch schon vorher bereit (`tr_sync.status()["meldung"]`), wurde auf der Startseite aber verworfen zugunsten eines festen Textes.
+- Test-Suite auf 410 Tests.
+
 ## 1.30.1 - 2026-07-31
 
 - **Auf der Startseite steht jetzt „Letzter Abgleich" mit Datum und Uhrzeit (lokale Zeit) unter dem Kontostand** – der Zeitpunkt der letzten erfolgreichen Abfrage über die Trade-Republic-Schnittstelle, sichtbar ohne extra auf die Trade-Republic- oder Depot-Seite zu wechseln. Erscheint nur, wenn ein Konto verbunden ist.
