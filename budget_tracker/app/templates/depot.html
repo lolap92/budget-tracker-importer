@@ -61,17 +61,21 @@
   </p>
 </div>
 
-{% if snapshot.positionen %}
-<div class="sec-t">Positionen ({{ snapshot.positionen|length }})</div>
+{% if positionen %}
+<div class="sec-t">Positionen ({{ positionen|length }})</div>
 <div class="card">
-  {% for p in snapshot.positionen|sort(attribute='wert', reverse=true) %}
+  {% for p, anteil in positionen %}
   <div class="topf-row" style="display:block;">
-    <div style="display:flex;justify-content:space-between;gap:12px;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
       <div class="nm">{{ p.name }}</div>
+      <div style="font-family:var(--font-display);font-size:20px;font-weight:600;flex-shrink:0;line-height:1.1;">{{ anteil | prozent }}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="progress-bar" style="flex:1;"><div style="width:{{ anteil }}%;"></div></div>
       <div class="todo-amt">{{ p.wert | eur }}</div>
     </div>
     <div class="b-ref" style="font-style:normal;margin-top:2px;">
-      {{ p.stueck | stueck }} Stk · {{ p.kurs | eur }}
+      {{ p.kurs | eur }}
       {%- set einstandswert = p.einstand * p.stueck %}
       {%- if einstandswert %} · Einstand {{ einstandswert | eur }}
       ({{ '+' if p.wert >= einstandswert else '' }}{{ (p.wert - einstandswert) | eur }}){% endif %}

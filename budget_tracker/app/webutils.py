@@ -36,6 +36,15 @@ def stueck(value) -> str:
     return formatiert.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def prozent(value) -> str:
+    """Anteile im Depot: eine Nachkommastelle reicht, um zwei Positionen zu
+    unterscheiden, ohne eine Genauigkeit vorzutaeuschen, die ein schwankender
+    Kurs ohnehin nicht hat."""
+    if value is None:
+        return "-"
+    return f"{Decimal(value):.1f}".replace(".", ",") + " %"
+
+
 def zeit_de(value) -> str:
     """Zeitpunkt in lokaler Zeit, ohne Zeitzonen-Kuerzel.
 
@@ -93,6 +102,7 @@ def topfklasse(name) -> str:
 
 templates.env.filters["eur"] = eur
 templates.env.filters["stueck"] = stueck
+templates.env.filters["prozent"] = prozent
 templates.env.filters["datum_de"] = datum_de
 templates.env.filters["zeit_de"] = zeit_de
 templates.env.filters["datum_kurz"] = datum_kurz

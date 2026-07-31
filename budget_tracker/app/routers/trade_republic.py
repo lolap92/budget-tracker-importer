@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app import config, tr_client, tr_sync
 from app.calculations import kontostand_gesamt
 from app.database import get_db
-from app.tr_depot import aktueller_snapshot
+from app.tr_depot import aktueller_snapshot, anteile
 from app.import_core import ImportKontext, uebernehmen
 from app.models import ImportVerdacht, TradeRepublicKonto
 from app.webutils import ctx, redirect, templates
@@ -115,7 +115,13 @@ def depot(request: Request, db: Session = Depends(get_db)):
 
     return templates.TemplateResponse(
         "depot.html",
-        ctx(request, snapshot=snapshot, kontostand=kontostand, abweichung=abweichung),
+        ctx(
+            request,
+            snapshot=snapshot,
+            positionen=anteile(snapshot),
+            kontostand=kontostand,
+            abweichung=abweichung,
+        ),
     )
 
 

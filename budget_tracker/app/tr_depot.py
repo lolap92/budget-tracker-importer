@@ -161,3 +161,28 @@ def snapshot_speichern(db: Session, daten: dict) -> DepotSnapshot:
 
 def aktueller_snapshot(db: Session) -> DepotSnapshot | None:
     return db.query(DepotSnapshot).order_by(DepotSnapshot.zeitpunkt.desc()).first()
+
+
+def anteile(snapshot: DepotSnapshot | None) -> list[tuple[DepotPosition, Decimal]]:
+    """Die Positionen mit ihrem Anteil am Depot, groesste zuerst.
+
+    Bezug ist der Wert der Wertpapiere, nicht Wertpapiere plus Cash: die
+    Anteile sollen sich auf 100 % summieren und nicht springen, sobald Geld
+    aufs Verrechnungskonto kommt.
+
+    Die Rechnung steht hier und nicht im Template, damit sie testbar bleibt -
+    und weil ein Snapshot ohne Wert (frisch angelegt, alle Positionen ohne
+    Kurs) sonst eine Division durch null waere.
+    """
+    if snapshot is None:
+        return []
+
+    gesamt = Decimal(snapshot.gesamtwert or 0)
+    sortiert = sorted(snapshot.positionen, key=lambda p: Decimal(p.wert), reverse=True)
+    if gesamt <= 0:
+        return [(position, Decimal("0")) for position in sortiert]
+
+    return [
+        (position, (Decimal(position.wert) / gesamt * 100).quantize(Decimal("0.1")))
+        for position in sortiert
+    ]
