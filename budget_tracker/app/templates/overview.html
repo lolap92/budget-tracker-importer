@@ -1,6 +1,15 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}Übersicht – Budget-Tracker{% endblock %}
 {% block header_title %}Budget-Tracker{% endblock %}
+{% block header_action %}
+<div style="display:flex;gap:8px;">
+  {% if tr_warnung %}
+  <a class="icon-btn warn" href="{{ base }}/trade-republic" aria-label="{{ tr_warnung }}">{{ icons.warn_triangle() }}</a>
+  {% endif %}
+  <a class="icon-btn" href="{{ base }}/mehr" aria-label="Mehr">{{ icons.menu() }}</a>
+</div>
+{% endblock %}
 {% block content %}
 
 <div class="card hero">
@@ -58,7 +67,7 @@
 </p>
 {% endif %}
 
-{% if offene_anzahl or umbuchungen_anzahl or import_warnung or tr_warnung or kontostand_hinweis %}
+{% if offene_anzahl or umbuchungen_anzahl or import_warnung or kontostand_hinweis %}
 <div class="sec-t">Zu tun</div>
 <div class="card" style="padding:4px 16px;">
   {% if kontostand_hinweis %}
@@ -76,12 +85,6 @@
   {% if import_warnung %}
   <a href="{{ base }}/mehr" class="topf-row" style="color:inherit;">
     <div class="who"><span class="tdot warn"></span><div class="nm">{{ import_warnung }}</div></div>
-    <div class="todo-amt" style="color:var(--warn);">ansehen</div>
-  </a>
-  {% endif %}
-  {% if tr_warnung %}
-  <a href="{{ base }}/trade-republic" class="topf-row" style="color:inherit;">
-    <div class="who"><span class="tdot warn"></span><div class="nm">{{ tr_warnung }}</div></div>
     <div class="todo-amt" style="color:var(--warn);">ansehen</div>
   </a>
   {% endif %}

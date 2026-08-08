@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.32.0 - 2026-08-08
+
+- **Der Trade-Republic-Hinweis steht jetzt oben rechts als Icon statt unten im „Zu tun"-Bereich.** Ein rotes Warndreieck neben dem Menü-Button erscheint nur, wenn wirklich etwas ansteht (Anmeldung erforderlich, Sitzung abgelaufen o.ä.), und führt mit einem Klick direkt zur Trade-Republic-Seite – ohne den Text zusätzlich weiter unten zu wiederholen. Ohne Anlass ist von dem Icon nichts zu sehen.
+- Test-Suite auf 421 Tests.
+
 ## 1.31.0 - 2026-07-31
 
 - **Ein Klick auf den „Zu tun"-Hinweis zu Trade Republic führt jetzt direkt zur PIN-Eingabe**, auch wenn noch eine (ungültige) Sitzungs-Cookie-Datei vorliegt. Bisher zeigte die Seite in diesem – mit Abstand häufigsten – Fall fälschlich „angemeldet" mit den Knöpfen „Jetzt abgleichen"/„Abmelden" an, weil sie nur prüfte, ob die Datei existiert, nicht ob Trade Republic sie noch akzeptiert. Ein explizites Abmelden vor der Neuanmeldung ist nicht nötig – eine neue Anmeldung überschreibt die alte Sitzung ohnehin. Die Telefonnummer ist vorausgefüllt, der Cursor springt direkt ins PIN-Feld.

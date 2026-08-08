@@ -74,6 +74,22 @@ class TestSeite:
     def test_ohne_konto_keine_meldung(self, client, db, app):
         assert "Trade Republic:" not in client.get("/").text
 
+    def test_hinweis_ist_nur_noch_das_icon_oben(self, client, db, app):
+        """Ersetzt die fruehere Zeile im "Zu tun"-Bereich: ein Icon oben
+        rechts fuehrt direkt zur selben Seite, ohne den Hinweis zusaetzlich
+        weiter unten zu wiederholen."""
+        db.add(TradeRepublicKonto(telefonnummer="+4915112345678"))
+        db.commit()
+
+        text = client.get("/").text
+
+        assert 'class="icon-btn warn"' in text
+        assert 'href="/trade-republic"' in text
+        assert "ansehen" not in text
+
+    def test_icon_fehlt_ohne_hinweis(self, client, db, app):
+        assert "icon-btn warn" not in client.get("/").text
+
     def test_uebersicht_nennt_den_grund_des_fehlgeschlagenen_abgleichs(
         self, client, db, app, monkeypatch
     ):
