@@ -42,7 +42,13 @@
   </div>
   {% endif %}
 
-  {% if anmeldung_laeuft and wartet_auf_app %}
+  {% if demo_modus %}
+  <p class="b-ref" style="font-style:normal;margin-top:14px;">
+    Im Demo-Modus deaktiviert - hier ließe sich sonst ein echtes Trade-Republic-Konto
+    verbinden. Der Depotstand unten ist trotzdem als Beispiel zu sehen.
+  </p>
+
+  {% elif anmeldung_laeuft and wartet_auf_app %}
   <div style="margin-top:14px;text-align:center;">
     <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:6px;">
       Bitte in der Trade-Republic-App bestätigen

@@ -9,11 +9,13 @@ from fastapi import Request
 from fastapi.responses import RedirectResponse
 from starlette.templating import Jinja2Templates
 
+from app.config import DEMO_MODUS
 from app.dateutils import nach_lokaler_zeit
 from app.manual_entry import ist_loeschbar, ist_manuelle_buchung, ist_zu_umbuchung_konvertierbar
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+templates.env.globals["demo_modus"] = DEMO_MODUS
 
 
 def eur(value) -> str:

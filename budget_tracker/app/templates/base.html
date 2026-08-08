@@ -10,6 +10,9 @@
 {% import "_icons.html" as icons %}
 <div class="board">
   <header class="appbar">
+    {% if demo_modus %}
+    <div class="demo-banner">Demo-Modus · ausschließlich Testdaten, keine echten Daten</div>
+    {% endif %}
     <div class="ha-ctx">{{ icons.ha_logo() }} Home Assistant</div>
     <div class="row">
       <h2>{% block header_title %}Budget-Tracker{% endblock %}</h2>

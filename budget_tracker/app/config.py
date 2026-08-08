@@ -7,7 +7,32 @@ import re
 from pathlib import Path
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
-DB_PATH = DATA_DIR / "budget_tracker.db"
+
+
+def read_addon_options() -> dict:
+    """Liest optionale Add-on-Optionen aus /data/options.json (Supervisor-Konvention)."""
+    options_path = DATA_DIR / "options.json"
+    if options_path.exists():
+        try:
+            return json.loads(options_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+# Demo-Modus: zeigt ausschliesslich frei erfundene Testdaten, um die App
+# vorfuehren zu koennen, ohne echte Daten offenzulegen. Laeuft dafuer auf
+# einer komplett eigenen Datenbankdatei (demo_budget_tracker.db statt
+# budget_tracker.db) - dieselbe DATABASE_URL, mit der die ganze App
+# arbeitet, zeigt dann durchgaengig auf die Demo-Datei. Es gibt keinen
+# Codepfad, der beide Dateien gleichzeitig anfasst, ein Durchsickern echter
+# Daten in den Demo-Modus (oder umgekehrt) ist dadurch strukturell
+# ausgeschlossen, nicht nur per Konvention. Die Datei wird vor jeder
+# Migration frisch verworfen (siehe run.sh), damit der Demo-Modus bei jedem
+# Neustart wieder mit denselben Testdaten beginnt.
+DEMO_MODUS: bool = bool(read_addon_options().get("demo_modus", False))
+
+DB_PATH = DATA_DIR / ("demo_budget_tracker.db" if DEMO_MODUS else "budget_tracker.db")
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
 HA_CONFIG_DIR = Path(os.environ.get("HA_CONFIG_DIR", "/homeassistant"))
@@ -110,14 +135,3 @@ def version() -> str:
     except OSError:
         pass
     return "unbekannt"
-
-
-def read_addon_options() -> dict:
-    """Liest optionale Add-on-Optionen aus /data/options.json (Supervisor-Konvention)."""
-    options_path = DATA_DIR / "options.json"
-    if options_path.exists():
-        try:
-            return json.loads(options_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return {}
-    return {}

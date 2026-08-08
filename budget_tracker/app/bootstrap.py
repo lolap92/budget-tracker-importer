@@ -15,7 +15,8 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from app.config import DEFAULT_IMPORT_DIR, SEED_FILE, TOPF_NAMEN
+from app.config import DEFAULT_IMPORT_DIR, DEMO_MODUS, SEED_FILE, TOPF_NAMEN
+from app.demo_seed import lade_demo_daten
 from app.forecast_engine import ensure_forecast_vorkommen
 from app.models import ForecastRegel, ForecastVorkommen, Konfiguration, Topf
 
@@ -117,6 +118,10 @@ def bootstrap_manuell(db: Session, start_datum: dt.date, topf_startsalden: dict[
 
 def bootstrap_falls_noetig(db: Session) -> None:
     if ist_bootstrapped(db):
+        return
+    if DEMO_MODUS:
+        logger.info("Demo-Modus aktiv: Bootstrap aus frei erfundenen Testdaten.")
+        lade_demo_daten(db)
         return
     try:
         ausgefuehrt = bootstrap_aus_seed_datei(db)

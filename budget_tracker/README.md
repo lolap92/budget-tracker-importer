@@ -64,6 +64,29 @@ Fehlt die Datei, zeigt die App beim ersten Aufruf eine Bootstrap-Seite zur
 Eingabe von Startdatum und den vier Topf-Startsalden. Forecast-Regeln lassen
 sich danach direkt in der App unter „Forecast“ anlegen.
 
+## Demo-Modus
+
+Für Vorführzwecke lässt sich die App über die Add-on-Option `demo_modus`
+(Registerkarte „Konfiguration") komplett auf frei erfundene Testdaten
+umschalten - Töpfe, Forecast-Regeln, Buchungen (inkl. offener Zuordnungen
+und eines Verdachtsfalls) und ein Depotstand, damit sich Übersicht,
+Buchungen, Forecast und Depot sinnvoll zeigen lassen.
+
+Das läuft auf einer eigenen Datenbankdatei (`demo_budget_tracker.db` statt
+`budget_tracker.db`) - die echten Daten werden dabei nie gelesen oder
+geschrieben, unabhängig davon, was im Demo-Modus passiert. Bei jedem Start
+wird die Demo-Datenbank zusätzlich verworfen und frisch aus denselben
+Testdaten neu aufgebaut. Ein Hinweisbalken oben in der App macht den
+Demo-Modus jederzeit sichtbar.
+
+Der Verzeichnis-Watcher und der Trade-Republic-Abgleich (Hintergrundlauf,
+Anmeldung, manueller Button) sind im Demo-Modus komplett deaktiviert -
+weder werden echte CSV-Dateien aus dem konfigurierten Verzeichnis
+importiert, noch lässt sich ein echtes Trade-Republic-Konto verbinden.
+
+Zum Zurückschalten auf die echten Daten die Option wieder auf `false`
+setzen und das Add-on neu starten.
+
 ## Trade Republic direkt anbinden (optional)
 
 Unter **Mehr → Trade Republic** lässt sich das Konto direkt anbinden, statt

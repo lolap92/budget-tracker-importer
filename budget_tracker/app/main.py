@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.bootstrap import bootstrap_falls_noetig, ist_bootstrapped
+from app.config import DEMO_MODUS
 from app.database import SessionLocal
 from app.routers import (
     bootstrap as bootstrap_router,
@@ -54,12 +55,21 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    _hintergrund_tasks.append(asyncio.create_task(scan_schleife()))
-    logger.info("Verzeichnis-Watcher gestartet.")
-    # Laeuft auch ohne hinterlegte Anmeldung mit: der Abgleich prueft das selbst
-    # und ueberspringt sich, solange keine Sitzung existiert.
-    _hintergrund_tasks.append(asyncio.create_task(sync_schleife()))
-    logger.info("Trade-Republic-Abgleich gestartet.")
+    # Im Demo-Modus laufen weder der Verzeichnis-Watcher noch der
+    # Trade-Republic-Abgleich: der Watcher wuerde echte CSV-Dateien aus dem
+    # konfigurierten Verzeichnis in die (isolierte) Demo-Datenbank importieren,
+    # und der Abgleich koennte bei hinterlegten echten Zugangsdaten eine echte
+    # Trade-Republic-Verbindung aufbauen. Beides darf im Demo-Modus unter
+    # keinen Umstaenden passieren.
+    if not DEMO_MODUS:
+        _hintergrund_tasks.append(asyncio.create_task(scan_schleife()))
+        logger.info("Verzeichnis-Watcher gestartet.")
+        # Laeuft auch ohne hinterlegte Anmeldung mit: der Abgleich prueft das
+        # selbst und ueberspringt sich, solange keine Sitzung existiert.
+        _hintergrund_tasks.append(asyncio.create_task(sync_schleife()))
+        logger.info("Trade-Republic-Abgleich gestartet.")
+    else:
+        logger.info("Demo-Modus aktiv: Verzeichnis-Watcher und Trade-Republic-Abgleich bleiben aus.")
     yield
     for task in _hintergrund_tasks:
         task.cancel()

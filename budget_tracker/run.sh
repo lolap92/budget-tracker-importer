@@ -3,6 +3,23 @@ set -e
 
 cd /app
 
+# Demo-Modus: die Demo-Datenbank wird vor JEDER Migration verworfen, damit die
+# App bei jedem Start wieder mit denselben frei erfundenen Testdaten beginnt -
+# nie mit Staenden aus einer vorherigen Vorfuehrung. Muss vor "alembic upgrade
+# head" laufen, sonst baut die Migration auf einem veralteten Stand auf.
+DEMO_MODUS=$(python3 -c "
+import json, pathlib
+p = pathlib.Path('/data/options.json')
+try:
+    print(bool(json.loads(p.read_text()).get('demo_modus', False)))
+except Exception:
+    print(False)
+")
+if [ "$DEMO_MODUS" = "True" ]; then
+    echo "[budget-tracker] Demo-Modus aktiv: Demo-Datenbank wird frisch aufgebaut."
+    rm -f /data/demo_budget_tracker.db /data/demo_budget_tracker.db-*
+fi
+
 DB_FILE="/data/budget_tracker.db"
 BACKUP_DIR="/data/backups"
 

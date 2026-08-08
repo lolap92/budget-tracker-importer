@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.33.0 - 2026-08-08
+
+- **Neue Option `demo_modus`.** Zeigt die App mit frei erfundenen Testdaten statt der echten - zum Vorführen, ohne echte Daten offenzulegen. Läuft auf einer eigenen Datenbankdatei, die bei jedem Start frisch aus denselben Testdaten neu aufgebaut wird; die echten Daten werden dabei nie berührt. Ein Hinweisbalken oben in der App macht den Demo-Modus jederzeit sichtbar. Verzeichnis-Watcher und Trade-Republic-Abgleich (Hintergrundlauf, Anmeldung, manueller Button) bleiben dabei komplett deaktiviert, damit weder echte CSV-Dateien noch ein echtes Trade-Republic-Konto in den Demo-Modus gelangen.
+
 ## 1.32.1 - 2026-08-08
 
 - **Der Download-Button oben rechts steht jetzt immer da**, nicht mehr nur bei einer Meldung – er ist eine dauerhafte Abkürzung zur Trade-Republic-Seite, kein Fehlerindikator mehr. Grün statt rot, mit Download-Pfeil statt Warndreieck.

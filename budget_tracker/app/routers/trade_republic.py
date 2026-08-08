@@ -127,6 +127,11 @@ def depot(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/trade-republic/anmelden")
 async def anmelden(request: Request, db: Session = Depends(get_db)):
+    if config.DEMO_MODUS:
+        return _seite(
+            request, db, fehler="Im Demo-Modus lässt sich kein echtes Konto verbinden.", status_code=403
+        )
+
     form = await request.form()
     eingabe = (form.get("telefonnummer") or "").strip()
     pin = (form.get("pin") or "").strip()
@@ -207,7 +212,8 @@ def abmelden(request: Request):
 @router.post("/trade-republic/sync")
 async def jetzt_abgleichen(request: Request, db: Session = Depends(get_db)):
     """Holt sofort ab, statt auf den naechsten Turnus zu warten."""
-    await asyncio.to_thread(tr_sync.sync_einmal_mit_eigener_session)
+    if not config.DEMO_MODUS:
+        await asyncio.to_thread(tr_sync.sync_einmal_mit_eigener_session)
     return redirect(request, "/trade-republic")
 
 
