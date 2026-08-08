@@ -83,12 +83,12 @@ class TestSeite:
 
         text = client.get("/").text
 
-        assert 'class="icon-btn warn"' in text
+        assert 'class="icon-btn accent"' in text
         assert 'href="/trade-republic"' in text
         assert "ansehen" not in text
 
     def test_icon_fehlt_ohne_hinweis(self, client, db, app):
-        assert "icon-btn warn" not in client.get("/").text
+        assert 'href="/trade-republic" aria-label' not in client.get("/").text
 
     def test_uebersicht_nennt_den_grund_des_fehlgeschlagenen_abgleichs(
         self, client, db, app, monkeypatch
