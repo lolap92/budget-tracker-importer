@@ -65,54 +65,58 @@ class TestSeite:
     def test_uebersicht_meldet_offene_faelle(self, client, verdacht):
         assert "1 Bewegung zu klären" in client.get("/").text
 
-    def test_uebersicht_meldet_abgelaufene_sitzung(self, client, db, app):
-        db.add(TradeRepublicKonto(telefonnummer="+4915112345678"))
-        db.commit()
-
-        assert "Anmeldung erforderlich" in client.get("/").text
-
     def test_ohne_konto_keine_meldung(self, client, db, app):
         assert "Trade Republic:" not in client.get("/").text
 
-    def test_hinweis_ist_nur_noch_das_icon_oben(self, client, db, app):
-        """Ersetzt die fruehere Zeile im "Zu tun"-Bereich: ein Icon oben
-        rechts fuehrt direkt zur selben Seite, ohne den Hinweis zusaetzlich
-        weiter unten zu wiederholen."""
-        db.add(TradeRepublicKonto(telefonnummer="+4915112345678"))
-        db.commit()
+    def test_download_button_steht_immer_oben(self, client, db, app):
+        """Anders als der fruehere Hinweis im "Zu tun"-Bereich ist der Button
+        keine Fehlermeldung, sondern eine dauerhafte Abkuerzung - unabhaengig
+        davon, ob ueberhaupt ein Trade-Republic-Konto hinterlegt ist."""
+        assert 'class="icon-btn accent" href="/trade-republic"' in client.get("/").text
 
-        text = client.get("/").text
-
-        assert 'class="icon-btn accent"' in text
-        assert 'href="/trade-republic"' in text
-        assert "ansehen" not in text
-
-    def test_icon_fehlt_ohne_hinweis(self, client, db, app):
-        assert 'href="/trade-republic" aria-label' not in client.get("/").text
-
-    def test_uebersicht_nennt_den_grund_des_fehlgeschlagenen_abgleichs(
-        self, client, db, app, monkeypatch
-    ):
-        """Die abgelaufene Sitzung ist der mit Abstand haeufigste Grund - ein
-        pauschales "fehlgeschlagen" liesse sie wie einen echten Fehler
-        aussehen, den es zu untersuchen gilt."""
-        from app import tr_client, tr_sync
+    def test_abgelaufene_sitzung_ist_kein_fehler(self, client, db, app, monkeypatch):
+        """Eine abgelaufene oder fehlende Anmeldung ist der Normalfall bei der
+        taeglichen Nutzung - dafuer steht der Download-Button oben, sie soll
+        nicht zusaetzlich als Fehler im "Zu tun"-Bereich auftauchen."""
+        from app import tr_sync
 
         db.add(TradeRepublicKonto(telefonnummer="+4915112345678"))
         db.commit()
-        monkeypatch.setattr(tr_client, "sitzung_vorhanden", lambda: True)
         monkeypatch.setattr(
             tr_sync,
             "status",
             lambda: {
                 "erfolgreich": False,
                 "meldung": "Die Sitzung ist abgelaufen - bitte neu anmelden.",
+                "sitzung_verloren": True,
             },
         )
 
         text = client.get("/").text
 
-        assert "Trade Republic: Die Sitzung ist abgelaufen - bitte neu anmelden." in text
+        assert "Trade Republic:" not in text
+        assert "ansehen" not in text
+
+    def test_echter_fehler_erscheint_weiterhin_unten(self, client, db, app, monkeypatch):
+        """Scheitert der Abgleich aus einem anderen Grund als der Sitzung, ist
+        das ein echter Fehler und soll wie bisher im "Zu tun"-Bereich stehen."""
+        from app import tr_sync
+
+        db.add(TradeRepublicKonto(telefonnummer="+4915112345678"))
+        db.commit()
+        monkeypatch.setattr(
+            tr_sync,
+            "status",
+            lambda: {
+                "erfolgreich": False,
+                "meldung": "Abruf fehlgeschlagen (TimeoutError)",
+                "sitzung_verloren": False,
+            },
+        )
+
+        text = client.get("/").text
+
+        assert "Trade Republic: Abruf fehlgeschlagen (TimeoutError)" in text
 
 
 class TestAnmeldung:

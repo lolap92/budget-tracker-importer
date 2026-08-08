@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.32.1 - 2026-08-08
+
+- **Der Download-Button oben rechts steht jetzt immer da**, nicht mehr nur bei einer Meldung – er ist eine dauerhafte Abkürzung zur Trade-Republic-Seite, kein Fehlerindikator mehr. Grün statt rot, mit Download-Pfeil statt Warndreieck.
+- **Eine abgelaufene oder fehlende Anmeldung erscheint nicht mehr als Fehler im „Zu tun"-Bereich.** Das ist bei der täglichen Nutzung der Normalfall, kein Fehlschlag, der eine Untersuchung braucht – dafür steht jetzt immer der Button oben. Ein *echter* Fehlschlag (z.B. ein Netzwerkproblem mitten im Abgleich) erscheint dort weiterhin, ebenso Bewegungen aus der Schnittstelle, die auf eine Entscheidung warten – beides sind eigene Aufgaben, keine Alltäglichkeit.
+- Test-Suite auf 420 Tests.
+
 ## 1.32.0 - 2026-08-08
 
 - **Der Trade-Republic-Hinweis steht jetzt oben rechts als Icon statt unten im „Zu tun"-Bereich.** Ein rotes Warndreieck neben dem Menü-Button erscheint nur, wenn wirklich etwas ansteht (Anmeldung erforderlich, Sitzung abgelaufen o.ä.), und führt mit einem Klick direkt zur Trade-Republic-Seite – ohne den Text zusätzlich weiter unten zu wiederholen. Ohne Anlass ist von dem Icon nichts zu sehen.

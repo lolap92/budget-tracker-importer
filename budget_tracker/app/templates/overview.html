@@ -4,9 +4,7 @@
 {% block header_title %}Budget-Tracker{% endblock %}
 {% block header_action %}
 <div style="display:flex;gap:8px;">
-  {% if tr_warnung %}
-  <a class="icon-btn accent" href="{{ base }}/trade-republic" aria-label="{{ tr_warnung }}">{{ icons.download() }}</a>
-  {% endif %}
+  <a class="icon-btn accent" href="{{ base }}/trade-republic" aria-label="Trade Republic">{{ icons.download() }}</a>
   <a class="icon-btn" href="{{ base }}/mehr" aria-label="Mehr">{{ icons.menu() }}</a>
 </div>
 {% endblock %}
@@ -67,9 +65,21 @@
 </p>
 {% endif %}
 
-{% if offene_anzahl or umbuchungen_anzahl or import_warnung or kontostand_hinweis %}
+{% if offene_anzahl or umbuchungen_anzahl or import_warnung or kontostand_hinweis or tr_verdacht_anzahl or tr_fehler %}
 <div class="sec-t">Zu tun</div>
 <div class="card" style="padding:4px 16px;">
+  {% if tr_fehler %}
+  <a href="{{ base }}/trade-republic" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot warn"></span><div class="nm">{{ tr_fehler }}</div></div>
+    <div class="todo-amt" style="color:var(--warn);">ansehen</div>
+  </a>
+  {% endif %}
+  {% if tr_verdacht_anzahl %}
+  <a href="{{ base }}/trade-republic" class="topf-row" style="color:inherit;">
+    <div class="who"><span class="tdot warn"></span><div class="nm">{{ tr_verdacht_anzahl }} Bewegung{{ 'en' if tr_verdacht_anzahl != 1 else '' }} zu klären (Trade Republic)</div></div>
+    <div class="todo-amt" style="color:var(--warn);">ansehen</div>
+  </a>
+  {% endif %}
   {% if kontostand_hinweis %}
   <a href="{{ base }}/depot" class="topf-row" style="color:inherit;">
     <div class="who">

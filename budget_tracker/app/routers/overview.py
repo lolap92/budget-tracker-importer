@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app import tr_client, tr_sync, watcher
+from app import tr_sync, watcher
 from app.calculations import (
     kontostand_gesamt,
     letzter_import_zeitpunkt,
@@ -38,31 +38,24 @@ def _import_warnung(status: dict) -> str | None:
     return None
 
 
-def _tr_warnung(db: Session) -> str | None:
-    """Meldet sich nur, wenn der Abgleich ein Eingreifen braucht.
+def _tr_verdacht_anzahl(db: Session) -> int:
+    """Bewegungen aus der Schnittstelle, die auf eine Entscheidung warten -
+    eine echte Aufgabe, kein Fehler."""
+    return db.query(ImportVerdacht).filter(ImportVerdacht.entscheidung.is_(None)).count()
 
-    Zwei Faelle: eine Sitzung, die abgelaufen ist (der Abgleich laeuft dann
-    still ins Leere, was sonst niemandem auffiele), und Bewegungen, die auf
-    eine Entscheidung warten. Wer die Schnittstelle gar nicht nutzt, sieht
-    hier nichts.
+
+def _tr_fehler(db: Session) -> str | None:
+    """Ein echter Fehler beim letzten Abgleich.
+
+    Eine fehlende oder abgelaufene Anmeldung zaehlt bewusst nicht dazu: sie
+    ist bei der taeglichen Nutzung der Normalfall, dafuer steht oben rechts
+    immer der Download-Button. Wer die Schnittstelle gar nicht nutzt oder noch
+    nie einen Abgleich versucht hat, sieht hier nichts.
     """
-    offene = (
-        db.query(ImportVerdacht).filter(ImportVerdacht.entscheidung.is_(None)).count()
-    )
-    if offene:
-        return f"{offene} Bewegung{'en' if offene != 1 else ''} zu klären (Trade Republic)"
-
-    konto = db.query(TradeRepublicKonto).first()
-    if konto is None:
+    if db.query(TradeRepublicKonto).first() is None:
         return None
-    if not tr_client.sitzung_vorhanden():
-        return "Trade Republic: Anmeldung erforderlich"
     status = tr_sync.status()
-    if status.get("erfolgreich") is False:
-        # Der Grund steht schon in status["meldung"] (z.B. "Die Sitzung ist
-        # abgelaufen - bitte neu anmelden.") - lieber den nennen als pauschal
-        # "fehlgeschlagen", sonst sieht eine abgelaufene Sitzung (der mit
-        # Abstand haeufigste Fall) aus wie ein echter Fehler.
+    if status.get("erfolgreich") is False and not status.get("sitzung_verloren"):
         return f"Trade Republic: {status.get('meldung') or 'letzter Abgleich fehlgeschlagen'}"
     return None
 
@@ -130,7 +123,8 @@ def uebersicht(request: Request, db: Session = Depends(get_db)):
             nicht_zugeordnet=nicht_zugeordnet,
             karten=karten,
             import_warnung=_import_warnung(watcher.status()),
-            tr_warnung=_tr_warnung(db),
+            tr_verdacht_anzahl=_tr_verdacht_anzahl(db),
+            tr_fehler=_tr_fehler(db),
             kontostand_hinweis=_kontostand_hinweis(db),
             # Bewusst neben den Toepfen und nicht in ihrer Summe: der Depotwert
             # ist kein Guthaben auf dem Cashkonto.
